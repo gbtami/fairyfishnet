@@ -86,8 +86,8 @@ async def init(loop, producer):
     api = Api(producer)
 
     app = aiohttp.web.Application(loop=loop)
-    app.router.add_route("POST", "/acquire", api.acquire)
-    app.router.add_route("POST", r"/{id:\d+}", api.post)
+    app.router.add_route("POST", "/fishnet/acquire", api.acquire)
+    app.router.add_route("POST", r"/fishnet/{id:\d+}", api.post)
 
     server = await loop.create_server(app.make_handler(), "127.0.0.1", 9000)
     print("Listening on: http://localhost:9000/ ...")
