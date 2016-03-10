@@ -1,8 +1,16 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""Crowd sources analysis for lichess.org"""
+
+__version__ = "0.0.1"
 
 import argparse
 import logging
 import subprocess
+import json
+import time
+import random
 
 try:
     import configparser
@@ -14,8 +22,9 @@ INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 
 class WorkUnit(object):
-    def __init__(self, variant, starting_fen, uci_moves):
+    def __init__(self, variant, game_id, starting_fen, uci_moves):
         self.variant = variant
+        self.game_id = game_id
         self.starting_fen = starting_fen
         self.uci_moves = uci_moves
 
@@ -37,24 +46,41 @@ def send(p, line):
 
 
 def recv(p):
-    line = p.stdout.readline().rstrip()
-    logging.debug("%s >> %s", p.pid, line)
-    return line.rstrip()
+    while True:
+        line = p.stdout.readline()
+        if line == "":
+            raise EOFError()
+        line = line.rstrip()
+
+        logging.debug("%s >> %s", p.pid, line)
+
+        command_and_args = line.split(None, 1)
+        if len(command_and_args) == 1:
+            return command_and_args[0], None
+        elif len(command_and_args) == 2:
+            return command_and_args
 
 
 def uci(p):
     send(p, "uci")
+
+    engine = {}
     while True:
-        line = recv(p)
-        if line == "uciok":
-            break
+        command, arg = recv(p)
+
+        if command == "uciok":
+            return engine
+        elif command == "id":
+            name_and_value = arg.split(None, 1)
+            if len(name_and_value) == 2:
+                engine[name_and_value[0]] = name_and_value[1]
 
 
 def isready(p):
     send(p, "isready")
     while True:
-        line = recv(p)
-        if line == "readyok":
+        command, _ = recv(p)
+        if command == "readyok":
             break
 
 
@@ -76,25 +102,21 @@ def setoptions(p, conf):
     isready(p)
 
 
-def go(p, starting_fen, uci_moves):
+def go(p, conf, starting_fen, uci_moves):
     send(p, "position fen %s moves %s" % (starting_fen, " ".join(uci_moves)))
-    send(p, "go movetime 1000")
+    isready(p)
+    send(p, "go movetime %d" % conf.getint("Fishnet", "Movetime"))
 
     info = {}
     info["score"] = {}
 
     while True:
-        line = recv(p)
-        command_and_args = line.split(None, 1)
-        if not command_and_args:
-            return
-
-        command = command_and_args[0]
+        command, arg = recv(p)
 
         if command == "bestmove":
             return info
         if command == "info":
-            arg = command_and_args[1] if len(command_and_args) > 1 else ""
+            arg = arg or ""
 
             # Find multipv parameter first.
             if "multipv" in arg:
@@ -145,7 +167,7 @@ def go(p, starting_fen, uci_moves):
                         info[current_parameter] = token
 
 
-def analyse(p, unit):
+def analyse(p, conf, unit):
     # TODO: Setup for variant
 
     send(p, "ucinewgame")
@@ -154,20 +176,63 @@ def analyse(p, unit):
     result = []
 
     for ply in range(len(unit.uci_moves), -1, -1):
-        result.insert(0, go(p, unit.starting_fen, unit.uci_moves[0:ply]))
+        logging.info("Analysing http://lichess.org/%s#%d" % (unit.game_id, ply))
+        part = go(p, conf, unit.starting_fen, unit.uci_moves[0:ply])
+        result.insert(0, part)
+
+    return result
 
     print(result)
+
+def quit(p):
+    isready(p)
+
+    send(p, "quit")
+    time.sleep(1)
+
+    if p.poll() is None:
+        logging.warning("Sending SIGTERM to engine process %d" % p.pid)
+        p.terminate()
+        time.sleep(1)
+
+    if p.poll() is None:
+        logging.warning("Sending SIGKILL to engine process %d" % p.pid)
+        p.kill()
 
 
 def main(conf):
     p = open_process(conf)
-    uci(p)
+    logging.info("Started engine process %d: %s" % (p.pid, json.dumps(uci(p))))
     setoptions(p, conf)
-    analyse(p, WorkUnit("standard", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", ["e2e4", "g8f6", "e4e5"]))
+
+    unit = WorkUnit("standard", "abcdefgh", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", ["e2e4", "g8f6", "e4e5"])
+    result = analyse(p, conf, unit)
+
+    quit(p)
+
+def wait(t):
+    logging.info("Waiting %0.2fs" % t)
+    time.sleep(t)
+
+
+def main_loop(conf):
+    backoff = 1 + random.random()
+
+    while True:
+        try:
+            main(conf)
+            backoff = 1 + random.random()
+        except KeyboardInterrupt:
+            return
+        except:
+            t = 0.8 * backoff + 0.2 * backoff * random.random()
+            logging.exception("Backing off %0.1f after exception in main loop", t)
+            time.sleep(t)
+            backoff = min(600, backoff * 2)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Crowd sourced analysis for lichess.org")
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("conf", type=argparse.FileType("r"), nargs="+")
     args = parser.parse_args()
 
@@ -177,4 +242,4 @@ if __name__ == "__main__":
     for c in args.conf:
         conf.readfp(c, c.name)
 
-    main(conf)
+    main_loop(conf)
