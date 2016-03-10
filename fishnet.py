@@ -208,21 +208,30 @@ def quit(p):
 
 def main(conf):
     p = open_process(conf)
-    logging.info("Started engine process %d: %s" % (p.pid, json.dumps(uci(p))))
+    engine_info = uci(p)
+    logging.info("Started engine process %d: %s" % (p.pid, json.dumps(engine_info)))
     setoptions(p, conf)
 
     con = HTTPConnection("127.0.0.1", 9000)
     con.request("GET", "/")
     response = con.getresponse()
     assert response.status == 200
-    d = json.loads(response.read().decode("utf-8"))
+    data = response.read().decode("utf-8")
+    logging.debug("Got work unit: %s" % data)
+    d = json.loads(data)
     con.close()
 
     unit = WorkUnit(d["variant"], d["game_id"], d["position"], d["moves"])
-    result = analyse(p, conf, unit)
+
+    result = {
+        "analysis": analyse(p, conf, unit),
+        "fishnet": __version__,
+        "engine": engine_info,
+    }
 
     quit(p)
 
+    logging.debug("Sending result: %s" % json.dumps(result, indent=2))
     con = HTTPConnection("127.0.0.1", 9000)
     con.request("POST", "/{0}".format(d["game_id"]), json.dumps(result))
     response = con.getresponse()

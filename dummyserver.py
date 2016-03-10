@@ -58,18 +58,21 @@ class Api:
     async def post(self, request):
         game_id = int(request.match_info["id"])
         if game_id in self.games:
-            game = self.games[game_id]
             data = json.loads((await request.content.read()).decode("utf-8"))
+            analysis = data["analysis"]
+
+            game = self.games[game_id]
+            game.headers["Annotator"] = "fishnet %s using %s" % (data["fishnet"], data["engine"]["name"])
 
             ply = 0
             node = game
             while not node.is_end():
                 next_node = node.variation(0)
-                node.comment = fold_score(data[ply]["score"], ply)
+                node.comment = fold_score(analysis[ply]["score"], ply)
                 ply += 1
                 node = next_node
 
-            node.comment = fold_score(data[ply]["score"], ply)
+            node.comment = fold_score(analysis[ply]["score"], ply)
 
             print(game)
             return aiohttp.web.HTTPAccepted()
