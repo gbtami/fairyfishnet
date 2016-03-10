@@ -223,22 +223,23 @@ def main(conf):
     logging.info("Started engine process %d: %s" % (p.pid, json.dumps(engine_info)))
     setoptions(p, conf)
 
-    with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "acquire")) as response:
+    request = {
+        "fishnet": __version__,
+        "engine": engine_info,
+    }
+
+    with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "acquire"), json.dumps(request)) as response:
         assert response.status == 200, "HTTP %d" % response.status
         data = response.read().decode("utf-8")
         logging.debug("Got job: %s" % data)
         job = json.loads(data)
 
-    result = {
-        "analysis": analyse(p, conf, job),
-        "fishnet": __version__,
-        "engine": engine_info,
-    }
+    request["analysis"] = analyse(p, conf, job)
 
     quit(p)
 
-    logging.debug("Sending result: %s", json.dumps(result, indent=2))
-    with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), str(job["game_id"])), json.dumps(result)) as response:
+    logging.debug("Sending result: %s", json.dumps(request, indent=2))
+    with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), str(job["game_id"])), json.dumps(request)) as response:
         assert 200 <= response.status < 300, "HTTP %d" % response.status
 
 

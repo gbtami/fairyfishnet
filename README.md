@@ -31,8 +31,16 @@ Protocol
 
 Client asks server:
 
-```
+```javascript
 POST http://localhost:9000/fishnet/acquire
+
+{
+  "fishnet": "0.0.1",
+  "engine": {
+    "name": "Stockfish 7 64",
+    "author": "T. Romstad, M. Costalba, J. Kiiski, G. Linscott"
+  }
+}
 ```
 
 ```javascript
@@ -57,11 +65,9 @@ POST http://localhost:9000/fishnet/acquire
 
 Client runs Stockfish and sends to server:
 
-```
-POST http://localhost:9000/fishnet/{game_id}
-```
-
 ```javascript
+POST http://localhost:9000/fishnet/{game_id}
+
 {
   "fishnet": "0.0.1",
   "engine": {
