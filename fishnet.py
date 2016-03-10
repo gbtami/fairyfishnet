@@ -23,9 +23,6 @@ except ImportError:
     import ConfigParser as configparser
 
 
-INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-
-
 def open_process(command):
     return subprocess.Popen(conf.get("Fishnet", "EngineCommand"),
         cwd=conf.get("Fishnet", "EngineDir"),
