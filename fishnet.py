@@ -218,16 +218,16 @@ def quit(p):
 
 
 def main(conf):
+    p = open_process(conf)
+    engine_info = uci(p)
+    logging.info("Started engine process %d: %s" % (p.pid, json.dumps(engine_info)))
+    setoptions(p, conf)
+
     with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "acquire")) as response:
         assert response.status == 200, "HTTP %d" % response.status
         data = response.read().decode("utf-8")
         logging.debug("Got job: %s" % data)
         job = json.loads(data)
-
-    p = open_process(conf)
-    engine_info = uci(p)
-    logging.info("Started engine process %d: %s" % (p.pid, json.dumps(engine_info)))
-    setoptions(p, conf)
 
     result = {
         "analysis": analyse(p, conf, job),
