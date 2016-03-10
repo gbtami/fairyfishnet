@@ -24,7 +24,7 @@ def fold_score(score, ply):
     if "cp" in score:
         return str(score["cp"] * (-1) ** ply)
     else:
-        return "#" + str(score["mate"] * (-1) ** ply)
+        return "#%d" % (score["mate"] * (-1) ** ply)
 
 
 class Api:

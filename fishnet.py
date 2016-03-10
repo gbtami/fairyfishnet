@@ -165,8 +165,8 @@ def go(p, conf, starting_fen, uci_moves):
                         info[current_parameter] = token
 
 
-def analyse(p, conf, unit):
-    variant = unit["variant"].lower()
+def analyse(p, conf, job):
+    variant = job["variant"].lower()
     setoption(p, "UCI_Chess960", variant == "chess960")
     setoption(p, "UCI_KingOfTheHill", variant == "kingofthehill")
     setoption(p, "UCI_3Check", variant == "threecheck")
@@ -178,9 +178,9 @@ def analyse(p, conf, unit):
 
     result = []
 
-    for ply in range(len(unit["moves"]), -1, -1):
-        logging.info("Analysing http://lichess.org/%s#%d" % (unit["game_id"], ply))
-        part = go(p, conf, unit["position"], unit["moves"][0:ply])
+    for ply in range(len(job["moves"]), -1, -1):
+        logging.info("Analysing http://lichess.org/%s#%d" % (job["game_id"], ply))
+        part = go(p, conf, job["position"], job["moves"][0:ply])
         result.insert(0, part)
 
     return result
@@ -208,8 +208,8 @@ def main(conf):
     response = con.getresponse()
     assert response.status == 200, "HTTP %d" % response.status
     data = response.read().decode("utf-8")
-    logging.debug("Got work unit: %s" % data)
-    unit = json.loads(data)
+    logging.debug("Got job: %s" % data)
+    job = json.loads(data)
     con.close()
 
     p = open_process(conf)
@@ -218,7 +218,7 @@ def main(conf):
     setoptions(p, conf)
 
     result = {
-        "analysis": analyse(p, conf, unit),
+        "analysis": analyse(p, conf, job),
         "fishnet": __version__,
         "engine": engine_info,
     }
@@ -227,7 +227,7 @@ def main(conf):
 
     logging.debug("Sending result: %s" % json.dumps(result, indent=2))
     con = HTTPConnection("127.0.0.1", 9000)
-    con.request("POST", "/{0}".format(unit["game_id"]), json.dumps(result))
+    con.request("POST", "/{0}".format(job["game_id"]), json.dumps(result))
     response = con.getresponse()
     assert 200 <= response.status < 300, "HTTP %d" % response.status
     con.close()
