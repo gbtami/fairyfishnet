@@ -20,14 +20,23 @@ def jsonp(request, obj):
         content_type="application/json")
 
 
+def fold_score(score):
+    if "cp" in score:
+        return str(score["cp"])
+    else:
+        return "#" + str(score["mate"])
+
+
 class Api:
     def __init__(self, producer):
         self.producer = producer
         self.counter = itertools.count(1)
+        self.games = {}
 
     def get(self, request):
         try:
             game, game_id = next(self.producer), next(self.counter)
+            self.games[game_id] = game
 
             result = {
               "variant": "standard",
@@ -46,6 +55,27 @@ class Api:
         except StopIteration:
             return aiohttp.web.HTTPNotFound(reason="that's all we got")
 
+    async def post(self, request):
+        game_id = int(request.match_info["id"])
+        if game_id in self.games:
+            game = self.games[game_id]
+            data = json.loads((await request.content.read()).decode("utf-8"))
+
+            i = 0
+            node = game
+            while not node.is_end():
+                next_node = node.variation(0)
+                node.comment = fold_score(data[i]["score"])
+                i += 1
+                node = next_node
+
+            node.commet = fold_score(data[i]["score"])
+
+            print(game)
+            return aiohttp.web.HTTPAccepted()
+        else:
+            return aiohttp.web.HTTPNotFound(reason="game id not found")
+
 
 async def init(loop, producer):
     print("---")
@@ -54,6 +84,7 @@ async def init(loop, producer):
 
     app = aiohttp.web.Application(loop=loop)
     app.router.add_route("GET", "/", api.get)
+    app.router.add_route("POST", r"/{id:\d+}", api.post)
 
     server = await loop.create_server(app.make_handler(), "127.0.0.1", 9000)
     print("Listening on: http://localhost:9000/ ...")

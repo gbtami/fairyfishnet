@@ -216,11 +216,18 @@ def main(conf):
     response = con.getresponse()
     assert response.status == 200
     d = json.loads(response.read().decode("utf-8"))
+    con.close()
 
     unit = WorkUnit(d["variant"], d["game_id"], d["position"], d["moves"])
     result = analyse(p, conf, unit)
 
     quit(p)
+
+    con = HTTPConnection("127.0.0.1", 9000)
+    con.request("POST", "/{0}".format(d["game_id"]), json.dumps(result))
+    response = con.getresponse()
+    assert 200 <= response.status < 300
+    con.close()
 
 
 def wait(t):
@@ -239,7 +246,7 @@ def main_loop(conf):
             return
         except:
             t = 0.8 * backoff + 0.2 * backoff * random.random()
-            logging.exception("Backing off %0.1f after exception in main loop", t)
+            logging.exception("Backing off %0.1fs after exception in main loop", t)
             time.sleep(t)
             backoff = min(600, backoff * 2)
 
@@ -249,7 +256,7 @@ if __name__ == "__main__":
     parser.add_argument("conf", type=argparse.FileType("r"), nargs="+")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     conf = configparser.SafeConfigParser()
     for c in args.conf:
