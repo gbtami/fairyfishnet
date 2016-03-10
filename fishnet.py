@@ -11,16 +11,34 @@ import subprocess
 import json
 import time
 import random
+import contextlib
 
 try:
     from httplib import HTTPConnection
+    from httplib import HTTPSConnection
 except ImportError:
     from http.client import HTTPConnection
+    from http.client import HTTPSConnection
+
+try:
+    import urlparse
+except ImportError:
+    import urllib.parse as urlparse
 
 try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
+
+
+@contextlib.contextmanager
+def http_request(method, url, body=None):
+    u = urlparse.urlparse(url)
+    print(u.path)
+    con = HTTPConnection(u.hostname, u.port or 80)
+    con.request(method, u.path, body)
+    yield con.getresponse()
+    con.close()
 
 
 def open_process(command):
@@ -200,14 +218,11 @@ def quit(p):
 
 
 def main(conf):
-    con = HTTPConnection("127.0.0.1", 9000)
-    con.request("POST", "/acquire")
-    response = con.getresponse()
-    assert response.status == 200, "HTTP %d" % response.status
-    data = response.read().decode("utf-8")
-    logging.debug("Got job: %s" % data)
-    job = json.loads(data)
-    con.close()
+    with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "acquire")) as response:
+        assert response.status == 200, "HTTP %d" % response.status
+        data = response.read().decode("utf-8")
+        logging.debug("Got job: %s" % data)
+        job = json.loads(data)
 
     p = open_process(conf)
     engine_info = uci(p)
@@ -223,11 +238,8 @@ def main(conf):
     quit(p)
 
     logging.debug("Sending result: %s" % json.dumps(result, indent=2))
-    con = HTTPConnection("127.0.0.1", 9000)
-    con.request("POST", "/{0}".format(job["game_id"]), json.dumps(result))
-    response = con.getresponse()
-    assert 200 <= response.status < 300, "HTTP %d" % response.status
-    con.close()
+    with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), str(job["game_id"])), json.dumps(result)) as response:
+        assert 200 <= response.status < 300, "HTTP %d" % response.status
 
 
 def wait(t):
