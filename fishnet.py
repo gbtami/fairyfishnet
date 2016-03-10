@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Crowd sources analysis for lichess.org"""
+"""Distributed analysis for lichess.org"""
 
 __version__ = "0.0.1"
 
@@ -24,14 +24,6 @@ except ImportError:
 
 
 INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-
-
-class WorkUnit(object):
-    def __init__(self, variant, game_id, starting_fen, uci_moves):
-        self.variant = variant
-        self.game_id = game_id
-        self.starting_fen = starting_fen
-        self.uci_moves = uci_moves
 
 
 def open_process(command):
@@ -69,16 +61,17 @@ def recv(p):
 def uci(p):
     send(p, "uci")
 
-    engine = {}
+    engine_info = {}
+
     while True:
         command, arg = recv(p)
 
         if command == "uciok":
-            return engine
+            return engine_info
         elif command == "id":
             name_and_value = arg.split(None, 1)
             if len(name_and_value) == 2:
-                engine[name_and_value[0]] = name_and_value[1]
+                engine_info[name_and_value[0]] = name_and_value[1]
 
 
 def isready(p):
@@ -173,21 +166,24 @@ def go(p, conf, starting_fen, uci_moves):
 
 
 def analyse(p, conf, unit):
-    # TODO: Setup for variant
+    variant = unit["variant"].lower()
+    setoption(p, "UCI_Chess960", variant == "chess960")
+    setoption(p, "UCI_KingOfTheHill", variant == "kingofthehill")
+    setoption(p, "UCI_3Check", variant == "threecheck")
+    setoption(p, "UCI_Horde", variant == "horde")
+    isready(p)
 
     send(p, "ucinewgame")
-    send(p, "isready")
+    isready(p)
 
     result = []
 
-    for ply in range(len(unit.uci_moves), -1, -1):
-        logging.info("Analysing http://lichess.org/%s#%d" % (unit.game_id, ply))
-        part = go(p, conf, unit.starting_fen, unit.uci_moves[0:ply])
+    for ply in range(len(unit["moves"]), -1, -1):
+        logging.info("Analysing http://lichess.org/%s#%d" % (unit["game_id"], ply))
+        part = go(p, conf, unit["position"], unit["moves"][0:ply])
         result.insert(0, part)
 
     return result
-
-    print(result)
 
 
 def quit(p):
@@ -207,21 +203,19 @@ def quit(p):
 
 
 def main(conf):
+    con = HTTPConnection("127.0.0.1", 9000)
+    con.request("GET", "/")
+    response = con.getresponse()
+    assert response.status == 200, "HTTP %d" % response.status
+    data = response.read().decode("utf-8")
+    logging.debug("Got work unit: %s" % data)
+    unit = json.loads(data)
+    con.close()
+
     p = open_process(conf)
     engine_info = uci(p)
     logging.info("Started engine process %d: %s" % (p.pid, json.dumps(engine_info)))
     setoptions(p, conf)
-
-    con = HTTPConnection("127.0.0.1", 9000)
-    con.request("GET", "/")
-    response = con.getresponse()
-    assert response.status == 200
-    data = response.read().decode("utf-8")
-    logging.debug("Got work unit: %s" % data)
-    d = json.loads(data)
-    con.close()
-
-    unit = WorkUnit(d["variant"], d["game_id"], d["position"], d["moves"])
 
     result = {
         "analysis": analyse(p, conf, unit),
@@ -233,9 +227,9 @@ def main(conf):
 
     logging.debug("Sending result: %s" % json.dumps(result, indent=2))
     con = HTTPConnection("127.0.0.1", 9000)
-    con.request("POST", "/{0}".format(d["game_id"]), json.dumps(result))
+    con.request("POST", "/{0}".format(unit["game_id"]), json.dumps(result))
     response = con.getresponse()
-    assert 200 <= response.status < 300
+    assert 200 <= response.status < 300, "HTTP %d" % response.status
     con.close()
 
 
