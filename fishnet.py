@@ -41,7 +41,7 @@ def http_request(method, url, body=None):
     con.close()
 
 
-def open_process(command):
+def open_process(conf):
     return subprocess.Popen(conf.get("Fishnet", "EngineCommand"),
         cwd=conf.get("Fishnet", "EngineDir"),
         stdout=subprocess.PIPE,
@@ -237,14 +237,9 @@ def main(conf):
 
     quit(p)
 
-    logging.debug("Sending result: %s" % json.dumps(result, indent=2))
+    logging.debug("Sending result: %s", json.dumps(result, indent=2))
     with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), str(job["game_id"])), json.dumps(result)) as response:
         assert 200 <= response.status < 300, "HTTP %d" % response.status
-
-
-def wait(t):
-    logging.info("Waiting %0.2fs" % t)
-    time.sleep(t)
 
 
 def main_loop(conf):
