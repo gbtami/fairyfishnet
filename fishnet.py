@@ -13,6 +13,11 @@ import time
 import random
 
 try:
+    from httplib import HTTPConnection
+except ImportError:
+    from http.client import HTTPConnection
+
+try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
@@ -184,6 +189,7 @@ def analyse(p, conf, unit):
 
     print(result)
 
+
 def quit(p):
     isready(p)
 
@@ -205,10 +211,17 @@ def main(conf):
     logging.info("Started engine process %d: %s" % (p.pid, json.dumps(uci(p))))
     setoptions(p, conf)
 
-    unit = WorkUnit("standard", "abcdefgh", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", ["e2e4", "g8f6", "e4e5"])
+    con = HTTPConnection("127.0.0.1", 9000)
+    con.request("GET", "/")
+    response = con.getresponse()
+    assert response.status == 200
+    d = json.loads(response.read().decode("utf-8"))
+
+    unit = WorkUnit(d["variant"], d["game_id"], d["position"], d["moves"])
     result = analyse(p, conf, unit)
 
     quit(p)
+
 
 def wait(t):
     logging.info("Waiting %0.2fs" % t)
