@@ -32,7 +32,7 @@ Protocol
 Client asks server:
 
 ```
-GET http://localhost:9000/
+POST http://localhost:9000/acquire
 ```
 
 ```javascript

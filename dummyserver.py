@@ -33,7 +33,7 @@ class Api:
         self.counter = itertools.count(1)
         self.games = {}
 
-    def get(self, request):
+    def acquire(self, request):
         try:
             game, game_id = next(self.producer), next(self.counter)
             self.games[game_id] = game
@@ -86,7 +86,7 @@ async def init(loop, producer):
     api = Api(producer)
 
     app = aiohttp.web.Application(loop=loop)
-    app.router.add_route("GET", "/", api.get)
+    app.router.add_route("POST", "/acquire", api.acquire)
     app.router.add_route("POST", r"/{id:\d+}", api.post)
 
     server = await loop.create_server(app.make_handler(), "127.0.0.1", 9000)

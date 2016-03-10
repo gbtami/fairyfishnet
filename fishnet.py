@@ -204,7 +204,7 @@ def quit(p):
 
 def main(conf):
     con = HTTPConnection("127.0.0.1", 9000)
-    con.request("GET", "/")
+    con.request("POST", "/acquire")
     response = con.getresponse()
     assert response.status == 200, "HTTP %d" % response.status
     data = response.read().decode("utf-8")
