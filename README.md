@@ -1,5 +1,5 @@
-fishtest
-========
+fishnet
+=======
 
 Distributed Stockfish analysis for lichess.org
 
