@@ -14,11 +14,9 @@ import random
 import contextlib
 
 try:
-    from httplib import HTTPConnection
-    from httplib import HTTPSConnection
+    import httplib
 except ImportError:
-    from http.client import HTTPConnection
-    from http.client import HTTPSConnection
+    import http.client as httplib
 
 try:
     import urlparse
@@ -34,8 +32,10 @@ except ImportError:
 @contextlib.contextmanager
 def http_request(method, url, body=None):
     u = urlparse.urlparse(url)
-    print(u.path)
-    con = HTTPConnection(u.hostname, u.port or 80)
+    if u.scheme == "https":
+        con = httplib.HTTPSConnection(u.hostname, u.port or 443)
+    else:
+        con = httplib.HTTPConnection(u.hostname, u.port or 80)
     con.request(method, u.path, body)
     yield con.getresponse()
     con.close()
