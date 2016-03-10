@@ -32,7 +32,7 @@ Protocol
 Client asks server:
 
 ```
-POST http://localhost:9000/acquire
+POST http://localhost:9000/fishnet/acquire
 ```
 
 ```javascript
@@ -58,7 +58,7 @@ POST http://localhost:9000/acquire
 Client runs Stockfish and sends to server:
 
 ```
-POST http://localhost:9000/{game_id}
+POST http://localhost:9000/fishnet/{game_id}
 ```
 
 ```javascript
