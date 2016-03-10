@@ -257,9 +257,10 @@ def main_loop(conf):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("conf", type=argparse.FileType("r"), nargs="+")
+    parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
 
     conf = configparser.SafeConfigParser()
     for c in args.conf:
