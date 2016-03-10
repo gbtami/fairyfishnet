@@ -256,7 +256,7 @@ if __name__ == "__main__":
     parser.add_argument("conf", type=argparse.FileType("r"), nargs="+")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
 
     conf = configparser.SafeConfigParser()
     for c in args.conf:

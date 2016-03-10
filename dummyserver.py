@@ -20,11 +20,11 @@ def jsonp(request, obj):
         content_type="application/json")
 
 
-def fold_score(score):
+def fold_score(score, ply):
     if "cp" in score:
-        return str(score["cp"])
+        return str(score["cp"] * (-1) ** ply)
     else:
-        return "#" + str(score["mate"])
+        return "#" + str(score["mate"] * (-1) ** ply)
 
 
 class Api:
@@ -61,15 +61,15 @@ class Api:
             game = self.games[game_id]
             data = json.loads((await request.content.read()).decode("utf-8"))
 
-            i = 0
+            ply = 0
             node = game
             while not node.is_end():
                 next_node = node.variation(0)
-                node.comment = fold_score(data[i]["score"])
-                i += 1
+                node.comment = fold_score(data[ply]["score"], ply)
+                ply += 1
                 node = next_node
 
-            node.commet = fold_score(data[i]["score"])
+            node.comment = fold_score(data[ply]["score"], ply)
 
             print(game)
             return aiohttp.web.HTTPAccepted()
