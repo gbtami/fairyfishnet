@@ -14,6 +14,7 @@ import random
 import contextlib
 import multiprocessing
 import threading
+import sys
 
 try:
     import httplib
@@ -303,11 +304,9 @@ def main_loop(conf):
         try:
             main(conf)
             backoff = 1 + random.random()
-        except KeyboardInterrupt:
-            return
         except NoJobFound:
             t = 0.5 * backoff + 0.5 * backoff * random.random()
-            logging.error("No job found. Backing off %0.1fs", t)
+            logging.warn("No job found. Backing off %0.1fs", t)
             time.sleep(t)
             backoff = min(600, backoff * 2)
         except:
@@ -325,7 +324,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Setup logging
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
+    logging.basicConfig(
+        format="%(levelname)s:%(name)s:%(threadName)s:%(message)s",
+        level=logging.DEBUG if args.verbose else logging.INFO)
 
     # Parse polyglot.ini
     conf = configparser.SafeConfigParser()
@@ -348,4 +349,11 @@ if __name__ == "__main__":
     # Start engine processes
     for _ in range(num_processes):
         thread = threading.Thread(target=main_loop, args=[conf])
+        thread.daemon = True
         thread.start()
+
+    try:
+        while True:
+            time.sleep(10)
+    except KeyboardInterrupt:
+        sys.exit(0)
