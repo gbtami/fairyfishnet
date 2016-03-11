@@ -44,6 +44,8 @@ POST http://localhost:9000/fishnet/acquire
 ```
 
 ```javascript
+200 OK
+
 {
   "game_id": 1,
   "position": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -112,4 +114,8 @@ POST http://localhost:9000/fishnet/{game_id}
     }
   ]
 }
+```
+
+```
+202 Accepted
 ```
