@@ -81,7 +81,7 @@ class Api:
 
 
 async def init(loop, producer):
-    print("---")
+    print("; ---")
 
     api = Api(producer)
 
@@ -90,9 +90,9 @@ async def init(loop, producer):
     app.router.add_route("POST", r"/fishnet/{id:\d+}", api.post)
 
     server = await loop.create_server(app.make_handler(), "127.0.0.1", 9000)
-    print("Listening on: http://localhost:9000/ ...")
+    print("; Listening on: http://localhost:9000/ ...")
 
-    print("---")
+    print("; ---")
     return server
 
 

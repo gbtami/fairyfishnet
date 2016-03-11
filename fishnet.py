@@ -347,10 +347,12 @@ if __name__ == "__main__":
     logging.info("Using %d engine processes on %d cores", num_processes, multiprocessing.cpu_count())
 
     # Start engine processes
+    threads = []
     for _ in range(num_processes):
         thread = threading.Thread(target=main_loop, args=[conf])
         thread.daemon = True
         thread.start()
+        threads.append(thread)
 
     try:
         while True:
