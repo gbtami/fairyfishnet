@@ -264,7 +264,10 @@ def main(conf):
     setoptions(p, conf)
 
     request = {
-        "version": __version__,
+        "fishnet": {
+            "version": __version__,
+            "apikey": conf.get("Fishnet", "Apikey"),
+        },
         "engine": engine_info,
     }
 

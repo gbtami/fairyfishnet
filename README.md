@@ -25,7 +25,7 @@ Copy the default config:
 ```
 cp polyglot.ini.default polyglot.ini
 ```
-and configure `EngineDir` and `EngineCommand ` in `polyglot.ini`.
+and configure `EngineDir`, `EngineCommand` and `Apikey` in `polyglot.ini`.
 
 Run the client:
 
@@ -42,7 +42,10 @@ Client asks server:
 POST http://localhost:9000/fishnet/acquire
 
 {
-  "fishnet": "0.0.1",
+  "fishnet": {
+    "version": "0.0.1",
+    "apikey": "XXX"
+  },
   "engine": {
     "name": "Stockfish 7 64",
     "author": "T. Romstad, M. Costalba, J. Kiiski, G. Linscott"
@@ -78,7 +81,10 @@ Client runs Stockfish and sends to server:
 POST http://localhost:9000/fishnet/{game_id}
 
 {
-  "fishnet": "0.0.1",
+  "fishnet": {
+    "version": "0.0.1",
+    "apikey": "XXX"
+  },
   "engine": {
     "name": "Stockfish 7 64",
     "author": "T. Romstad, M. Costalba, J. Kiiski, G. Linscott"

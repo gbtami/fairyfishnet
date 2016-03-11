@@ -1,4 +1,5 @@
 [Fishnet]
+Apikey=XXX
 EngineDir = Stockfish/src/
 EngineCommand = ./stockfish
 Endpoint = http://localhost:9000/fishnet/
