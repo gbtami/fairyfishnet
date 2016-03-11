@@ -17,7 +17,7 @@ pip install -r dummyserver-requirements.txt
 Run the dummy server:
 
 ```
-./dummyserver molinari-bordais-1979.pgn
+./dummyserver.py molinari-bordais-1979.pgn
 ```
 
 Run the client:
