@@ -208,9 +208,12 @@ def go(p, conf, starting_fen, uci_moves):
 def analyse(p, conf, job):
     variant = job["variant"].lower()
     setoption(p, "UCI_Chess960", variant == "chess960")
-    setoption(p, "UCI_KingOfTheHill", variant == "kingofthehill")
-    setoption(p, "UCI_3Check", variant == "threecheck")
+    setoption(p, "UCI_Atomic", variant == "atomic")
     setoption(p, "UCI_Horde", variant == "horde")
+    setoption(p, "UCI_House", variant == "crazyhouse")
+    setoption(p, "UCI_KingOfTheHill", variant == "kingofthehill")
+    setoption(p, "UCI_Race", variant == "racingkings")
+    setoption(p, "UCI_3Check", variant == "threecheck")
     isready(p)
 
     send(p, "ucinewgame")
