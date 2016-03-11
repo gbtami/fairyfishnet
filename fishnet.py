@@ -150,6 +150,11 @@ def go(p, conf, starting_fen, uci_moves):
         command, arg = recv(p)
 
         if command == "bestmove":
+            bestmove = arg.split()[0]
+            if bestmove and bestmove != "(none)":
+                info["bestmove"] = bestmove
+            else:
+                info["bestmove"] = None
             return info
         elif command == "info":
             arg = arg or ""
