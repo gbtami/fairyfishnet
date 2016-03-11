@@ -12,6 +12,8 @@ import json
 import time
 import random
 import contextlib
+import multiprocessing
+import threading
 
 try:
     import httplib
@@ -27,6 +29,10 @@ try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
+
+
+class NoJobFound(Exception):
+    pass
 
 
 @contextlib.contextmanager
@@ -93,6 +99,13 @@ def uci(p):
             name_and_value = arg.split(None, 1)
             if len(name_and_value) == 2:
                 engine_info[name_and_value[0]] = name_and_value[1]
+        elif command == "option":
+            pass
+        elif command == "Stockfish":
+            # Ignore identification line
+            pass
+        else:
+            logging.warn("Unknown command: %s", command)
 
 
 def isready(p):
@@ -101,6 +114,8 @@ def isready(p):
         command, _ = recv(p)
         if command == "readyok":
             break
+        else:
+            logging.warn("Unknown command: %s", command)
 
 
 def setoption(p, name, value):
@@ -134,7 +149,7 @@ def go(p, conf, starting_fen, uci_moves):
 
         if command == "bestmove":
             return info
-        if command == "info":
+        elif command == "info":
             arg = arg or ""
 
             # Find multipv parameter first.
@@ -184,6 +199,8 @@ def go(p, conf, starting_fen, uci_moves):
                         info[current_parameter] += " " + token
                     else:
                         info[current_parameter] = token
+        else:
+            logging.warn("Unknown command: %s", command)
 
 
 def analyse(p, conf, job):
@@ -251,6 +268,9 @@ def main(conf):
     }
 
     with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "acquire"), json.dumps(request)) as response:
+        if response.status == 404:
+            raise NoJobFound()
+
         assert response.status == 200, "HTTP %d" % response.status
         data = response.read().decode("utf-8")
         logging.debug("Got job: %s" % data)
@@ -266,6 +286,7 @@ def main(conf):
 
 
 def main_loop(conf):
+    # Initial benchmark.
     nps = bench(conf)
     logging.info("Benchmark determined nodes/second: %d", nps)
     if not conf.has_option("Fishnet", "Movetime"):
@@ -283,6 +304,11 @@ def main_loop(conf):
             backoff = 1 + random.random()
         except KeyboardInterrupt:
             return
+        except NoJobFound:
+            t = 0.5 * backoff + 0.5 * backoff * random.random()
+            logging.error("No job found. Backing off %0.1fs", t)
+            time.sleep(t)
+            backoff = min(600, backoff * 2)
         except:
             t = 0.8 * backoff + 0.2 * backoff * random.random()
             logging.exception("Backing off %0.1fs after exception in main loop", t)
@@ -291,15 +317,34 @@ def main_loop(conf):
 
 
 if __name__ == "__main__":
+    # Parse command line arguments
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("conf", type=argparse.FileType("r"), nargs="+")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
+    # Setup logging
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
 
+    # Parse polyglot.ini
     conf = configparser.SafeConfigParser()
     for c in args.conf:
         conf.readfp(c, c.name)
 
-    main_loop(conf)
+    # Get number of threads per engine process
+    if conf.has_option("Engine", "Threads"):
+        threads_per_process = max(conf.getint("Engine", "Threads"), 1)
+    else:
+        threads_per_process = 1
+
+    # Determine number of engine processes to start
+    num_processes = (multiprocessing.cpu_count() - 1) // threads_per_process
+    if conf.has_option("Fishnet", "Processes"):
+        num_processes = min(conf.getint("Fishnet", "Processes"), num_processes)
+    num_processes = max(num_processes, 1)
+    logging.info("Using %d engine processes on %d cores", num_processes, multiprocessing.cpu_count())
+
+    # Start engine processes
+    for _ in range(num_processes):
+        thread = threading.Thread(target=main_loop, args=[conf])
+        thread.start()
