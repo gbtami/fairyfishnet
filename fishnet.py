@@ -316,14 +316,13 @@ def main_loop(conf):
             backoff = min(600, backoff * 2)
 
 def intro():
-    print("""
+    print("""\
   _____ _     _     _   _      _
  |  ___(_)___| |__ | \ | | ___| |_
  | |_  | / __| '_ \|  \| |/ _ \ __|
  |  _| | \__ \ | | | |\  |  __/ |_
  |_|   |_|___/_| |_|_| \_|\___|\__| %s
  Distributed Stockfish analysis for lichess.org
-
 """ % __version__)
 
 if __name__ == "__main__":
@@ -335,6 +334,7 @@ if __name__ == "__main__":
 
     # Setup logging
     logging.basicConfig(
+        stream=sys.stdout,
         format="%(levelname)s:%(name)s:%(threadName)s:%(message)s",
         level=logging.DEBUG if args.verbose else logging.INFO)
 
@@ -343,13 +343,13 @@ if __name__ == "__main__":
     for c in args.conf:
         conf.readfp(c, c.name)
 
+    intro()
+
     # Get number of threads per engine process
     if conf.has_option("Engine", "Threads"):
         threads_per_process = max(conf.getint("Engine", "Threads"), 1)
     else:
         threads_per_process = 1
-
-    intro()
 
     # Determine number of engine processes to start
     num_processes = (multiprocessing.cpu_count() - 1) // threads_per_process
