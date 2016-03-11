@@ -286,7 +286,7 @@ def main(conf):
 
 
 def main_loop(conf):
-    # Initial benchmark.
+    # Initial benchmark
     nps = bench(conf)
     logging.info("Benchmark determined nodes/second: %d", nps)
     if not conf.has_option("Fishnet", "Movetime"):
@@ -298,6 +298,7 @@ def main_loop(conf):
 
     backoff = 1 + random.random()
 
+    # Continuously request and run jobs
     while True:
         try:
             main(conf)
