@@ -62,7 +62,7 @@ class Api:
             analysis = data["analysis"]
 
             game = self.games[game_id]
-            game.headers["Annotator"] = "fishnet %s using %s" % (data["fishnet"], data["engine"]["name"])
+            game.headers["Annotator"] = "fishnet %s using %s" % (data["version"], data["engine"]["name"])
 
             ply = 0
             node = game

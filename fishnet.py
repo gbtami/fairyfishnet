@@ -264,7 +264,7 @@ def main(conf):
     setoptions(p, conf)
 
     request = {
-        "fishnet": __version__,
+        "version": __version__,
         "engine": engine_info,
     }
 
@@ -317,10 +317,10 @@ def main_loop(conf):
 
 def intro():
     print("""
-  _____ _     _     _   _      _   
- |  ___(_)___| |__ | \ | | ___| |_ 
+  _____ _     _     _   _      _
+ |  ___(_)___| |__ | \ | | ___| |_
  | |_  | / __| '_ \|  \| |/ _ \ __|
- |  _| | \__ \ | | | |\  |  __/ |_ 
+ |  _| | \__ \ | | | |\  |  __/ |_
  |_|   |_|___/_| |_|_| \_|\___|\__| %s
  Distributed Stockfish analysis for lichess.org
 
