@@ -20,6 +20,13 @@ Run the dummy server:
 ./dummyserver.py molinari-bordais-1979.pgn
 ```
 
+Copy the default config:
+
+```
+cp polyglot.ini.default polyglot.ini
+```
+and configure `EngineDir` and `EngineCommand ` in `polyglot.ini`.
+
 Run the client:
 
 ```
