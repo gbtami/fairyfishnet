@@ -41,13 +41,19 @@ def http_request(method, url, body=None):
     con.close()
 
 
-def open_process(conf):
-    return subprocess.Popen(conf.get("Fishnet", "EngineCommand"),
-        cwd=conf.get("Fishnet", "EngineDir"),
-        stdout=subprocess.PIPE,
-        stdin=subprocess.PIPE,
-        bufsize=1,
-        universal_newlines=True)
+def open_process(conf, **kwargs):
+    opts = {
+        "cwd": conf.get("Fishnet", "EngineDir"),
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.STDOUT,
+        "stdin": subprocess.PIPE,
+        "bufsize": 1,
+        "universal_newlines": True,
+    }
+
+    opts.update(kwargs)
+
+    return subprocess.Popen(conf.get("Fishnet", "EngineCommand"), **opts)
 
 
 def send(p, line):
@@ -68,7 +74,7 @@ def recv(p):
 
         command_and_args = line.split(None, 1)
         if len(command_and_args) == 1:
-            return command_and_args[0], None
+            return command_and_args[0], ""
         elif len(command_and_args) == 2:
             return command_and_args
 
@@ -217,6 +223,22 @@ def quit(p):
         p.kill()
 
 
+def bench(conf):
+    p = open_process(conf)
+    uci(p)
+    setoptions(p, conf)
+
+    send(p, "bench")
+
+    while True:
+        line = " ".join(recv(p))
+        if line.lower().startswith("nodes/second"):
+            _, nps = line.split(":")
+            return int(nps.strip())
+
+    quit(p)
+
+
 def main(conf):
     p = open_process(conf)
     engine_info = uci(p)
@@ -244,6 +266,15 @@ def main(conf):
 
 
 def main_loop(conf):
+    nps = bench(conf)
+    logging.info("Benchmark determined nodes/second: %d", nps)
+    if not conf.has_option("Fishnet", "Movetime"):
+        movetime = int(3000000 * 1000 / nps)
+        conf.set("Fishnet", "Movetime", str(movetime))
+        logging.info("Setting movetime: %d", movetime)
+    else:
+        logging.info("Using movetime: %d", conf.getint("Fishnet", "Movetime"))
+
     backoff = 1 + random.random()
 
     while True:
