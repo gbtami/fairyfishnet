@@ -59,11 +59,13 @@ POST http://localhost:9000/fishnet/acquire
 
 {
   "work": {
-    "type": "analysis"
+    "type": "analysis",
+    "id": "workid"
   },
   // or:
   // "work": {
   //   "type": "move",
+  //   "id": "workid",
   //   "level": 5 // 1 to 8
   // },
   "game_id": "abcdefgh",
@@ -99,6 +101,7 @@ POST http://localhost:9000/fishnet/{game_id}
     "name": "Stockfish 7 64",
     "author": "T. Romstad, M. Costalba, J. Kiiski, G. Linscott"
   },
+  "work_id": "workid",
   "analysis": [
     {  // first ply
       "pv": [
