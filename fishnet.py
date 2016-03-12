@@ -295,7 +295,7 @@ def main(conf, uuid):
     quit(p)
 
     logging.debug("Sending result: %s", json.dumps(request, indent=2))
-    with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), str(job["game_id"])), json.dumps(request)) as response:
+    with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "analysis", str(job["game_id"])), json.dumps(request)) as response:
         assert 200 <= response.status < 300, "HTTP %d" % response.status
 
 

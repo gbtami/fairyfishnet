@@ -89,7 +89,7 @@ POST http://localhost:9000/fishnet/acquire
 Client runs Stockfish and sends the analysis to server:
 
 ```javascript
-POST http://localhost:9000/fishnet/{work_id}
+POST http://localhost:9000/fishnet/analysis/{work_id}
 
 {
   "fishnet": {
@@ -144,7 +144,7 @@ POST http://localhost:9000/fishnet/{work_id}
 Or the move:
 
 ```javascript
-POST http://localhost:9000/fishnet/{work_id}
+POST http://localhost:9000/fishnet/move/{work_id}
 
 {
   "fishnet": {
