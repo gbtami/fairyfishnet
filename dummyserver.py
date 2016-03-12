@@ -50,6 +50,7 @@ class Api:
                 next_node = node.variation(0)
                 result["moves"].append(next_node.move.uci())
                 node = next_node
+            result["moves"] = ' '.join(result['moves'])
 
             return jsonp(request, result)
         except StopIteration:

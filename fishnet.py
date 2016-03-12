@@ -139,7 +139,7 @@ def setoptions(p, conf):
 
 
 def go(p, conf, starting_fen, uci_moves):
-    send(p, "position fen %s moves %s" % (starting_fen, " ".join(uci_moves)))
+    send(p, "position fen %s moves %s" % (starting_fen, uci_moves))
     isready(p)
     send(p, "go movetime %d" % conf.getint("Fishnet", "Movetime"))
 
