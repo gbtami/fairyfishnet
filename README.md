@@ -86,10 +86,10 @@ POST http://localhost:9000/fishnet/acquire
 }
 ```
 
-Client runs Stockfish and sends to server:
+Client runs Stockfish and sends the analysis to server:
 
 ```javascript
-POST http://localhost:9000/fishnet/{game_id}
+POST http://localhost:9000/fishnet/{work_id}
 
 {
   "fishnet": {
@@ -101,7 +101,6 @@ POST http://localhost:9000/fishnet/{game_id}
     "name": "Stockfish 7 64",
     "author": "T. Romstad, M. Costalba, J. Kiiski, G. Linscott"
   },
-  "work_id": "workid",
   "analysis": [
     {  // first ply
       "pv": [
