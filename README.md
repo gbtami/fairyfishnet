@@ -71,18 +71,7 @@ POST http://localhost:9000/fishnet/acquire
   "game_id": "abcdefgh",
   "position": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
   "variant": "standard",
-  "moves": [
-    "e2e4",
-    "c7c5",
-    "c2c4",
-    "b8c6",
-    "g1e2",
-    "g8f6",
-    "b1c3",
-    "c6b4",
-    "g2g3",
-    "b4d3"
-  ]
+  "moves": "e2e4 c7c5 c2c4 b8c6 g1e2 g8f6 b1c3 c6b4 g2g3 b4d3"
 }
 ```
 
@@ -103,9 +92,7 @@ POST http://localhost:9000/fishnet/analysis/{work_id}
   },
   "analysis": [
     {  // first ply
-      "pv": [
-        "e2e4", "e7e5", "g1f3", "g8f6",  // ...
-      ],
+      "pv": "e2e4 e7e5 g1f3 g8f6",
       "seldepth": 24,
       "tbhits": 0,
       "depth": 18,
@@ -118,9 +105,7 @@ POST http://localhost:9000/fishnet/analysis/{work_id}
     },
     // ...
     {  // second last ply
-      "pv": [
-        "b4d3"
-      ],
+      "pv": "b4d3",
       "seldepth": 2,
       "tbhits": 0,
       "depth": 127,

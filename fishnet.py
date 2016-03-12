@@ -181,7 +181,7 @@ def go(p, conf, starting_fen, uci_moves):
                 elif token == "pv":
                     current_parameter = "pv"
                     if info.get("multipv", 1) == 1:
-                        info["pv"] = []
+                        info["pv"] = ""
                 elif token in ["depth", "seldepth", "time", "nodes", "multipv", "score", "currmove", "currmovenumber", "hashfull", "nps", "tbhits", "cpuload", "refutation", "currline", "string"]:
                     current_parameter = token
                 elif current_parameter in ["depth", "seldepth", "time", "nodes", "currmovenumber", "hashfull", "nps", "tbhits", "cpuload"]:
@@ -200,7 +200,7 @@ def go(p, conf, starting_fen, uci_moves):
                         info["score"][score_kind] = int(token)
                 elif current_parameter == "pv":
                     if info.get("multipv", 1) == 1:
-                        info["pv"].append(token)
+                        info["pv"] + " " + token
                 else:
                     if current_parameter in info:
                         info[current_parameter] += " " + token
