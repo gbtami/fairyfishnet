@@ -44,8 +44,7 @@ POST http://localhost:9000/fishnet/acquire
 {
   "fishnet": {
     "version": "0.0.1",
-    "apikey": "XXX",
-    "uuid": "b7ef2a7e-3a5d-4f0d-b7aa-b3e9a3b1fe5d"  // generated when starting
+    "apikey": "XXX"
   },
   "engine": {
     "name": "Stockfish 7 64",
@@ -83,8 +82,7 @@ POST http://localhost:9000/fishnet/analysis/{work_id}
 {
   "fishnet": {
     "version": "0.0.1",
-    "apikey": "XXX",
-    "uuid": "b7ef2a7e-3a5d-4f0d-b7aa-b3e9a3b1fe5d"
+    "apikey": "XXX"
   },
   "engine": {
     "name": "Stockfish 7 64",
@@ -134,8 +132,7 @@ POST http://localhost:9000/fishnet/move/{work_id}
 {
   "fishnet": {
     "version": "0.0.1",
-    "apikey": "XXX",
-    "uuid": "b7ef2a7e-3a5d-4f0d-b7aa-b3e9a3b1fe5d"
+    "apikey": "XXX"
   },
   "engine": {
     "name": "Stockfish 7 64",

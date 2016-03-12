@@ -15,7 +15,6 @@ import contextlib
 import multiprocessing
 import threading
 import sys
-import uuid
 
 try:
     import httplib
@@ -266,7 +265,7 @@ def bench(conf):
     quit(p)
 
 
-def main(conf, uuid):
+def main(conf):
     p = open_process(conf)
     engine_info = uci(p)
     logging.info("Started engine process %d: %s" % (p.pid, json.dumps(engine_info)))
@@ -276,7 +275,6 @@ def main(conf, uuid):
         "fishnet": {
             "version": __version__,
             "apikey": conf.get("Fishnet", "Apikey"),
-            "uuid": uuid,
         },
         "engine": engine_info,
     }
@@ -299,7 +297,7 @@ def main(conf, uuid):
         assert 200 <= response.status < 300, "HTTP %d" % response.status
 
 
-def main_loop(conf, uuid):
+def main_loop(conf):
     # Initial benchmark
     nps = bench(conf)
     logging.info("Benchmark determined nodes/second: %d", nps)
@@ -315,7 +313,7 @@ def main_loop(conf, uuid):
     # Continuously request and run jobs
     while True:
         try:
-            main(conf, uuid)
+            main(conf)
             backoff = 1 + random.random()
         except NoJobFound:
             t = 0.5 * backoff + 0.5 * backoff * random.random()
@@ -358,10 +356,6 @@ if __name__ == "__main__":
 
     intro()
 
-    # Generate UUID
-    uuid = str(uuid.uuid4())
-    logging.info("Instance UUID: %s", uuid)
-
     # Get number of threads per engine process
     if conf.has_option("Engine", "Threads"):
         threads_per_process = max(conf.getint("Engine", "Threads"), 1)
@@ -378,7 +372,7 @@ if __name__ == "__main__":
     # Start engine processes
     threads = []
     for _ in range(num_processes):
-        thread = threading.Thread(target=main_loop, args=[conf, uuid])
+        thread = threading.Thread(target=main_loop, args=[conf])
         thread.daemon = True
         thread.start()
         threads.append(thread)
