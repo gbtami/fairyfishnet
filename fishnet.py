@@ -309,6 +309,7 @@ def main_loop(conf):
         logging.info("Using movetime: %d", conf.getint("Fishnet", "Movetime"))
 
     backoff = 1 + random.random()
+    t = 2 + random.random()
 
     # Continuously request and run jobs
     while True:
@@ -316,12 +317,14 @@ def main_loop(conf):
             main(conf)
             backoff = 1 + random.random()
         except NoJobFound:
-            t = 0.5 * backoff + 0.5 * backoff * random.random()
+            if (conf.getboolean("Fishnet", "Exponential Backoff")):
+                t = 0.5 * backoff + 0.5 * backoff * random.random()
             logging.warn("No job found. Backing off %0.1fs", t)
             time.sleep(t)
             backoff = min(600, backoff * 2)
         except:
-            t = 0.8 * backoff + 0.2 * backoff * random.random()
+            if (conf.getboolean("Fishnet", "Exponential Backoff")):
+                t = 0.8 * backoff + 0.2 * backoff * random.random()
             logging.exception("Backing off %0.1fs after exception in main loop", t)
             time.sleep(t)
             backoff = min(600, backoff * 2)
