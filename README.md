@@ -30,7 +30,7 @@ and configure `EngineDir`, `EngineCommand` and `Apikey` in `polyglot.ini`.
 Run the client:
 
 ```
-python fishnet.py  # See polyglot.ini for settings
+python fishnet.py polyglot.ini
 ```
 
 Protocol
