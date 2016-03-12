@@ -141,6 +141,36 @@ POST http://localhost:9000/fishnet/{work_id}
 }
 ```
 
+Or the move:
+
+```javascript
+POST http://localhost:9000/fishnet/{work_id}
+
+{
+  "fishnet": {
+    "version": "0.0.1",
+    "apikey": "XXX",
+    "uuid": "b7ef2a7e-3a5d-4f0d-b7aa-b3e9a3b1fe5d"
+  },
+  "engine": {
+    "name": "Stockfish 7 64",
+    "author": "T. Romstad, M. Costalba, J. Kiiski, G. Linscott"
+  },
+  "move": {
+    "bestmove": "b7b8=Q",
+    "seldepth": 24,
+    "tbhits": 0,
+    "depth": 18,
+    "score": {
+      "cp": 24
+    },
+    "time": 1004,
+    "nodes": 1686023,
+    "nps": 1670251
+  }
+}
+```
+
 ```
 202 Accepted
 ```
