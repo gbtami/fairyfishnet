@@ -58,7 +58,15 @@ POST http://localhost:9000/fishnet/acquire
 200 OK
 
 {
-  "game_id": 1,
+  "work": {
+    "type": "analysis"
+  },
+  // or:
+  // "work": {
+  //   "type": "move",
+  //   "level": 5 // 1 to 8
+  // },
+  "game_id": "abcdefgh",
   "position": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
   "variant": "standard",
   "moves": [
