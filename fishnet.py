@@ -138,7 +138,7 @@ def setoptions(p, conf):
 
 
 def go(p, conf, starting_fen, uci_moves):
-    send(p, "position fen %s moves %s" % (starting_fen, uci_moves))
+    send(p, "position fen %s moves %s" % (starting_fen, " ".join(uci_moves)))
     isready(p)
     send(p, "go movetime %d" % conf.getint("Fishnet", "Movetime"))
 
@@ -224,11 +224,12 @@ def analyse(p, conf, job):
     send(p, "ucinewgame")
     isready(p)
 
+    moves = job["moves"].split(" ")
     result = []
 
-    for ply in range(len(job["moves"]), -1, -1):
+    for ply in range(len(moves), -1, -1):
         logging.info("Analysing http://lichess.org/%s#%d" % (job["game_id"], ply))
-        part = go(p, conf, job["position"], job["moves"][0:ply])
+        part = go(p, conf, job["position"], moves[0:ply])
         result.insert(0, part)
 
     return result
@@ -293,8 +294,9 @@ def main(conf):
 
     quit(p)
 
-    logging.debug("Sending result: %s", json.dumps(request, indent=2))
-    with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "analysis", str(job["game_id"])), json.dumps(request)) as response:
+    url = urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "analysis") + "/" + str(job["work"]["id"])
+    logging.debug("Sending result to %s %s", url, json.dumps(request, indent=2))
+    with http_request("POST", url, json.dumps(request)) as response:
         assert 200 <= response.status < 300, "HTTP %d" % response.status
 
 
@@ -310,7 +312,6 @@ def main_loop(conf):
         logging.info("Using movetime: %d", conf.getint("Fishnet", "Movetime"))
 
     backoff = 1 + random.random()
-    t = 5 + random.random()
 
     # Continuously request and run jobs
     while True:
@@ -318,13 +319,18 @@ def main_loop(conf):
             main(conf)
             backoff = 1 + random.random()
         except NoJobFound:
-            if (conf.getboolean("Fishnet", "Exponential Backoff")):
+            if conf.has_option("Fishnet", "Fixed Backoff"):
+                t = conf.getfloat("Fishnet", "Fixed Backoff")
+            else:
                 t = 0.5 * backoff + 0.5 * backoff * random.random()
             logging.info("No job found. Backing off %0.1fs", t)
             time.sleep(t)
             backoff = min(600, backoff * 2)
-        except:
-            if (conf.getboolean("Fishnet", "Exponential Backoff")):
+        except Exception as e:
+            logging.debug(e)
+            if conf.has_option("Fishnet", "Fixed Backoff"):
+                t = conf.getfloat("Fishnet", "Fixed Backoff")
+            else:
                 t = 0.8 * backoff + 0.2 * backoff * random.random()
             logging.exception("Backing off %0.1fs after exception in main loop", t)
             time.sleep(t)

@@ -3,7 +3,8 @@ Apikey=XXX
 EngineDir = Stockfish/src/
 EngineCommand = ./stockfish
 Endpoint = http://localhost:9000/fishnet/
-Exponential Backoff = true ; Set to false on move servers
+; Endpoint = http://en.lichess.org/fishnet/
+; Fixed Backoff = 3 ; For move servers
 
 [Engine]
 Write Debug Log = false
