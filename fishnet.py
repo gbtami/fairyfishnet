@@ -137,7 +137,7 @@ def setoptions(p, conf):
     isready(p)
 
 
-def go(p, conf, starting_fen, uci_moves):
+def go(p, conf, starting_fen, uci_moves, collect_infos):
     send(p, "position fen %s moves %s" % (starting_fen, " ".join(uci_moves)))
     isready(p)
     send(p, "go movetime %d" % conf.getint("Fishnet", "Movetime"))
@@ -157,6 +157,8 @@ def go(p, conf, starting_fen, uci_moves):
             if ("pv" in info):
                 info["pv"] = " ".join(info["pv"])
             return info
+        elif not collect_infos:
+            continue
         elif command == "info":
             arg = arg or ""
 
@@ -233,7 +235,7 @@ def analyse(p, conf, job):
 
     for ply in range(len(moves), -1, -1):
         logging.info("Analysing http://lichess.org/%s#%d" % (job["game_id"], ply))
-        part = go(p, conf, job["position"], moves[0:ply])
+        part = go(p, conf, job["position"], moves[0:ply], True)
         result.insert(0, part)
 
     return result
@@ -249,7 +251,7 @@ def bestmove(p, conf, job):
     moves = job["moves"].split(" ")
 
     logging.info("Playing http://lichess.org/%s level %s" % (job["game_id"], job["work"]["level"]))
-    part = go(p, conf, job["position"], moves)
+    part = go(p, conf, job["position"], moves, False)
     info = {}
     info["bestmove"] = part["bestmove"]
     return info
@@ -286,6 +288,37 @@ def bench(conf):
 
     quit(p)
 
+def make_request(conf, engine_info):
+    return {
+        "fishnet": {
+            "version": __version__,
+            "apikey": conf.get("Fishnet", "Apikey"),
+        },
+        "engine": engine_info
+    }
+
+def handle_response(p, response, conf, engine_info):
+    if response.status == 404:
+        raise NoJobFound()
+    assert response.status == 200, "HTTP %d" % response.status
+    data = response.read().decode("utf-8")
+    logging.debug("Got job: %s" % data)
+    job = json.loads(data)
+    request = make_request(conf, engine_info)
+    if (job["work"]["type"] == "analysis"):
+        request["analysis"] = analyse(p, conf, job)
+        quit(p)
+        url = urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "analysis") + "/" + str(job["work"]["id"])
+        with http_request("POST", url, json.dumps(request)) as response:
+            handle_response(p, response, conf, engine_info)
+    elif (job["work"]["type"] == "move"):
+        request["move"] = bestmove(p, conf, job)
+        quit(p)
+        url = urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "move") + "/" + str(job["work"]["id"])
+        with http_request("POST", url, json.dumps(request)) as response:
+            handle_response(p, response, conf, engine_info)
+    else:
+        logging.error("Received invalid job %s" % job)
 
 def main(conf):
     p = open_process(conf)
@@ -293,38 +326,10 @@ def main(conf):
     logging.info("Started engine process %d: %s" % (p.pid, json.dumps(engine_info)))
     setoptions(p, conf)
 
-    request = {
-        "fishnet": {
-            "version": __version__,
-            "apikey": conf.get("Fishnet", "Apikey"),
-        },
-        "engine": engine_info,
-    }
+    request = make_request(conf, engine_info)
 
     with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "acquire"), json.dumps(request)) as response:
-        if response.status == 404:
-            raise NoJobFound()
-
-        assert response.status == 200, "HTTP %d" % response.status
-        data = response.read().decode("utf-8")
-        logging.debug("Got job: %s" % data)
-        job = json.loads(data)
-
-    if (job["work"]["type"] == "analysis"):
-        request["analysis"] = analyse(p, conf, job)
-        quit(p)
-        url = urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "analysis") + "/" + str(job["work"]["id"])
-        with http_request("POST", url, json.dumps(request)) as response:
-            assert 200 <= response.status < 300, "HTTP %d" % response.status
-    elif (job["work"]["type"] == "move"):
-        request["move"] = bestmove(p, conf, job)
-        quit(p)
-        url = urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "move") + "/" + str(job["work"]["id"])
-        with http_request("POST", url, json.dumps(request)) as response:
-            assert 200 <= response.status < 300, "HTTP %d" % response.status
-    else:
-        logging.error("Received invalid job %s" % job)
-
+        handle_response(p, response, conf, engine_info)
 
 def main_loop(conf):
     if not conf.has_option("Fishnet", "Movetime"):
