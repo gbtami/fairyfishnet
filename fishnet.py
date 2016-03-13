@@ -299,10 +299,10 @@ def main(conf):
 
 
 def main_loop(conf):
-    # Initial benchmark
-    nps = bench(conf)
-    logging.info("Benchmark determined nodes/second: %d", nps)
     if not conf.has_option("Fishnet", "Movetime"):
+        # Initial benchmark
+        nps = bench(conf)
+        logging.info("Benchmark determined nodes/second: %d", nps)
         movetime = int(3000000 * 1000 / nps)
         conf.set("Fishnet", "Movetime", str(movetime))
         logging.info("Setting movetime: %d", movetime)
