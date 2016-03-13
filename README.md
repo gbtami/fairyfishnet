@@ -138,18 +138,7 @@ POST http://localhost:9000/fishnet/move/{work_id}
     "name": "Stockfish 7 64",
     "author": "T. Romstad, M. Costalba, J. Kiiski, G. Linscott"
   },
-  "move": {
-    "bestmove": "b7b8=Q",
-    "seldepth": 24,
-    "tbhits": 0,
-    "depth": 18,
-    "score": {
-      "cp": 24
-    },
-    "time": 1004,
-    "nodes": 1686023,
-    "nps": 1670251
-  }
+  "bestmove": "b7b8=Q"
 }
 ```
 

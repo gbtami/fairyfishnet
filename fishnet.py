@@ -154,7 +154,8 @@ def go(p, conf, starting_fen, uci_moves):
                 info["bestmove"] = bestmove
             else:
                 info["bestmove"] = None
-            info["pv"] = " ".join(info["pv"])
+            if ("pv" in info):
+                info["pv"] = " ".join(info["pv"])
             return info
         elif command == "info":
             arg = arg or ""
@@ -209,8 +210,7 @@ def go(p, conf, starting_fen, uci_moves):
         else:
             logging.warn("Unknown command: %s", command)
 
-
-def analyse(p, conf, job):
+def set_variant_options(p, job):
     variant = job["variant"].lower()
     setoption(p, "UCI_Chess960", variant == "chess960")
     setoption(p, "UCI_Atomic", variant == "atomic")
@@ -219,6 +219,10 @@ def analyse(p, conf, job):
     setoption(p, "UCI_KingOfTheHill", variant == "kingofthehill")
     setoption(p, "UCI_Race", variant == "racingkings")
     setoption(p, "UCI_3Check", variant == "threecheck")
+
+def analyse(p, conf, job):
+    set_variant_options(p, job)
+    setoption(p, "Skill Level", 20)
     isready(p)
 
     send(p, "ucinewgame")
@@ -233,6 +237,22 @@ def analyse(p, conf, job):
         result.insert(0, part)
 
     return result
+
+def bestmove(p, conf, job):
+    set_variant_options(p, job)
+    setoption(p, "Skill Level", round(int(job["work"]["level"]) - 1 * 20 / 7))
+    isready(p)
+
+    send(p, "ucinewgame")
+    isready(p)
+
+    moves = job["moves"].split(" ")
+
+    logging.info("Playing http://lichess.org/%s level %s" % (job["game_id"], job["work"]["level"]))
+    part = go(p, conf, job["position"], moves)
+    info = {}
+    info["bestmove"] = part["bestmove"]
+    return info
 
 
 def quit(p):
@@ -290,14 +310,20 @@ def main(conf):
         logging.debug("Got job: %s" % data)
         job = json.loads(data)
 
-    request["analysis"] = analyse(p, conf, job)
-
-    quit(p)
-
-    url = urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "analysis") + "/" + str(job["work"]["id"])
-    logging.debug("Sending result to %s %s", url, json.dumps(request, indent=2))
-    with http_request("POST", url, json.dumps(request)) as response:
-        assert 200 <= response.status < 300, "HTTP %d" % response.status
+    if (job["work"]["type"] == "analysis"):
+        request["analysis"] = analyse(p, conf, job)
+        quit(p)
+        url = urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "analysis") + "/" + str(job["work"]["id"])
+        with http_request("POST", url, json.dumps(request)) as response:
+            assert 200 <= response.status < 300, "HTTP %d" % response.status
+    elif (job["work"]["type"] == "move"):
+        request["move"] = bestmove(p, conf, job)
+        quit(p)
+        url = urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "move") + "/" + str(job["work"]["id"])
+        with http_request("POST", url, json.dumps(request)) as response:
+            assert 200 <= response.status < 300, "HTTP %d" % response.status
+    else:
+        logging.error("Received invalid job %s" % job)
 
 
 def main_loop(conf):
