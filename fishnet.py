@@ -245,7 +245,7 @@ def analyse(p, conf, job):
 
 def bestmove(p, conf, job):
     set_variant_options(p, job)
-    setoption(p, "Skill Level", round(int(job["work"]["level"]) - 1 * 20 / 7))
+    setoption(p, "Skill Level", int(round((job["work"]["level"] - 1) * 20.0 / 7)))
     isready(p)
 
     send(p, "ucinewgame")
