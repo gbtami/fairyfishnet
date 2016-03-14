@@ -411,12 +411,27 @@ def main(args):
     else:
         threads_per_process = 1
 
-    # Determine number of engine processes to start
-    num_processes = (multiprocessing.cpu_count() - 1) // threads_per_process
+    # Determine the number of spare cores
+    num_cores = multiprocessing.cpu_count() - 1
+    max_num_processes = num_cores // threads_per_process
+    if max_num_processes == 0:
+        logging.warn("Not enough cores to exclusively run %d engine threads",
+                     threads_per_process)
+        max_num_processes = 1
+
+    # Determine the number of processes
     if conf.has_option("Fishnet", "Processes"):
-        num_processes = min(conf.getint("Fishnet", "Processes"), num_processes)
-    num_processes = max(num_processes, 1)
-    logging.info("Using %d engine processes on %d cores", num_processes, multiprocessing.cpu_count())
+        num_processes = conf.getint("Fishnet", "Processes")
+        if num_processes > max_num_processes:
+            logging.warn("Number of engine processes capped at %d",
+                         max_num_processes)
+            num_processes = max_num_processes
+    else:
+        num_processes = max_num_processes
+
+    logging.info("Using %d engine processes with %d threads each on %d cores",
+                 num_processes, threads_per_process,
+                 multiprocessing.cpu_count())
 
     work_loop(conf)
     sys.exit(0)
