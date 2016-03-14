@@ -19,7 +19,7 @@ Endpoint = http://en.l.org/fishnet/
 
 [Engine]
 
-; Automatically decreased, if nescessary
+; Automatically decreased, if necessary
 Threads = 4
 
 Hash = 256
