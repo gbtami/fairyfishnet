@@ -157,10 +157,23 @@ def movetime(conf, level):
         time = int(round(time) / 10 * round(level) / 8)
     return time
 
+def depth(level):
+    if not level:
+        return 99
+    if level < 5:
+        return level
+    if level == 5:
+        return 6
+    if level == 6:
+        return 8
+    if level == 7:
+        return 10
+    return 99
+
 def go(p, conf, starting_fen, uci_moves, is_analysis, level):
     send(p, "position fen %s moves %s" % (starting_fen, " ".join(uci_moves)))
     isready(p)
-    send(p, "go movetime %d" % movetime(conf, level))
+    send(p, "go movetime %d depth %d" % (movetime(conf, level), depth(level)))
 
     info = {}
 
