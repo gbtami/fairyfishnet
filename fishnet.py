@@ -150,11 +150,17 @@ def setoptions(p, conf):
 
     isready(p)
 
+def movetime(conf, level):
+    time = conf.getint("Fishnet", "Movetime")
+    if level:
+        # for play, divide analysis time per 10, then scale to level
+        time = int(round(time) / 10 * round(level) / 8)
+    return time
 
-def go(p, conf, starting_fen, uci_moves, collect_infos):
+def go(p, conf, starting_fen, uci_moves, is_analysis, level):
     send(p, "position fen %s moves %s" % (starting_fen, " ".join(uci_moves)))
     isready(p)
-    send(p, "go movetime %d" % conf.getint("Fishnet", "Movetime"))
+    send(p, "go movetime %d" % movetime(conf, level))
 
     info = {}
 
@@ -169,7 +175,7 @@ def go(p, conf, starting_fen, uci_moves, collect_infos):
                 info["bestmove"] = None
 
             return info
-        elif command == "info" and not collect_infos:
+        elif command == "info" and not is_analysis:
             continue
         elif command == "info":
             arg = arg or ""
@@ -261,7 +267,7 @@ def analyse(p, conf, job):
                      base_url(conf.get("Fishnet", "Endpoint")),
                      job["game_id"], ply)
 
-        part = go(p, conf, job["position"], moves[0:ply], True)
+        part = go(p, conf, job["position"], moves[0:ply], True, False)
         result.insert(0, part)
 
     return result
@@ -281,7 +287,7 @@ def bestmove(p, conf, job):
                  base_url(conf.get("Fishnet", "Endpoint")),
                  job["game_id"], job["work"]["level"])
 
-    part = go(p, conf, job["position"], moves, False)
+    part = go(p, conf, job["position"], moves, False, job["work"]["level"])
     return {
         "bestmove": part["bestmove"],
     }
