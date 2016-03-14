@@ -25,7 +25,7 @@ Protocol
 Client asks server:
 
 ```javascript
-POST http://localhost:9000/fishnet/acquire
+POST http://lichess.org/fishnet/acquire
 
 {
   "fishnet": {
@@ -45,12 +45,12 @@ POST http://localhost:9000/fishnet/acquire
 {
   "work": {
     "type": "analysis",
-    "id": "workid"
+    "id": "work_id"
   },
   // or:
   // "work": {
   //   "type": "move",
-  //   "id": "workid",
+  //   "id": "work_id",
   //   "level": 5 // 1 to 8
   // },
   "game_id": "abcdefgh",
@@ -63,7 +63,7 @@ POST http://localhost:9000/fishnet/acquire
 Client runs Stockfish and sends the analysis to server:
 
 ```javascript
-POST http://localhost:9000/fishnet/analysis/{work_id}
+POST http://lichess.org/fishnet/analysis/{work_id}
 
 {
   "fishnet": {
@@ -113,7 +113,7 @@ POST http://localhost:9000/fishnet/analysis/{work_id}
 Or the move:
 
 ```javascript
-POST http://localhost:9000/fishnet/move/{work_id}
+POST http://lichess.org/fishnet/move/{work_id}
 
 {
   "fishnet": {
