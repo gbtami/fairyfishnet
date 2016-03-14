@@ -406,6 +406,9 @@ if __name__ == "__main__":
     num_processes = max(num_processes, 1)
     logging.info("Using %d engine processes on %d cores", num_processes, multiprocessing.cpu_count())
 
+    main_loop(conf)
+    sys.exit(0)
+
     # Start engine processes
     threads = []
     for _ in range(num_processes):
