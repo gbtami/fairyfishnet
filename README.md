@@ -131,13 +131,13 @@ POST http://localhost:9000/fishnet/move/{work_id}
 Accepted:
 
 ```
-202 Accepted
+204 No content
 ```
 
 Accepted, with next job:
 
 ```
-200 OK
+202 Accepted
 
 [...]
 ```
