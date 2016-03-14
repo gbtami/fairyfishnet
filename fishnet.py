@@ -387,7 +387,7 @@ def main(args):
     # Setup logging
     logging.basicConfig(
         stream=sys.stdout,
-        format="%(levelname)s:%(name)s:%(threadName)s:%(message)s",
+        format="%(levelname)s: %(threadName)s: %(message)s",
         level=logging.DEBUG if args.verbose else logging.INFO)
 
     # Parse polyglot.ini
