@@ -269,9 +269,9 @@ def bestmove(p, conf, job):
                  job["game_id"], job["work"]["level"]))
 
     part = go(p, conf, job["position"], moves, False)
-    info = {}
-    info["bestmove"] = part["bestmove"]
-    return info
+    return {
+        "bestmove": part["bestmove"],
+    }
 
 
 def quit(p):
@@ -305,6 +305,7 @@ def bench(conf):
 
     quit(p)
 
+
 def make_request(conf, engine_info):
     return {
         "fishnet": {
@@ -313,6 +314,7 @@ def make_request(conf, engine_info):
         },
         "engine": engine_info
     }
+
 
 def handle_response(p, response, conf, engine_info):
     if response.status == 404:
@@ -348,6 +350,7 @@ def work(conf):
 
     with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "acquire"), json.dumps(request)) as response:
         handle_response(p, response, conf, engine_info)
+
 
 def work_loop(conf):
     if not conf.has_option("Fishnet", "Movetime"):
