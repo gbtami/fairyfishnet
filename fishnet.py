@@ -48,19 +48,14 @@ def http_request(method, url, body=None):
     con.close()
 
 
-def open_process(conf, **kwargs):
-    opts = {
-        "cwd": conf.get("Fishnet", "EngineDir"),
-        "stdout": subprocess.PIPE,
-        "stderr": subprocess.STDOUT,
-        "stdin": subprocess.PIPE,
-        "bufsize": 1,
-        "universal_newlines": True,
-    }
-
-    opts.update(kwargs)
-
-    return subprocess.Popen(conf.get("Fishnet", "EngineCommand"), **opts)
+def open_process(conf):
+    return subprocess.Popen(conf.get("Fishnet", "EngineCommand"),
+                            cwd=conf.get("Fishnet", "EngineDir"),
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            stdin=subprocess.PIPE,
+                            bufsize=1,
+                            universal_newlines=True)
 
 
 def send(p, line):
