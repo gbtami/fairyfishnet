@@ -335,6 +335,12 @@ def bench(p):
         if line.lower().startswith("nodes/second"):
             _, nps = line.split(":")
             return int(nps.strip())
+        elif any(line.lower().startswith(prefix)
+                 for prefix in ["info", "position:", "===", "bestmove",
+                                "nodes searched", "total time"]):
+            pass
+        else:
+            logging.warn("Unexpected engine output: %s", line)
 
 
 def work(p, conf, engine_info, job):
@@ -376,6 +382,7 @@ def work_loop(conf, threads):
 
     # Determine movetime by benchmark or config
     if not conf.has_option("Fishnet", "Movetime"):
+        logging.info("Running benchmark ...")
         nps = bench(p)
         logging.info("Benchmark determined nodes/second: %d", nps)
         movetime = int(6000000 * 1000 // (nps * threads * 0.9 ** (threads - 1)))
