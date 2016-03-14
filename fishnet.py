@@ -138,7 +138,6 @@ def go(p, conf, starting_fen, uci_moves, collect_infos):
     send(p, "go movetime %d" % conf.getint("Fishnet", "Movetime"))
 
     info = {}
-    info["score"] = {}
 
     while True:
         command, arg = recv(p)
@@ -149,15 +148,14 @@ def go(p, conf, starting_fen, uci_moves, collect_infos):
                 info["bestmove"] = bestmove
             else:
                 info["bestmove"] = None
-            if "pv" in info:
-                info["pv"] = " ".join(info["pv"])
+
             return info
-        elif not collect_infos:
+        elif command == "info" and not collect_infos:
             continue
         elif command == "info":
             arg = arg or ""
 
-            # Find multipv parameter first.
+            # Find multipv parameter first
             if "multipv" in arg:
                 current_parameter = None
                 for token in arg.split(" "):
@@ -167,27 +165,38 @@ def go(p, conf, starting_fen, uci_moves, collect_infos):
                     if current_parameter == "multipv":
                         info["multipv"] = token
 
-            # Parse all other parameters.
+            # Parse all other parameters
             current_parameter = None
             score_kind = None
             for token in arg.split(" "):
                 if current_parameter == "string":
+                    # Everything until the end of line is a string
                     if "string" in info:
                         info["string"] += " " + token
                     else:
                         info["string"] = token
-                elif token == "pv":
-                    current_parameter = "pv"
-                    if info.get("multipv", 1) == 1:
-                        info["pv"] = []
-                elif token in ["depth", "seldepth", "time", "nodes", "multipv", "score", "currmove", "currmovenumber", "hashfull", "nps", "tbhits", "cpuload", "refutation", "currline", "string"]:
+                elif token in ["depth", "seldepth", "time", "nodes", "multipv",
+                               "score", "currmove", "currmovenumber",
+                               "hashfull", "nps", "tbhits", "cpuload",
+                               "refutation", "currline", "string"]:
+                    # Next parameter keyword found
                     current_parameter = token
-                elif current_parameter in ["depth", "seldepth", "time", "nodes", "currmovenumber", "hashfull", "nps", "tbhits", "cpuload"]:
+                    if current_parameter != "pv" or info.get("multipv", 1) == 1:
+                        del info[current_parameter]
+                elif current_parameter in ["depth", "seldepth", "time",
+                                           "nodes", "currmovenumber",
+                                           "hashfull", "nps", "tbhits",
+                                           "cpuload"]:
+                    # Integer parameters
                     info[current_parameter] = int(token)
                 elif current_parameter == "multipv":
                     # Ignore. Handled before.
                     pass
                 elif current_parameter == "score":
+                    # Score
+                    if not "score" in info:
+                        info["score"] = {}
+
                     if token in ["cp", "mate"]:
                         score_kind = token
                     elif token == "lowerbound":
@@ -196,10 +205,8 @@ def go(p, conf, starting_fen, uci_moves, collect_infos):
                         info["score"]["upperbound"] = True
                     elif score_kind:
                         info["score"][score_kind] = int(token)
-                elif current_parameter == "pv":
-                    if info.get("multipv", 1) == 1:
-                        info["pv"].append(token)
-                else:
+                elif current_parameter != "pv" or info.get("multipv", 1) == 1:
+                    # Strings
                     if current_parameter in info:
                         info[current_parameter] += " " + token
                     else:
