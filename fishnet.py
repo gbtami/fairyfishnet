@@ -219,7 +219,7 @@ def go(p, conf, starting_fen, uci_moves, is_analysis, level):
                 elif token in ["depth", "seldepth", "time", "nodes", "multipv",
                                "score", "currmove", "currmovenumber",
                                "hashfull", "nps", "tbhits", "cpuload",
-                               "refutation", "currline", "string"]:
+                               "refutation", "currline", "string", "pv"]:
                     # Next parameter keyword found
                     current_parameter = token
                     if current_parameter != "pv" or info.get("multipv", 1) == 1:
