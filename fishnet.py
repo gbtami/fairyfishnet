@@ -68,6 +68,7 @@ def http_request(method, url, body=None):
 
 def open_process(conf):
     return subprocess.Popen(conf.get("Fishnet", "EngineCommand"),
+                            shell=True,
                             cwd=conf.get("Fishnet", "EngineDir"),
                             stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT,
