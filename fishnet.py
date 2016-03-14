@@ -15,6 +15,7 @@ import contextlib
 import multiprocessing
 import threading
 import sys
+import os
 
 try:
     import httplib
@@ -393,6 +394,16 @@ def main(args):
     conf = configparser.SafeConfigParser()
     for c in args.conf:
         conf.readfp(c, c.name)
+
+    # Ensure Apikey is set
+    if not conf.has_option("Fishnet", "Apikey"):
+        logging.error("Apikey not found. Check configuration")
+        return 78
+
+    # Validate EngineDir
+    if not os.path.isdir(conf.get("Fishnet", "EngineDir")):
+        logging.error("EngineDir not found. Check configuration")
+        return 78
 
     # Get number of threads per engine process
     if conf.has_option("Engine", "Threads"):
