@@ -257,7 +257,7 @@ def analyse(p, conf, job):
     result = []
 
     for ply in range(len(moves), -1, -1):
-        logging.info("Analysing %s/%s#%d",
+        logging.info("Analysing %s%s#%d",
                      base_url(conf.get("Fishnet", "Endpoint")),
                      job["game_id"], ply)
 
@@ -277,7 +277,7 @@ def bestmove(p, conf, job):
 
     moves = job["moves"].split(" ")
 
-    logging.info("Playing %s/%s level %s",
+    logging.info("Playing %s%s level %s",
                  base_url(conf.get("Fishnet", "Endpoint")),
                  job["game_id"], job["work"]["level"])
 
