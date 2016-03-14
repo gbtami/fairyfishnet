@@ -162,15 +162,16 @@ def movetime(conf, level):
 def depth(level):
     if not level:
         return 99
-    if level < 5:
+    elif level < 5:
         return level
-    if level == 5:
+    elif level == 5:
         return 6
-    if level == 6:
+    elif level == 6:
         return 8
-    if level == 7:
+    elif level == 7:
         return 10
-    return 99
+    else:
+        return 99
 
 
 def go(p, conf, starting_fen, uci_moves, is_analysis, level):
@@ -490,13 +491,13 @@ def main(args):
         worker.daemon = True
         workers.append(worker)
 
-    # Start all threads and wait forever.
+    # Start all threads and wait forever
     for i, worker in enumerate(workers):
         worker.name = "Process %d" % (i + 1)
         worker.start()
     try:
         while True:
-            time.sleep(10)
+            time.sleep(60)
     except KeyboardInterrupt:
         sys.exit(0)
 
