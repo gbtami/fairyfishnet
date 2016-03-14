@@ -42,17 +42,6 @@ def base_url(url):
     return "%s://%s/" % (url_info.scheme, url_info.hostname)
 
 
-def start_backoff(conf):
-    if conf.has_option("Fishnet", "Fixed Backoff"):
-        while True:
-            yield random.random() * conf.getfloat("Fishnet", "Fixed Backoff")
-    else:
-        backoff = 1
-        while True:
-            yield 0.5 * backoff + 0.5 * backoff * random.random()
-            backoff = min(backoff + 1, 60)
-
-
 @contextlib.contextmanager
 def http_request(method, url, body=None):
     logging.debug("HTTP request: %s %s, body: %s", method, url, body)
@@ -64,6 +53,31 @@ def http_request(method, url, body=None):
     con.request(method, u.path, body)
     yield con.getresponse()
     con.close()
+
+
+def available_ram():
+    try:
+        with open("/proc/meminfo") as meminfo:
+            for line in meminfo:
+                if line.startswith("MemTotal:"):
+                    label, ram, unit = line.split()
+                    if unit == "kB":
+                        return int(ram) // 1024
+                    else:
+                        logging.error("Unknown unit: %s", unit)
+    except IOError:
+        return None
+
+
+def start_backoff(conf):
+    if conf.has_option("Fishnet", "Fixed Backoff"):
+        while True:
+            yield random.random() * conf.getfloat("Fishnet", "Fixed Backoff")
+    else:
+        backoff = 1
+        while True:
+            yield 0.5 * backoff + 0.5 * backoff * random.random()
+            backoff = min(backoff + 1, 60)
 
 
 def open_process(conf):
@@ -462,6 +476,14 @@ def main(args):
     else:
         threads_per_process = 4
 
+    # Hashtable size
+    if conf.has_option("Engine", "Hash"):
+        memory_per_process = max(conf.getint("Engine", "Hash"), 32)
+    else:
+        memory_per_process = 256
+    logging.info("Hashtable size per process: %d MB", memory_per_process)
+    conf.set("Engine", "Hash", str(memory_per_process))
+
     # Determine the number of spare cores
     spare_cores = multiprocessing.cpu_count() - 1
     logging.info("Cores: %d + 1", spare_cores)
@@ -475,21 +497,39 @@ def main(args):
     else:
         spare_processes = spare_cores
 
+    # Determine available memory
+    if conf.has_option("Fishnet", "Memory"):
+        spare_memory = conf.getint("Fishnet", "Memory")
+        logging.info("Memory capped at about %d MB", spare_memory)
+    else:
+        spare_memory = available_ram()
+        if not spare_memory:
+            logging.warn("Could not determine available memory, let's hope for the best")
+            spare_memory = 256 * spare_cores
+        else:
+            spare_memory = int(spare_memory * 0.6)
+            logging.info("Available memmory: %d MB / 60%%", spare_memory)
+
     # Let spare cores exclusively run engine processes
     workers = []
-    while spare_cores >= threads_per_process and spare_processes > 0:
+    while spare_cores > threads_per_process and spare_processes > 0 and spare_memory > memory_per_process:
         worker = threading.Thread(target=work_loop, args=[conf, threads_per_process])
         worker.daemon = True
         workers.append(worker)
 
         spare_cores -= threads_per_process
         spare_processes -= 1
+        spare_memory -= memory_per_process
 
     # Use the rest of the cores
-    if spare_cores > 0 and spare_processes > 0:
+    if spare_cores > 0 and spare_processes > 0 and spare_memory > memory_per_process:
         worker = threading.Thread(target=work_loop, args=[conf, spare_cores])
         worker.daemon = True
         workers.append(worker)
+
+    if not workers:
+        logging.error("Not enough resources to start a worker")
+        return 1
 
     # Start all threads and wait forever
     for i, worker in enumerate(workers):
@@ -499,7 +539,7 @@ def main(args):
         while True:
             time.sleep(60)
     except KeyboardInterrupt:
-        sys.exit(0)
+        return 0
 
 
 if __name__ == "__main__":
