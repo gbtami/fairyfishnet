@@ -405,6 +405,10 @@ def main(args):
         logging.error("EngineDir not found. Check configuration")
         return 78
 
+    # Validate Endpoint
+    if not conf.get("Fishnet", "Endpoint").endswith("/"):
+        conf.set("Fishnet", "Endpoint", conf.get("Fishnet", "Endpoint") + "/")
+
     # Get number of threads per engine process
     if conf.has_option("Engine", "Threads"):
         threads_per_process = max(conf.getint("Engine", "Threads"), 1)
