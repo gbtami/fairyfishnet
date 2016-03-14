@@ -1,14 +1,28 @@
 [Fishnet]
+
 Apikey=XXX
+
 EngineDir = Stockfish/src/
 EngineCommand = ./stockfish
-Endpoint = http://en.l.org/fishnet/
+
 ; Endpoint = http://en.lichess.org/fishnet/
-; Fixed Backoff = 3 ; For move servers
+Endpoint = http://en.l.org/fishnet/
+
+; For move servers:
+; Fixed Backoff = 3
+
+; Cap the number of engine processes:
+; Processes = 1
+
+; Determined by benchmark
+; Movetime = 1000
 
 [Engine]
-Write Debug Log = false
-Threads = 1
+
+; Automatically decreased, if nescessary
+Threads = 4
+
 Hash = 256
 Ponder = false
 MultiPV = 1
+Write Debug Log = false

@@ -341,25 +341,26 @@ def work(p, conf, engine_info, job):
         return "acquire", result
 
 
-def start_engine(conf):
+def start_engine(conf, threads):
     p = open_process(conf)
     engine_info = uci(p)
-    logging.info("Started engine process, pid: %d, identification: %s",
-                 p.pid, engine_info.get("name", "<none>"))
+    logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
+                 p.pid, threads, engine_info.get("name", "<none>"))
 
+    setoption(p, "Threads", threads)
     setoptions(p, conf)
 
     return p, engine_info
 
 
-def work_loop(conf):
-    p, engine_info = start_engine(conf)
+def work_loop(conf, threads):
+    p, engine_info = start_engine(conf, threads)
 
     # Determine movetime by benchmark or config
     if not conf.has_option("Fishnet", "Movetime"):
         nps = bench(p)
         logging.info("Benchmark determined nodes/second: %d", nps)
-        movetime = 3000000 * 1000 // nps
+        movetime = 3000000 * 1000 // (nps * max(0.9 * threads, 1))
         conf.set("Fishnet", "Movetime", str(movetime))
         logging.info("Setting movetime: %d", movetime)
     else:
@@ -393,7 +394,7 @@ def work_loop(conf):
 
             # If in doubt, restart engine
             p.kill()
-            p, engine_info = start_engine(conf)
+            p, engine_info = start_engine(conf, threads)
 
 
 def intro():
@@ -436,40 +437,42 @@ def main(args):
     # Get number of threads per engine process
     if conf.has_option("Engine", "Threads"):
         threads_per_process = max(conf.getint("Engine", "Threads"), 1)
+        conf.remove_option("Engine", "Threads")
     else:
-        threads_per_process = 1
+        threads_per_process = 4
 
     # Determine the number of spare cores
-    num_cores = multiprocessing.cpu_count() - 1
-    max_num_processes = num_cores // threads_per_process
-    if max_num_processes == 0:
-        logging.warn("Not enough cores to exclusively run %d engine threads",
-                     threads_per_process)
-        max_num_processes = 1
+    spare_cores = multiprocessing.cpu_count() - 1
+    logging.info("Cores: %d + 1", spare_cores)
+    if spare_cores == 0:
+        logging.warn("No spare core to exclusively run an engine process")
+        spare_cores = 1  # Run 1, anyway
 
-    # Determine the number of processes
     if conf.has_option("Fishnet", "Processes"):
-        num_processes = conf.getint("Fishnet", "Processes")
-        if num_processes > max_num_processes:
-            logging.warn("Number of engine processes capped at %d",
-                         max_num_processes)
-            num_processes = max_num_processes
+        spare_processes = max(conf.getint("Fishnet", "Processes"), 1)
+        logging.info("Number of processes capped at: %d", spare_processes)
     else:
-        num_processes = max_num_processes
+        spare_processes = spare_cores
 
-    logging.info("Using %d engine processes with %d threads each on %d cores",
-                 num_processes, threads_per_process,
-                 multiprocessing.cpu_count())
+    # Let spare cores exclusively run engine processes
+    workers = []
+    while spare_cores >= threads_per_process and spare_processes > 0:
+        worker = threading.Thread(target=work_loop, args=[conf, threads_per_process])
+        worker.daemon = True
+        workers.append(worker)
 
-    # Start engine processes
-    threads = []
-    for _ in range(num_processes):
-        thread = threading.Thread(target=work_loop, args=[conf])
-        thread.daemon = True
-        thread.start()
-        threads.append(thread)
+        spare_cores -= threads_per_process
+        spare_processes -= 1
 
-    # Main thread just sleeps
+    # Use the rest of the cores
+    if spare_cores > 0 and spare_processes > 0:
+        worker = threading.Thread(target=work_loop, args=[conf, spare_cores])
+        worker.daemon = True
+        workers.append(worker)
+
+    # Start all threads and wait forever.
+    for worker in workers:
+        worker.start()
     try:
         while True:
             time.sleep(10)
