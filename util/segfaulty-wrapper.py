@@ -21,4 +21,5 @@ time.sleep(random.random() * 30)
 
 process.kill()
 
+# Produce segfault
 exec types.CodeType(0, 5, 8, 0, "hello moshe", (), (), (), "", "", 0, "")
