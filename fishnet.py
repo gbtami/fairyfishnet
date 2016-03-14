@@ -42,8 +42,16 @@ def base_url(url):
     return "%s://%s/" % (url_info.scheme, url_info.hostname)
 
 
+def linear_backoff(max_backoff=60):
+    backoff = 0.5
+    while backoff <= max_backoff:
+        backoff += 0.5
+        yield 0.5 * backoff + 0.5 * backoff * random.random()
+
+
 @contextlib.contextmanager
 def http_request(method, url, body=None):
+    logging.debug("HTTP request: %s %s, body: %s", method, url, body)
     u = urlparse.urlparse(url)
     if u.scheme == "https":
         con = httplib.HTTPSConnection(u.hostname, u.port or 443)
@@ -290,11 +298,7 @@ def quit(p):
         p.kill()
 
 
-def bench(conf):
-    p = open_process(conf)
-    uci(p)
-    setoptions(p, conf)
-
+def bench(p):
     send(p, "bench")
 
     while True:
@@ -303,11 +307,9 @@ def bench(conf):
             _, nps = line.split(":")
             return int(nps.strip())
 
-    quit(p)
 
-
-def make_request(conf, engine_info):
-    return {
+def work(p, conf, engine_info, job):
+    result = {
         "fishnet": {
             "version": __version__,
             "apikey": conf.get("Fishnet", "Apikey"),
@@ -315,78 +317,62 @@ def make_request(conf, engine_info):
         "engine": engine_info
     }
 
-
-def handle_response(p, response, conf, engine_info):
-    if response.status == 404:
-        raise NoJobFound()
-    assert response.status == 200, "HTTP %d" % response.status
-    data = response.read().decode("utf-8")
-    logging.debug("Got job: %s" % data)
-    job = json.loads(data)
-    request = make_request(conf, engine_info)
-    if job["work"]["type"] == "analysis":
-        request["analysis"] = analyse(p, conf, job)
-        quit(p)
-        url = urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "analysis") + "/" + str(job["work"]["id"])
-        with http_request("POST", url, json.dumps(request)) as response:
-            handle_response(p, response, conf, engine_info)
-    elif job["work"]["type"] == "move":
-        request["move"] = bestmove(p, conf, job)
-        quit(p)
-        url = urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "move") + "/" + str(job["work"]["id"])
-        with http_request("POST", url, json.dumps(request)) as response:
-            handle_response(p, response, conf, engine_info)
+    if job and job["work"]["type"] == "analysis":
+        result["analysis"] = analyse(p, conf, job)
+        return "analysis" + "/" + job["work"]["id"], result
+    elif job and job["work"]["type"] == "move":
+        result["move"] = bestmove(p, conf, job)
+        return "move" + "/" + job["work"]["id"], result
     else:
-        logging.error("Received invalid job %s" % job)
+        if job:
+            logging.error("Invalid job type: %s", job)
 
-
-def work(conf):
-    p = open_process(conf)
-    engine_info = uci(p)
-    logging.info("Started engine process %d: %s" % (p.pid, json.dumps(engine_info)))
-    setoptions(p, conf)
-
-    request = make_request(conf, engine_info)
-
-    with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "acquire"), json.dumps(request)) as response:
-        handle_response(p, response, conf, engine_info)
+        return "acquire", result
 
 
 def work_loop(conf):
+    p = open_process(conf)
+    engine_info = uci(p)
+    logging.info("Started engine process, pid: %d, identification: %s",
+                 p.pid, engine_info.get("name", "<none>"))
+
+    setoptions(p, conf)
+
+    # Determine movetime by benchmark or config
     if not conf.has_option("Fishnet", "Movetime"):
-        # Initial benchmark
-        nps = bench(conf)
+        nps = bench(p)
         logging.info("Benchmark determined nodes/second: %d", nps)
-        movetime = int(3000000 * 1000 / nps)
+        movetime = 3000000 * 1000 // nps
         conf.set("Fishnet", "Movetime", str(movetime))
         logging.info("Setting movetime: %d", movetime)
     else:
         logging.info("Using movetime: %d", conf.getint("Fishnet", "Movetime"))
 
-    backoff = 1 + random.random()
-
-    # Continuously request and run jobs
+    backoff = linear_backoff()
+    job = None
     while True:
         try:
-            work(conf)
-            backoff = 1 + random.random()
+            path, request = work(p, conf, engine_info, job)
+
+            with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), path), json.dumps(request)) as response:
+                if response.status == 404:
+                    raise NoJobFound()
+                assert response.status == 200, "HTTP %d" % response.status
+                data = response.read().decode("utf-8")
+                logging.debug("Got job: %s", data)
+
+            job = json.loads(data)
+            backoff = linear_backoff()
         except NoJobFound:
-            if conf.has_option("Fishnet", "Fixed Backoff"):
-                t = conf.getfloat("Fishnet", "Fixed Backoff")
-            else:
-                t = 0.5 * backoff + 0.5 * backoff * random.random()
+            job = None
+            t = next(backoff)
             logging.info("No job found. Backing off %0.1fs", t)
             time.sleep(t)
-            backoff = min(600, backoff * 2)
-        except Exception as e:
-            logging.debug(e)
-            if conf.has_option("Fishnet", "Fixed Backoff"):
-                t = conf.getfloat("Fishnet", "Fixed Backoff")
-            else:
-                t = 0.8 * backoff + 0.2 * backoff * random.random()
+        except:
+            job = None
+            t = next(backoff)
             logging.exception("Backing off %0.1fs after exception in work loop", t)
             time.sleep(t)
-            backoff = min(600, backoff * 2)
 
 
 def intro():
