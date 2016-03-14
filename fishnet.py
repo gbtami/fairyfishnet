@@ -265,8 +265,8 @@ def bestmove(p, conf, job):
     moves = job["moves"].split(" ")
 
     logging.info("Playing %s/%s level %s",
-                 base_url(conf.get("Fishnet", "Endpoint"),
-                 job["game_id"], job["work"]["level"]))
+                 base_url(conf.get("Fishnet", "Endpoint")),
+                 job["game_id"], job["work"]["level"])
 
     part = go(p, conf, job["position"], moves, False)
     return {
