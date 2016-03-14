@@ -219,7 +219,7 @@ def go(p, conf, starting_fen, uci_moves, is_analysis, level):
                         break
 
                     if current_parameter == "multipv":
-                        info["multipv"] = token
+                        info["multipv"] = int(token)
 
             # Parse all other parameters
             current_parameter = None
