@@ -42,11 +42,15 @@ def base_url(url):
     return "%s://%s/" % (url_info.scheme, url_info.hostname)
 
 
-def linear_backoff(max_backoff=60):
-    backoff = 0.5
-    while backoff <= max_backoff:
-        backoff += 0.5
-        yield 0.5 * backoff + 0.5 * backoff * random.random()
+def start_backoff(conf):
+    if conf.has_option("Fishnet", "Fixed Backoff"):
+        while True:
+            yield random.random() * conf.getfloat("Fishnet", "Fixed Backoff")
+    else:
+        backoff = 1
+        while True:
+            yield 0.5 * backoff + 0.5 * backoff * random.random()
+            backoff = min(backoff + 1, 60)
 
 
 @contextlib.contextmanager
@@ -348,7 +352,7 @@ def work_loop(conf):
     else:
         logging.info("Using movetime: %d", conf.getint("Fishnet", "Movetime"))
 
-    backoff = linear_backoff()
+    backoff = start_backoff(conf)
     job = None
     while True:
         try:
@@ -362,7 +366,7 @@ def work_loop(conf):
                 logging.debug("Got job: %s", data)
 
             job = json.loads(data)
-            backoff = linear_backoff()
+            backoff = start_backoff(conf)
         except NoJobFound:
             job = None
             t = next(backoff)
