@@ -450,6 +450,10 @@ def main(args):
     if not conf.get("Fishnet", "Endpoint").endswith("/"):
         conf.set("Fishnet", "Endpoint", conf.get("Fishnet", "Endpoint") + "/")
 
+    # Log custom UCI options
+    for name, value in conf.items("Engine"):
+        logging.warn("Using custom UCI option: name %s value %s", name, value)
+
     # Get number of threads per engine process
     if conf.has_option("Engine", "Threads"):
         threads_per_process = max(conf.getint("Engine", "Threads"), 1)

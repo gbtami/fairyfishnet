@@ -18,12 +18,14 @@ Endpoint = http://en.lichess.org/fishnet/
 ; Determined by benchmark
 ; Movetime = 1000
 
+
 [Engine]
 
-; Automatically decreased, if necessary
-Threads = 4
+; Extra UCI options
 
-Hash = 256
-Ponder = false
-MultiPV = 1
-Write Debug Log = false
+; Threads = 4
+; Hash = 256
+
+; Ponder = false
+; MultiPV = 1
+; Write Debug Log = false
