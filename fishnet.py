@@ -149,7 +149,7 @@ def go(p, conf, starting_fen, uci_moves, collect_infos):
                 info["bestmove"] = bestmove
             else:
                 info["bestmove"] = None
-            if ("pv" in info):
+            if "pv" in info:
                 info["pv"] = " ".join(info["pv"])
             return info
         elif not collect_infos:
@@ -300,13 +300,13 @@ def handle_response(p, response, conf, engine_info):
     logging.debug("Got job: %s" % data)
     job = json.loads(data)
     request = make_request(conf, engine_info)
-    if (job["work"]["type"] == "analysis"):
+    if job["work"]["type"] == "analysis":
         request["analysis"] = analyse(p, conf, job)
         quit(p)
         url = urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "analysis") + "/" + str(job["work"]["id"])
         with http_request("POST", url, json.dumps(request)) as response:
             handle_response(p, response, conf, engine_info)
-    elif (job["work"]["type"] == "move"):
+    elif job["work"]["type"] == "move":
         request["move"] = bestmove(p, conf, job)
         quit(p)
         url = urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "move") + "/" + str(job["work"]["id"])
@@ -314,6 +314,7 @@ def handle_response(p, response, conf, engine_info):
             handle_response(p, response, conf, engine_info)
     else:
         logging.error("Received invalid job %s" % job)
+
 
 def main(conf):
     p = open_process(conf)
