@@ -211,16 +211,6 @@ def go(p, conf, starting_fen, uci_moves, is_analysis, level):
         elif command == "info":
             arg = arg or ""
 
-            # Find multipv parameter first
-            if "multipv" in arg:
-                current_parameter = None
-                for token in arg.split(" "):
-                    if token == "string":
-                        break
-
-                    if current_parameter == "multipv":
-                        info["multipv"] = int(token)
-
             # Parse all other parameters
             current_parameter = None
             score_kind = None
@@ -242,12 +232,9 @@ def go(p, conf, starting_fen, uci_moves, is_analysis, level):
                 elif current_parameter in ["depth", "seldepth", "time",
                                            "nodes", "currmovenumber",
                                            "hashfull", "nps", "tbhits",
-                                           "cpuload"]:
+                                           "cpuload", "multipv"]:
                     # Integer parameters
                     info[current_parameter] = int(token)
-                elif current_parameter == "multipv":
-                    # Ignore. Handled before.
-                    pass
                 elif current_parameter == "score":
                     # Score
                     if not "score" in info:
