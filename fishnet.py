@@ -335,13 +335,19 @@ def work(p, conf, engine_info, job):
         return "acquire", result
 
 
-def work_loop(conf):
+def start_engine(conf):
     p = open_process(conf)
     engine_info = uci(p)
     logging.info("Started engine process, pid: %d, identification: %s",
                  p.pid, engine_info.get("name", "<none>"))
 
     setoptions(p, conf)
+
+    return p, engine_info
+
+
+def work_loop(conf):
+    p, engine_info = start_engine(conf)
 
     # Determine movetime by benchmark or config
     if not conf.has_option("Fishnet", "Movetime"):
@@ -378,6 +384,10 @@ def work_loop(conf):
             t = next(backoff)
             logging.exception("Backing off %0.1fs after exception in work loop", t)
             time.sleep(t)
+
+            # Restart engine
+            p.kill()
+            p, engine_info = start_engine(conf)
 
 
 def intro():
