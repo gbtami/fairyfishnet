@@ -107,7 +107,7 @@ def uci(p):
             # Ignore identification line
             pass
         else:
-            logging.warn("Unknown command: %s %s", command, arg)
+            logging.warn("Unexpected engine output: %s %s", command, arg)
 
 
 def isready(p):
@@ -117,7 +117,7 @@ def isready(p):
         if command == "readyok":
             break
         else:
-            logging.warn("Unknown command: %s %s", command, arg)
+            logging.warn("Unexpected engine output: %s %s", command, arg)
 
 
 def setoption(p, name, value):
@@ -218,7 +218,7 @@ def go(p, conf, starting_fen, uci_moves, collect_infos):
                     else:
                         info[current_parameter] = token
         else:
-            logging.warn("Unknown command: %s %s", command, arg)
+            logging.warn("Unexpected engine output: %s %s", command, arg)
 
 
 def set_variant_options(p, job):
