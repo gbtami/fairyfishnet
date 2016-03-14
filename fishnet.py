@@ -389,7 +389,7 @@ def work_loop(conf, threads):
             path, request = work(p, conf, engine_info, job)
 
             with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), path), json.dumps(request)) as response:
-                if response.status == 404:
+                if response.status in [404, 202]:
                     raise NoJobFound()
                 assert response.status == 200, "HTTP %d" % response.status
                 data = response.read().decode("utf-8")
