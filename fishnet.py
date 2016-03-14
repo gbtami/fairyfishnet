@@ -323,7 +323,7 @@ def handle_response(p, response, conf, engine_info):
         logging.error("Received invalid job %s" % job)
 
 
-def main(conf):
+def work(conf):
     p = open_process(conf)
     engine_info = uci(p)
     logging.info("Started engine process %d: %s" % (p.pid, json.dumps(engine_info)))
@@ -334,7 +334,7 @@ def main(conf):
     with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "acquire"), json.dumps(request)) as response:
         handle_response(p, response, conf, engine_info)
 
-def main_loop(conf):
+def work_loop(conf):
     if not conf.has_option("Fishnet", "Movetime"):
         # Initial benchmark
         nps = bench(conf)
@@ -350,7 +350,7 @@ def main_loop(conf):
     # Continuously request and run jobs
     while True:
         try:
-            main(conf)
+            work(conf)
             backoff = 1 + random.random()
         except NoJobFound:
             if conf.has_option("Fishnet", "Fixed Backoff"):
@@ -366,9 +366,10 @@ def main_loop(conf):
                 t = conf.getfloat("Fishnet", "Fixed Backoff")
             else:
                 t = 0.8 * backoff + 0.2 * backoff * random.random()
-            logging.exception("Backing off %0.1fs after exception in main loop", t)
+            logging.exception("Backing off %0.1fs after exception in work loop", t)
             time.sleep(t)
             backoff = min(600, backoff * 2)
+
 
 def intro():
     print("""\
@@ -380,13 +381,8 @@ def intro():
  Distributed Stockfish analysis for lichess.org
 """ % __version__)
 
-if __name__ == "__main__":
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("conf", type=argparse.FileType("r"), nargs="+")
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
 
+def main(args):
     # Setup logging
     logging.basicConfig(
         stream=sys.stdout,
@@ -397,8 +393,6 @@ if __name__ == "__main__":
     conf = configparser.SafeConfigParser()
     for c in args.conf:
         conf.readfp(c, c.name)
-
-    intro()
 
     # Get number of threads per engine process
     if conf.has_option("Engine", "Threads"):
@@ -413,13 +407,13 @@ if __name__ == "__main__":
     num_processes = max(num_processes, 1)
     logging.info("Using %d engine processes on %d cores", num_processes, multiprocessing.cpu_count())
 
-    main_loop(conf)
+    work_loop(conf)
     sys.exit(0)
 
     # Start engine processes
     threads = []
     for _ in range(num_processes):
-        thread = threading.Thread(target=main_loop, args=[conf])
+        thread = threading.Thread(target=work_loop, args=[conf])
         thread.daemon = True
         thread.start()
         threads.append(thread)
@@ -429,3 +423,15 @@ if __name__ == "__main__":
             time.sleep(10)
     except KeyboardInterrupt:
         sys.exit(0)
+
+
+if __name__ == "__main__":
+    intro()
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("conf", type=argparse.FileType("r"), nargs="+")
+    parser.add_argument("--verbose", "-v", action="store_true")
+
+    # Run
+    sys.exit(main(parser.parse_args()))
