@@ -223,7 +223,7 @@ def go(p, conf, starting_fen, uci_moves, is_analysis, level):
                     # Next parameter keyword found
                     current_parameter = token
                     if current_parameter != "pv" or info.get("multipv", 1) == 1:
-                        del info[current_parameter]
+                        info.pop(current_parameter, None)
                 elif current_parameter in ["depth", "seldepth", "time",
                                            "nodes", "currmovenumber",
                                            "hashfull", "nps", "tbhits",
