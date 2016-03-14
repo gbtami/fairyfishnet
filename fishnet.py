@@ -37,6 +37,11 @@ class NoJobFound(Exception):
     pass
 
 
+def base_url(url):
+    url_info = urlparse.urlparse(url)
+    return "%s://%s/" % (url_info.scheme, url_info.hostname)
+
+
 @contextlib.contextmanager
 def http_request(method, url, body=None):
     u = urlparse.urlparse(url)
@@ -215,6 +220,7 @@ def go(p, conf, starting_fen, uci_moves, collect_infos):
         else:
             logging.warn("Unknown command: %s %s", command, arg)
 
+
 def set_variant_options(p, job):
     variant = job["variant"].lower()
     setoption(p, "UCI_Chess960", variant == "chess960")
@@ -224,6 +230,7 @@ def set_variant_options(p, job):
     setoption(p, "UCI_KingOfTheHill", variant == "kingofthehill")
     setoption(p, "UCI_Race", variant == "racingkings")
     setoption(p, "UCI_3Check", variant == "threecheck")
+
 
 def analyse(p, conf, job):
     set_variant_options(p, job)
@@ -237,11 +244,15 @@ def analyse(p, conf, job):
     result = []
 
     for ply in range(len(moves), -1, -1):
-        logging.info("Analysing http://lichess.org/%s#%d" % (job["game_id"], ply))
+        logging.info("Analysing %s/%s#%d",
+                     base_url(conf.get("Fishnet", "Endpoint")),
+                     job["game_id"], ply)
+
         part = go(p, conf, job["position"], moves[0:ply], True)
         result.insert(0, part)
 
     return result
+
 
 def bestmove(p, conf, job):
     set_variant_options(p, job)
@@ -253,7 +264,10 @@ def bestmove(p, conf, job):
 
     moves = job["moves"].split(" ")
 
-    logging.info("Playing http://lichess.org/%s level %s" % (job["game_id"], job["work"]["level"]))
+    logging.info("Playing %s/%s level %s",
+                 base_url(conf.get("Fishnet", "Endpoint"),
+                 job["game_id"], job["work"]["level"]))
+
     part = go(p, conf, job["position"], moves, False)
     info = {}
     info["bestmove"] = part["bestmove"]
