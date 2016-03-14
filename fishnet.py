@@ -385,7 +385,7 @@ def work_loop(conf):
             logging.exception("Backing off %0.1fs after exception in work loop", t)
             time.sleep(t)
 
-            # Restart engine
+            # If in doubt, restart engine
             p.kill()
             p, engine_info = start_engine(conf)
 
@@ -455,9 +455,6 @@ def main(args):
                  num_processes, threads_per_process,
                  multiprocessing.cpu_count())
 
-    work_loop(conf)
-    sys.exit(0)
-
     # Start engine processes
     threads = []
     for _ in range(num_processes):
@@ -466,6 +463,7 @@ def main(args):
         thread.start()
         threads.append(thread)
 
+    # Main thread just sleeps
     try:
         while True:
             time.sleep(10)
