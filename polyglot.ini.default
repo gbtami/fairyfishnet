@@ -2,7 +2,7 @@
 Apikey=XXX
 EngineDir = Stockfish/src/
 EngineCommand = ./stockfish
-Endpoint = http://localhost:9000/fishnet/
+Endpoint = http://en.l.org/fishnet/
 ; Endpoint = http://en.lichess.org/fishnet/
 ; Fixed Backoff = 3 ; For move servers
 

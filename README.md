@@ -7,29 +7,15 @@
 Distributed Stockfish analysis for lichess.org
 ```
 
-Testing
--------
+Usage
+-----
 
-Prepare the dummy server:
-
-```
-virtualenv -p python3 venv
-source venv/bin/activate
-pip install -r dummyserver-requirements.txt
-```
-
-Run the dummy server:
-
-```
-./dummyserver.py molinari-bordais-1979.pgn
-```
-
-Copy the default config:
+Copy the default config and configure `EngineDir`,
+`EngineCommand` and `Apikey` in `polyglot.ini`.
 
 ```
 cp polyglot.ini.default polyglot.ini
 ```
-and configure `EngineDir`, `EngineCommand` and `Apikey` in `polyglot.ini`.
 
 Run the client:
 
