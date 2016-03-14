@@ -1,6 +1,6 @@
 [Fishnet]
 
-Apikey=XXX
+Apikey = XXX
 
 EngineDir = Stockfish/src/
 EngineCommand = ./stockfish
