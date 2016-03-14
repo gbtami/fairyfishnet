@@ -124,7 +124,7 @@ POST http://localhost:9000/fishnet/move/{work_id}
     "name": "Stockfish 7 64",
     "author": "T. Romstad, M. Costalba, J. Kiiski, G. Linscott"
   },
-  "bestmove": "b7b8=Q"
+  "bestmove": "b7b8q"
 }
 ```
 
