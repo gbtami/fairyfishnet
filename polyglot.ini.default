@@ -25,7 +25,3 @@ Endpoint = http://en.lichess.org/fishnet/
 
 ; Threads = 4
 ; Hash = 256
-
-; Ponder = false
-; MultiPV = 1
-; Write Debug Log = false
