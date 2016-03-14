@@ -150,12 +150,14 @@ def setoptions(p, conf):
 
     isready(p)
 
+
 def movetime(conf, level):
     time = conf.getint("Fishnet", "Movetime")
     if level:
-        # for play, divide analysis time per 10, then scale to level
-        time = int(round(time) / 10 * round(level) / 8)
+        # For play, divide analysis time per 10, then scale to level
+        time = int(round(time / 10.0 * level / 8.0))
     return time
+
 
 def depth(level):
     if not level:
@@ -169,6 +171,7 @@ def depth(level):
     if level == 7:
         return 10
     return 99
+
 
 def go(p, conf, starting_fen, uci_moves, is_analysis, level):
     send(p, "position fen %s moves %s" % (starting_fen, " ".join(uci_moves)))
@@ -280,7 +283,7 @@ def analyse(p, conf, job):
                      base_url(conf.get("Fishnet", "Endpoint")),
                      job["game_id"], ply)
 
-        part = go(p, conf, job["position"], moves[0:ply], True, False)
+        part = go(p, conf, job["position"], moves[0:ply], True, None)
         result.insert(0, part)
 
     return result
