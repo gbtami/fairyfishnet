@@ -75,6 +75,10 @@ POST http://lichess.org/fishnet/analysis/{work_id}
   "engine": {
     "name": "Stockfish 7 64",
     "author": "T. Romstad, M. Costalba, J. Kiiski, G. Linscott"
+    "options": {
+      "hash": "256",
+      "threads": "4"
+    }
   },
   "analysis": [
     {  // first ply

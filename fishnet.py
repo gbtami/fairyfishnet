@@ -167,13 +167,6 @@ def setoption(p, name, value):
     send(p, "setoption name %s value %s" % (name, value))
 
 
-def setoptions(p, conf):
-    for name, value in conf.items("Engine"):
-        setoption(p, name, value)
-
-    isready(p)
-
-
 def movetime(conf, level):
     time = conf.getint("Fishnet", "Movetime")
     if not level: # analysis
@@ -380,8 +373,18 @@ def start_engine(conf, threads):
     logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
                  p.pid, threads, engine_info.get("name", "<none>"))
 
-    setoption(p, "Threads", threads)
-    setoptions(p, conf)
+    # Prepare UCI options
+    engine_info["options"] = {}
+    for name, value in conf.items("Engine"):
+        engine_info["options"][name] = value
+
+    engine_info["options"]["threads"] = str(threads)
+
+    # Set UCI options
+    for name, value in engine_info["options"].items():
+        setoption(p, name, value)
+
+    isready(p)
 
     return p, engine_info
 
