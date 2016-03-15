@@ -17,6 +17,14 @@ import threading
 import sys
 import os
 
+if os.name == "posix" and sys.version_info[0] < 3:
+    try:
+        import subprocess32 as subprocess
+    except ImportError:
+        import subprocess
+else:
+    import subprocess
+
 try:
     import httplib
 except ImportError:
@@ -81,14 +89,14 @@ def start_backoff(conf):
 
 
 def open_process(conf, _popen_lock=threading.Lock()):
-    with _popen_lock:
+    with _popen_lock:  # Work around Python 2 Popen race condition
         return subprocess.Popen(conf.get("Fishnet", "EngineCommand"),
                                 shell=True,
                                 cwd=conf.get("Fishnet", "EngineDir"),
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
                                 stdin=subprocess.PIPE,
-                                bufsize=1,
+                                bufsize=1,  # Line buffered
                                 universal_newlines=True)
 
 
