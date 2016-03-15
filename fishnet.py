@@ -68,6 +68,21 @@ def http_request(method, url, body=None):
     con.close()
 
 
+class Stats(object):
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.nodes = 0
+        self.positions = 0
+
+    def incr_nodes(self, offset):
+        with self.lock:
+            self.nodes += offset
+
+    def incr_positions(self, offset):
+        with self.lock:
+            self.positions += offset
+
+
 def available_ram():
     try:
         with open("/proc/meminfo") as meminfo:
@@ -278,7 +293,7 @@ def set_variant_options(p, job):
     setoption(p, "UCI_3Check", variant == "threecheck")
 
 
-def analyse(p, conf, job):
+def analyse(p, conf, job, stats):
     set_variant_options(p, job)
     setoption(p, "Skill Level", 20)
     isready(p)
@@ -295,12 +310,16 @@ def analyse(p, conf, job):
                      job["game_id"], ply)
 
         part = go(p, conf, job["position"], moves[0:ply], True, None)
+
+        stats.incr_nodes(part.get("nodes", 0))
+        stats.incr_positions(len(moves) + 1)
+
         result.insert(0, part)
 
     return result
 
 
-def bestmove(p, conf, job):
+def bestmove(p, conf, job, stats):
     set_variant_options(p, job)
     setoption(p, "Skill Level", int(round((job["work"]["level"] - 1) * 20.0 / 7)))
     isready(p)
@@ -315,6 +334,10 @@ def bestmove(p, conf, job):
                  job["game_id"], job["work"]["level"])
 
     part = go(p, conf, job["position"], moves, False, job["work"]["level"])
+
+    stats.incr_nodes(part.get("nodes", 0))
+    stats.incr_positions(1)
+
     return {
         "bestmove": part["bestmove"],
     }
@@ -336,7 +359,7 @@ def bench(p):
             logging.warn("Unexpected engine output: %s", line)
 
 
-def work(p, conf, engine_info, job):
+def work(p, conf, engine_info, job, stats):
     result = {
         "fishnet": {
             "version": __version__,
@@ -346,10 +369,10 @@ def work(p, conf, engine_info, job):
     }
 
     if job and job["work"]["type"] == "analysis":
-        result["analysis"] = analyse(p, conf, job)
+        result["analysis"] = analyse(p, conf, job, stats)
         return "analysis" + "/" + job["work"]["id"], result
     elif job and job["work"]["type"] == "move":
-        result["move"] = bestmove(p, conf, job)
+        result["move"] = bestmove(p, conf, job, stats)
         return "move" + "/" + job["work"]["id"], result
     else:
         if job:
@@ -380,7 +403,7 @@ def start_engine(conf, threads):
     return p, engine_info
 
 
-def work_loop(conf, threads):
+def work_loop(conf, stats, threads):
     p, engine_info = start_engine(conf, threads)
 
     # Determine movetime by benchmark or config
@@ -398,7 +421,7 @@ def work_loop(conf, threads):
     job = None
     while True:
         try:
-            path, request = work(p, conf, engine_info, job)
+            path, request = work(p, conf, engine_info, job, stats)
 
             with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), path), json.dumps(request)) as response:
                 if response.status == 204:
@@ -511,10 +534,12 @@ def main(args):
             spare_memory = int(spare_memory * 0.6)
             logging.info("Available memmory: %d MB / 60%%", spare_memory)
 
+    stats = Stats()
+
     # Let spare cores exclusively run engine processes
     workers = []
     while spare_cores > threads_per_process and spare_processes > 0 and spare_memory > memory_per_process:
-        worker = threading.Thread(target=work_loop, args=[conf, threads_per_process])
+        worker = threading.Thread(target=work_loop, args=[conf, stats, threads_per_process])
         worker.daemon = True
         workers.append(worker)
 
@@ -524,7 +549,7 @@ def main(args):
 
     # Use the rest of the cores
     if spare_cores > 0 and spare_processes > 0 and spare_memory > memory_per_process:
-        worker = threading.Thread(target=work_loop, args=[conf, spare_cores])
+        worker = threading.Thread(target=work_loop, args=[conf, stats, spare_cores])
         worker.daemon = True
         workers.append(worker)
 
@@ -538,7 +563,8 @@ def main(args):
         worker.start()
     try:
         while True:
-            time.sleep(60)
+            time.sleep(10)
+            logging.info("Nodes: %d, positions %d", stats.nodes, stats.positions)
     except KeyboardInterrupt:
         return 0
 
