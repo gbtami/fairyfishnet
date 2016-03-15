@@ -436,6 +436,9 @@ class Worker(threading.Thread):
         part = go(self.process, self.job["position"], moves,
                   movetime(self.conf, lvl), depth(lvl))
 
+        self.nodes += part.get("nodes", 0)
+        self.positions += 1
+
         return {
             "bestmove": part["bestmove"],
         }
@@ -458,6 +461,9 @@ class Worker(threading.Thread):
 
             part = go(self.process, self.job["position"], moves[0:ply],
                       movetime(self.conf, None), depth(None))
+
+            self.nodes += part.get("nodes", 0)
+            self.positions += 1
 
             result.insert(0, part)
 
@@ -578,8 +584,9 @@ def main(args):
     try:
         while True:
             time.sleep(10)
-            # TODO
-            #logging.info("><> ><> Nodes: %d, positions %d <')))>{", stats.nodes, stats.positions)
+            logging.info("><> ><> Analyzed %d positions, crunched %d nodes <')))>{",
+                         sum(worker.nodes for worker in workers),
+                         sum(worker.positions for worker in workers))
     except KeyboardInterrupt:
         return 0
 
