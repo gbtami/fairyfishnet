@@ -341,7 +341,7 @@ class Worker(threading.Thread):
                     self.conf.set("Fishnet", "Movetime", str(movetime))
                     logging.info("Setting movetime: %d", movetime)
                 else:
-                    logging.info("Using movetime: %d", self.conf.getint("Fishnet", "Movetime"))
+                    logging.debug("Using movetime: %d", self.conf.getint("Fishnet", "Movetime"))
 
                 # Do the next work unit
                 path, request = self.work()
@@ -471,6 +471,38 @@ class Worker(threading.Thread):
         return result
 
 
+def number_to_fishes(number):
+    swarm = []
+
+    number = min(200000, number)
+
+    while number >= 100000:
+        swarm.append("><XXXX'> °")
+        number -= 100000
+
+    while number >= 10000:
+        swarm.append("<?))>{{")
+        number -= 10000
+
+    while number >= 1000:
+        swarm.append("><(('>")
+        number -= 1000
+
+    while number >= 100:
+        swarm.append("<'))><")
+        number -= 100
+
+    while number >= 10:
+        swarm.append("><('>")
+        number -= 10
+
+    while number >= 1:
+        swarm.append("<><")
+        number -= 1
+
+    return "  ".join(swarm)
+
+
 def intro():
     print(r"""
     _________         .    .
@@ -585,9 +617,11 @@ def main(args):
     try:
         while True:
             time.sleep(10)
-            logging.info("><> ><> Analyzed %d positions, crunched %d nodes <')))>{",
-                         sum(worker.nodes for worker in workers),
-                         sum(worker.positions for worker in workers))
+            logging.info("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~")
+            logging.info("%s", number_to_fishes(sum(worker.positions for worker in workers)))
+            logging.info("Analyzed %d positions, crunched %d nodes",
+                         sum(worker.positions for worker in workers),
+                         sum(worker.nodes for worker in workers))
     except KeyboardInterrupt:
         return 0
 
