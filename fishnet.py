@@ -3,7 +3,7 @@
 
 """Distributed analysis for lichess.org"""
 
-__version__ = "0.0.1"
+__version__ = "0.9.0"
 
 import argparse
 import logging
