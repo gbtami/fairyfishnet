@@ -58,7 +58,9 @@ def http_request(method, url, body=None):
     else:
         con = httplib.HTTPConnection(u.hostname, u.port or 80)
     con.request(method, u.path, body)
-    yield con.getresponse()
+    response = con.getresponse()
+    logging.debug("HTTP response: %d %s", response.status, response.reason)
+    yield response
     con.close()
 
 
@@ -397,7 +399,7 @@ def work_loop(conf, threads):
             with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), path), json.dumps(request)) as response:
                 if response.status == 204:
                     raise NoJobFound()
-                assert response.status in [200, 202], "HTTP %d" % response.status
+                assert response.status in [200, 202], "HTTP %d %s" % (response.status, response.reason)
                 data = response.read().decode("utf-8")
                 logging.debug("Got job: %s", data)
 
