@@ -617,7 +617,7 @@ def main(args):
         worker.start()
     try:
         while True:
-            time.sleep(10)
+            time.sleep(60)
             logging.info("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~")
             logging.info("%s", number_to_fishes(sum(worker.positions for worker in workers)))
             logging.info("Analyzed %d positions, crunched %d nodes",
