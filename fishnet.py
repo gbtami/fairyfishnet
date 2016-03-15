@@ -500,6 +500,7 @@ def number_to_fishes(number):
         swarm.append("<><")
         number -= 1
 
+    random.shuffle(swarm)
     return "  ".join(swarm)
 
 
