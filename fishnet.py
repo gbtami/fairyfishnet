@@ -378,7 +378,7 @@ def work_loop(conf, threads):
     if not conf.has_option("Fishnet", "Movetime"):
         nps = bench(p)
         logging.info("Benchmark determined nodes/second: %d", nps)
-        movetime = int(3000000 * 1000 // (nps * threads * 0.9 ** (threads - 1)))
+        movetime = int(6000000 * 1000 // (nps * threads * 0.9 ** (threads - 1)))
         conf.set("Fishnet", "Movetime", str(movetime))
         logging.info("Setting movetime: %d", movetime)
     else:
