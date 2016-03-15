@@ -564,7 +564,7 @@ def main(args):
     try:
         while True:
             time.sleep(10)
-            logging.info("Nodes: %d, positions %d", stats.nodes, stats.positions)
+            logging.info("><> ><> Nodes: %d, positions %d <')))>{", stats.nodes, stats.positions)
     except KeyboardInterrupt:
         return 0
 
