@@ -48,6 +48,21 @@ class NoJobFound(Exception):
     pass
 
 
+class HttpError(Exception):
+    def __init__(self, status, reason):
+        self.status = status
+        self.reason = reason
+
+    def __str__(self):
+        return "HTTP %d %s" % (self.status, self.reason)
+
+    def __repr__(self):
+        return "HttpError(%d, %s)" % (self.status, self.reason)
+
+class HttpServerError(HttpError):
+    pass
+
+
 def base_url(url):
     url_info = urlparse.urlparse(url)
     return "%s://%s/" % (url_info.scheme, url_info.hostname)
@@ -66,21 +81,6 @@ def http_request(method, url, body=None):
     logging.debug("HTTP response: %d %s", response.status, response.reason)
     yield response
     con.close()
-
-
-class Stats(object):
-    def __init__(self):
-        self.lock = threading.Lock()
-        self.nodes = 0
-        self.positions = 0
-
-    def incr_nodes(self, offset):
-        with self.lock:
-            self.nodes += offset
-
-    def incr_positions(self, offset):
-        with self.lock:
-            self.positions += offset
 
 
 def available_ram():
@@ -291,57 +291,6 @@ def set_variant_options(p, job):
     setoption(p, "UCI_3Check", variant == "threecheck")
 
 
-def analyse(p, conf, job, stats):
-    set_variant_options(p, job)
-    setoption(p, "Skill Level", 20)
-    isready(p)
-
-    send(p, "ucinewgame")
-    isready(p)
-
-    moves = job["moves"].split(" ")
-    result = []
-
-    for ply in range(len(moves), -1, -1):
-        logging.info("Analysing %s%s#%d",
-                     base_url(conf.get("Fishnet", "Endpoint")),
-                     job["game_id"], ply)
-
-        part = go(p, job["position"], moves[0:ply], movetime(conf, None), depth(None))
-
-        stats.incr_nodes(part.get("nodes", 0))
-        stats.incr_positions(len(moves) + 1)
-
-        result.insert(0, part)
-
-    return result
-
-
-def bestmove(p, conf, job, stats):
-    lvl = job["work"]["level"]
-    set_variant_options(p, job)
-    setoption(p, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
-    isready(p)
-
-    send(p, "ucinewgame")
-    isready(p)
-
-    moves = job["moves"].split(" ")
-
-    logging.info("Playing %s%s level %s",
-                 base_url(conf.get("Fishnet", "Endpoint")),
-                 job["game_id"], job["work"]["level"])
-
-    part = go(p, job["position"], moves, movetime(conf, lvl), depth(lvl))
-
-    stats.incr_nodes(part.get("nodes", 0))
-    stats.incr_positions(1)
-
-    return {
-        "bestmove": part["bestmove"],
-    }
-
-
 def bench(p):
     send(p, "bench")
 
@@ -358,93 +307,161 @@ def bench(p):
             logging.warn("Unexpected engine output: %s", line)
 
 
-def work(p, conf, engine_info, job, stats):
-    result = {
-        "fishnet": {
-            "version": __version__,
-            "apikey": conf.get("Fishnet", "Apikey"),
-        },
-        "engine": engine_info
-    }
+class Worker(threading.Thread):
+    def __init__(self, conf, threads):
+        super(Worker, self).__init__()
+        self.conf = conf
+        self.threads = threads
 
-    if job and job["work"]["type"] == "analysis":
-        result["analysis"] = analyse(p, conf, job, stats)
-        return "analysis" + "/" + job["work"]["id"], result
-    elif job and job["work"]["type"] == "move":
-        result["move"] = bestmove(p, conf, job, stats)
-        return "move" + "/" + job["work"]["id"], result
-    else:
-        if job:
-            logging.error("Invalid job type: %s", job)
+        self.nodes = 0
+        self.positions = 0
 
-        return "acquire", result
+        self.job = None
+        self.process = None
+        self.engine_info = None
+        self.backoff = start_backoff(self.conf)
 
+    def run(self):
+        while True:
+            try:
+                # Check if engine is still alive
+                if self.process:
+                    self.process.poll()
 
-def start_engine(conf, threads):
-    p = open_process(conf)
-    engine_info = uci(p)
-    logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
-                 p.pid, threads, engine_info.get("name", "<none>"))
+                # Restart the engine
+                if not self.process or self.process.returncode is not None:
+                    self.start_engine()
 
-    # Prepare UCI options
-    engine_info["options"] = {}
-    for name, value in conf.items("Engine"):
-        engine_info["options"][name] = value
+                # Determine movetime by benchmark or config
+                if not self.conf.has_option("Fishnet", "Movetime"):
+                    logging.info("Running benchmark ...")
+                    nps = bench(self.process)
+                    logging.info("Benchmark determined nodes/second: %d", nps)
+                    movetime = int(6000000 * 1000 // (nps * self.threads * 0.9 ** (self.threads - 1)))
+                    self.conf.set("Fishnet", "Movetime", str(movetime))
+                    logging.info("Setting movetime: %d", movetime)
+                else:
+                    logging.info("Using movetime: %d", self.conf.getint("Fishnet", "Movetime"))
 
-    engine_info["options"]["threads"] = str(threads)
+                # Do the next work unit
+                path, request = self.work()
 
-    # Set UCI options
-    for name, value in engine_info["options"].items():
-        setoption(p, name, value)
+                # Report result and fetch next job
+                with http_request("POST", urlparse.urljoin(self.conf.get("Fishnet", "Endpoint"), path), json.dumps(request)) as response:
+                    if response.status in [200, 202]:
+                        data = response.read().decode("utf-8")
+                        logging.debug("Got job: %s", data)
 
-    isready(p)
+                        self.job = json.loads(data)
+                        self.backoff = start_backoff(self.conf)
+                    elif response.status == 204:
+                        raise NoJobFound()
+                    elif 500 <= response.status < 600:
+                        raise HttpServerError(response.status, response.reason)
+                    else:
+                        raise HttpError(response.status, response.reason)
+            except NoJobFound:
+                self.job = None
+                t = next(self.backoff)
+                logging.info("No job found. Backing of %0.1fs", t)
+                time.sleep(t)
+            except HttpServerError as err:
+                self.job = None
+                t = next(self.backoff)
+                logging.error("Server error: HTTP %d %s", err.status, err.reason)
+            except:
+                self.job = None
+                t = next(self.backoff)
+                logging.exception("Backing off %0.1fs after exception in worker", t)
+                time.sleep(t)
 
-    return p, engine_info
+                # If in doubt, restart engine
+                self.process.kill()
 
+    def start_engine(self):
+        self.process = open_process(self.conf)
+        self.engine_info = uci(self.process)
+        logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
+                     self.process.pid, self.threads, self.engine_info.get("name", "<none>"))
 
-def work_loop(conf, stats, threads):
-    p, engine_info = start_engine(conf, threads)
+        # Prepare UCI options
+        self.engine_info["options"] = {}
+        for name, value in self.conf.items("Engine"):
+            self.engine_info["options"][name] = value
 
-    # Determine movetime by benchmark or config
-    if not conf.has_option("Fishnet", "Movetime"):
-        logging.info("Running benchmark ...")
-        nps = bench(p)
-        logging.info("Benchmark determined nodes/second: %d", nps)
-        movetime = int(6000000 * 1000 // (nps * threads * 0.9 ** (threads - 1)))
-        conf.set("Fishnet", "Movetime", str(movetime))
-        logging.info("Setting movetime: %d", movetime)
-    else:
-        logging.info("Using movetime: %d", conf.getint("Fishnet", "Movetime"))
+        self.engine_info["options"]["threads"] = str(self.threads)
 
-    backoff = start_backoff(conf)
-    job = None
-    while True:
-        try:
-            path, request = work(p, conf, engine_info, job, stats)
+        # Set UCI options
+        for name, value in self.engine_info["options"].items():
+            setoption(self.process, name, value)
 
-            with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), path), json.dumps(request)) as response:
-                if response.status == 204:
-                    raise NoJobFound()
-                assert response.status in [200, 202], "HTTP %d %s" % (response.status, response.reason)
-                data = response.read().decode("utf-8")
-                logging.debug("Got job: %s", data)
+        isready(self.process)
 
-            job = json.loads(data)
-            backoff = start_backoff(conf)
-        except NoJobFound:
-            job = None
-            t = next(backoff)
-            logging.info("No job found. Backing off %0.1fs", t)
-            time.sleep(t)
-        except:
-            job = None
-            t = next(backoff)
-            logging.exception("Backing off %0.1fs after exception in work loop", t)
-            time.sleep(t)
+    def work(self):
+        result = {
+            "fishnet": {
+                "version": __version__,
+                "apikey": self.conf.get("Fishnet", "Apikey"),
+            },
+            "engine": self.engine_info
+        }
 
-            # If in doubt, restart engine
-            p.kill()
-            p, engine_info = start_engine(conf, threads)
+        if self.job and self.job["work"]["type"] == "analysis":
+            result["analysis"] = self.analyse()
+            return "analysis" + "/" + self.job["work"]["id"], result
+        elif self.job and self.job["work"]["type"] == "move":
+            result["move"] = self.bestmove()
+            return "move" + "/" + self.job["work"]["id"], result
+        else:
+            if self.job:
+                logging.error("Invalid job type: %s", job)
+
+            return "acquire", result
+
+    def bestmove(self):
+        lvl = self.job["work"]["level"]
+        set_variant_options(self.process, self.job)
+        setoption(self.process, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
+        isready(self.process)
+
+        send(self.process, "ucinewgame")
+        isready(self.process)
+
+        moves = self.job["moves"].split(" ")
+
+        logging.info("Playing %s%s level %s",
+                     base_url(self.conf.get("Fishnet", "Endpoint")),
+                     self.job["game_id"], self.job["work"]["level"])
+
+        part = go(self.process, self.job["position"], moves,
+                  movetime(self.conf, lvl), depth(lvl))
+
+        return {
+            "bestmove": part["bestmove"],
+        }
+
+    def analyse(self):
+        set_variant_options(self.process, self.job)
+        setoption(self.process, "Skill Level", 20)
+        isready(self.process)
+
+        send(self.process, "ucinewgame")
+        isready(self.process)
+
+        moves = self.job["moves"].split(" ")
+        result = []
+
+        for ply in range(len(moves), -1, -1):
+            logging.info("Analysing %s%s#%d",
+                         base_url(self.conf.get("Fishnet", "Endpoint")),
+                         self.job["game_id"], ply)
+
+            part = go(self.process, self.job["position"], moves[0:ply],
+                      movetime(self.conf, None), depth(None))
+
+            result.insert(0, part)
+
+        return result
 
 
 def intro():
@@ -533,12 +550,10 @@ def main(args):
             spare_memory = int(spare_memory * 0.6)
             logging.info("Available memmory: %d MB / 60%%", spare_memory)
 
-    stats = Stats()
-
     # Let spare cores exclusively run engine processes
     workers = []
     while spare_cores > threads_per_process and spare_processes > 0 and spare_memory > memory_per_process:
-        worker = threading.Thread(target=work_loop, args=[conf, stats, threads_per_process])
+        worker = Worker(conf, threads_per_process)
         worker.daemon = True
         workers.append(worker)
 
@@ -548,7 +563,7 @@ def main(args):
 
     # Use the rest of the cores
     if spare_cores > 0 and spare_processes > 0 and spare_memory > memory_per_process:
-        worker = threading.Thread(target=work_loop, args=[conf, stats, spare_cores])
+        worker = Worker(conf, spare_cores)
         worker.daemon = True
         workers.append(worker)
 
@@ -563,7 +578,8 @@ def main(args):
     try:
         while True:
             time.sleep(10)
-            logging.info("><> ><> Nodes: %d, positions %d <')))>{", stats.nodes, stats.positions)
+            # TODO
+            #logging.info("><> ><> Nodes: %d, positions %d <')))>{", stats.nodes, stats.positions)
     except KeyboardInterrupt:
         return 0
 
