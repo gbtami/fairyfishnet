@@ -613,7 +613,7 @@ def main(args):
 
     # Start all threads and wait forever
     for i, worker in enumerate(workers):
-        worker.name = "Process %d" % (i + 1)
+        worker.name = "><> %d" % (i + 1)
         worker.start()
     try:
         while True:
