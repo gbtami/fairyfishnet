@@ -167,14 +167,14 @@ def setoptions(p, conf):
 
 def movetime(conf, level):
     time = conf.getint("Fishnet", "Movetime")
-    if level:
-        # For play, divide analysis time per 10, then scale to level
-        time = int(round(time / 10.0 * level / 8.0))
-    return time
+    if not level: # analysis
+        return time
+    # For play, divide analysis time per 10, then scale to level
+    return int(round(time / 10.0 * level / 8.0))
 
 
 def depth(level):
-    if not level:
+    if not level: # analysis
         return 99
     elif level < 5:
         return level
