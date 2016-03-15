@@ -212,10 +212,10 @@ def depth(level):
         return 99
 
 
-def go(p, conf, starting_fen, uci_moves, is_analysis, level):
+def go(p, starting_fen, uci_moves, movetime, depth):
     send(p, "position fen %s moves %s" % (starting_fen, " ".join(uci_moves)))
     isready(p)
-    send(p, "go movetime %d depth %d" % (movetime(conf, level), depth(level)))
+    send(p, "go movetime %d depth %d" % (movetime, depth))
 
     info = {}
 
@@ -230,8 +230,6 @@ def go(p, conf, starting_fen, uci_moves, is_analysis, level):
                 info["bestmove"] = None
 
             return info
-        elif command == "info" and not is_analysis:
-            continue
         elif command == "info":
             arg = arg or ""
 
@@ -309,7 +307,7 @@ def analyse(p, conf, job, stats):
                      base_url(conf.get("Fishnet", "Endpoint")),
                      job["game_id"], ply)
 
-        part = go(p, conf, job["position"], moves[0:ply], True, None)
+        part = go(p, job["position"], moves[0:ply], movetime(conf, None), depth(None))
 
         stats.incr_nodes(part.get("nodes", 0))
         stats.incr_positions(len(moves) + 1)
@@ -320,8 +318,9 @@ def analyse(p, conf, job, stats):
 
 
 def bestmove(p, conf, job, stats):
+    lvl = job["work"]["level"]
     set_variant_options(p, job)
-    setoption(p, "Skill Level", int(round((job["work"]["level"] - 1) * 20.0 / 7)))
+    setoption(p, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
     isready(p)
 
     send(p, "ucinewgame")
@@ -333,7 +332,7 @@ def bestmove(p, conf, job, stats):
                  base_url(conf.get("Fishnet", "Endpoint")),
                  job["game_id"], job["work"]["level"])
 
-    part = go(p, conf, job["position"], moves, False, job["work"]["level"])
+    part = go(p, job["position"], moves, movetime(conf, lvl), depth(lvl))
 
     stats.incr_nodes(part.get("nodes", 0))
     stats.incr_positions(1)
