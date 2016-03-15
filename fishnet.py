@@ -80,15 +80,16 @@ def start_backoff(conf):
             backoff = min(backoff + 1, 60)
 
 
-def open_process(conf):
-    return subprocess.Popen(conf.get("Fishnet", "EngineCommand"),
-                            shell=True,
-                            cwd=conf.get("Fishnet", "EngineDir"),
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT,
-                            stdin=subprocess.PIPE,
-                            bufsize=1,
-                            universal_newlines=True)
+def open_process(conf, _popen_lock=threading.Lock()):
+    with _popen_lock:
+        return subprocess.Popen(conf.get("Fishnet", "EngineCommand"),
+                                shell=True,
+                                cwd=conf.get("Fishnet", "EngineDir"),
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                stdin=subprocess.PIPE,
+                                bufsize=1,
+                                universal_newlines=True)
 
 
 def send(p, line):
