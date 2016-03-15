@@ -7,7 +7,6 @@ __version__ = "0.9.0"
 
 import argparse
 import logging
-import subprocess
 import json
 import time
 import random
