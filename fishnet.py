@@ -314,22 +314,6 @@ def bestmove(p, conf, job):
     }
 
 
-def quit(p):
-    isready(p)
-
-    send(p, "quit")
-    time.sleep(1)
-
-    if p.poll() is None:
-        logging.warning("Sending SIGTERM to engine process %d" % p.pid)
-        p.terminate()
-        time.sleep(1)
-
-    if p.poll() is None:
-        logging.warning("Sending SIGKILL to engine process %d" % p.pid)
-        p.kill()
-
-
 def bench(p):
     send(p, "bench")
 
