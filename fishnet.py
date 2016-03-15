@@ -363,7 +363,7 @@ class Worker(threading.Thread):
             except NoJobFound:
                 self.job = None
                 t = next(self.backoff)
-                logging.info("No job found. Backing of %0.1fs", t)
+                logging.info("No job found. Backing off %0.1fs", t)
                 time.sleep(t)
             except HttpServerError as err:
                 self.job = None
