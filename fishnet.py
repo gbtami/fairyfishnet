@@ -368,7 +368,8 @@ class Worker(threading.Thread):
             except HttpServerError as err:
                 self.job = None
                 t = next(self.backoff)
-                logging.error("Server error: HTTP %d %s", err.status, err.reason)
+                logging.error("Server error: HTTP %d %s. Backing off %0.1fs", err.status, err.reason, t)
+                time.sleep(t)
             except:
                 self.job = None
                 t = next(self.backoff)
