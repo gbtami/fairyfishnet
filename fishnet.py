@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# pylint: disable=wrong-import-order
 
 """Distributed analysis for lichess.org"""
 
-__version__ = "0.9.0"
+from __future__ import print_function
 
 import argparse
 import logging
@@ -40,6 +41,9 @@ except ImportError:
     import ConfigParser as configparser
 
 
+__version__ = "0.9.0"
+
+
 class NoJobFound(Exception):
     pass
 
@@ -69,7 +73,7 @@ def available_ram():
         with open("/proc/meminfo") as meminfo:
             for line in meminfo:
                 if line.startswith("MemTotal:"):
-                    label, ram, unit = line.split()
+                    _, ram, unit = line.split()
                     if unit == "kB":
                         return int(ram) // 1024
                     else:
@@ -242,7 +246,7 @@ def go(p, conf, starting_fen, uci_moves, is_analysis, level):
                     info[current_parameter] = int(token)
                 elif current_parameter == "score":
                     # Score
-                    if not "score" in info:
+                    if "score" not in info:
                         info["score"] = {}
 
                     if token in ["cp", "mate"]:
@@ -422,8 +426,7 @@ def work_loop(conf, threads):
 
 
 def intro():
-    print("""\
-
+    print(r"""
     _________         .    .
    (..       \_    ,  |\  /|
     \       O  \  /|  \ \/ /
