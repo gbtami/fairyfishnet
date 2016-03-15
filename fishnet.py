@@ -168,14 +168,16 @@ def setoption(p, name, value):
 
 def movetime(conf, level):
     time = conf.getint("Fishnet", "Movetime")
-    if not level: # analysis
+
+    if not level:  # Analysis
         return time
+
     # For play, divide analysis time per 10, then scale to level
     return int(round(time / 10.0 * level / 8.0))
 
 
 def depth(level):
-    if not level: # analysis
+    if not level:  # Analysis
         return 99
     elif level < 5:
         return level
