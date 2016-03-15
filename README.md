@@ -22,6 +22,8 @@ python fishnet.py polyglot.ini
 Protocol
 --------
 
+![Fishnet sequence diagram](https://raw.githubusercontent.com/niklasf/fishnet/master/doc/sequence-diagram.png)
+
 Client asks server:
 
 ```javascript
