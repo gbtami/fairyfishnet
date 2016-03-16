@@ -620,9 +620,9 @@ def main(args):
             time.sleep(60)
             logging.info("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~")
             logging.info("%s", number_to_fishes(sum(worker.positions for worker in workers)))
-            logging.info("Analyzed %d positions, crunched %d nodes",
+            logging.info("Analyzed %d positions, crunched %d million nodes",
                          sum(worker.positions for worker in workers),
-                         sum(worker.nodes for worker in workers))
+                         int(sum(worker.nodes for worker in workers) / 1000 / 1000))
     except KeyboardInterrupt:
         return 0
 
