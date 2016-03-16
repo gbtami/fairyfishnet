@@ -334,8 +334,8 @@ class Worker(threading.Thread):
                 if self.movetime is None:
                     logging.info("Running benchmark ...")
                     nps = bench(self.process)
-                    self.adjust_movetime(nps * self.threads * 0.9 ** (self.threads - 1))
-                    logging.info("Benchmark completed: nodes/second: %d, movetime: %d", nps, self.movetime)
+                    self.adjust_movetime(nps)
+                    logging.info("Benchmark completed: nodes/second: %d, movetime: %d ms", nps, self.movetime)
 
                 # Do the next work unit
                 path, request = self.work()
