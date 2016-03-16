@@ -565,17 +565,23 @@ def main(args):
     conf.set("Engine", "Hash", str(memory_per_process))
 
     # Determine the number of spare cores
-    spare_cores = multiprocessing.cpu_count() - 1
+    total_cores = multiprocessing.cpu_count()
+    spare_cores = total_cores - 1
     logging.info("Cores: %d + 1", spare_cores)
     if spare_cores == 0:
         logging.warn("No spare core to exclusively run an engine process")
         spare_cores = 1  # Run 1, anyway
 
     if conf.has_option("Fishnet", "Processes"):
-        spare_processes = max(conf.getint("Fishnet", "Processes"), 1)
-        logging.info("Number of processes capped at: %d", spare_processes)
+        if conf.get("Fishnet", "Processes") == "Max":
+            spare_processes = total_cores
+        elif conf.get("Fishnet", "Processes") == "Auto":
+            spare_processes = spare_cores
+        else:
+            spare_processes = max(conf.getint("Fishnet", "Processes"), 1)
     else:
         spare_processes = spare_cores
+    logging.info("Number of engine processes: %d", spare_processes)
 
     # Determine available memory
     if conf.has_option("Fishnet", "Memory"):

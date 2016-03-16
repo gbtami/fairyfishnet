@@ -5,19 +5,22 @@ Apikey = XXX
 EngineDir = Stockfish/src/
 EngineCommand = ./stockfish
 
-; You probably don't need to edit below this line :)
+; ----------------------------------------------- ;
+; You probably don't need to edit below this line ;
+; ----------------------------------------------- ;
 
 Endpoint = http://en.lichess.org/fishnet/
 
-; For move servers:
-; Fixed Backoff = 3
-
-; Cap the number of engine processes:
-; Processes = 1
+; Number of engine processes
+; Processes = Auto ; Do not use all CPU threads (default, recommended)
+; Processes = All  ; Use all CPU threads (not recommended)
+; Processes = 4    ; Manually allocate threads (if you know what you're doing)
 
 ; Determined by benchmark
 ; Movetime = 1000
 
+; For move servers:
+; Fixed Backoff = 3
 
 [Engine]
 
