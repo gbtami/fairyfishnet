@@ -436,9 +436,6 @@ class Worker(threading.Thread):
         part = go(self.process, self.job["position"], moves,
                   movetime, depth(lvl))
 
-        if "nps" in part:
-            self.adjust_movetime(part["nps"])
-
         self.nodes += part.get("nodes", 0)
         self.positions += 1
 
