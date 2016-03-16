@@ -572,13 +572,13 @@ def main(args):
         logging.warn("No spare core to exclusively run an engine process")
         spare_cores = 1  # Run 1, anyway
 
-    if conf.has_option("Fishnet", "EngineThreads"):
-        if conf.get("Fishnet", "EngineThreads") == "Max":
+    if conf.has_option("Fishnet", "Processes"):
+        if conf.get("Fishnet", "Processes") == "Max":
             spare_processes = total_cores
-        elif conf.get("Fishnet", "EngineThreads") == "Auto":
+        elif conf.get("Fishnet", "Processes") == "Auto":
             spare_processes = spare_cores
         else:
-            spare_processes = max(conf.getint("Fishnet", "EngineThreads"), 1)
+            spare_processes = max(conf.getint("Fishnet", "Processes"), 1)
     else:
         spare_processes = spare_cores
     logging.info("Number of engine processes: %d", spare_processes)
