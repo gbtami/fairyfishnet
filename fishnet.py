@@ -44,8 +44,9 @@ except ImportError:
 __version__ = "0.9.1"
 
 
-class NoJobFound(Exception):
-    pass
+def base_url(url):
+    url_info = urlparse.urlparse(url)
+    return "%s://%s/" % (url_info.scheme, url_info.hostname)
 
 
 class HttpError(Exception):
@@ -57,30 +58,40 @@ class HttpError(Exception):
         return "HTTP %d %s" % (self.status, self.reason)
 
     def __repr__(self):
-        return "HttpError(%d, %s)" % (self.status, self.reason)
+        return "%s(%d, %s)" % (type(self).__name__, self.status, self.reason)
+
 
 class HttpServerError(HttpError):
     pass
 
 
-def base_url(url):
-    url_info = urlparse.urlparse(url)
-    return "%s://%s/" % (url_info.scheme, url_info.hostname)
+class HttpClientError(HttpError):
+    pass
 
 
 @contextlib.contextmanager
 def http_request(method, url, body=None):
     logging.debug("HTTP request: %s %s, body: %s", method, url, body)
-    u = urlparse.urlparse(url)
-    if u.scheme == "https":
-        con = httplib.HTTPSConnection(u.hostname, u.port or 443)
+
+    url_info = urlparse.urlparse(url)
+    if url_info.scheme == "https":
+        con = httplib.HTTPSConnection(url_info.hostname, url_info.port or 443)
     else:
-        con = httplib.HTTPConnection(u.hostname, u.port or 80)
-    con.request(method, u.path, body)
+        con = httplib.HTTPConnection(url_info.hostname, url_info.port or 80)
+
+    con.request(method, url_info.path, body)
     response = con.getresponse()
     logging.debug("HTTP response: %d %s", response.status, response.reason)
-    yield response
-    con.close()
+
+    try:
+        if 400 <= response.status < 500:
+            raise HttpClientError(response.status, response.reason)
+        elif 500 <= response.status < 600:
+            raise HttpServerError(response.status, response.reason)
+        else:
+            yield response
+    finally:
+        con.close()
 
 
 def available_ram():
@@ -95,6 +106,10 @@ def available_ram():
                         logging.error("Unknown unit: %s", unit)
     except IOError:
         return None
+
+
+class NoJobFound(Exception):
+    pass
 
 
 def start_backoff(conf):
@@ -348,22 +363,18 @@ class Worker(threading.Thread):
 
                 # Report result and fetch next job
                 with http_request("POST", urlparse.urljoin(self.conf.get("Fishnet", "Endpoint"), path), json.dumps(request)) as response:
-                    if response.status in [200, 202]:
+                    if response.status == 204:
+                        raise NoJobFound()
+                    else:
                         data = response.read().decode("utf-8")
                         logging.debug("Got job: %s", data)
 
                         self.job = json.loads(data)
                         self.backoff = start_backoff(self.conf)
-                    elif response.status == 204:
-                        raise NoJobFound()
-                    elif 500 <= response.status < 600:
-                        raise HttpServerError(response.status, response.reason)
-                    else:
-                        raise HttpError(response.status, response.reason)
             except NoJobFound:
                 self.job = None
                 t = next(self.backoff)
-                logging.info("No job found. Backing off %0.1fs", t)
+                logging.debug("No job found. Backing off %0.1fs", t)
                 time.sleep(t)
             except HttpServerError as err:
                 self.job = None
