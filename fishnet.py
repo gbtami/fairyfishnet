@@ -96,10 +96,6 @@ def http(method, url, body=None):
         con.close()
 
 
-class NoJobFound(Exception):
-    pass
-
-
 def start_backoff(conf):
     if conf.has_option("Fishnet", "Fixed Backoff"):
         while True:
@@ -343,18 +339,16 @@ class Worker(threading.Thread):
                 # Report result and fetch next job
                 with http("POST", urlparse.urljoin(self.conf.get("Fishnet", "Endpoint"), path), json.dumps(request)) as response:
                     if response.status == 204:
-                        raise NoJobFound()
+                        self.job = None
+                        t = next(self.backoff)
+                        logging.debug("No job found. Backing off %0.1fs", t)
+                        time.sleep(t)
                     else:
                         data = response.read().decode("utf-8")
                         logging.debug("Got job: %s", data)
 
                         self.job = json.loads(data)
                         self.backoff = start_backoff(self.conf)
-            except NoJobFound:
-                self.job = None
-                t = next(self.backoff)
-                logging.debug("No job found. Backing off %0.1fs", t)
-                time.sleep(t)
             except HttpServerError as err:
                 self.job = None
                 t = next(self.backoff)
