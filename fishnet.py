@@ -72,7 +72,7 @@ class HttpClientError(HttpError):
 
 
 @contextlib.contextmanager
-def http_request(method, url, body=None):
+def http(method, url, body=None):
     logging.debug("HTTP request: %s %s, body: %s", method, url, body)
 
     url_info = urlparse.urlparse(url)
@@ -350,7 +350,7 @@ class Worker(threading.Thread):
                 path, request = self.work()
 
                 # Report result and fetch next job
-                with http_request("POST", urlparse.urljoin(self.conf.get("Fishnet", "Endpoint"), path), json.dumps(request)) as response:
+                with http("POST", urlparse.urljoin(self.conf.get("Fishnet", "Endpoint"), path), json.dumps(request)) as response:
                     if response.status == 204:
                         raise NoJobFound()
                     else:
@@ -621,7 +621,7 @@ def main(args):
         for worker in workers:
             job = worker.job
             if job:
-                with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "abort/%s" % job["work"]["id"]), json.dumps(worker.make_request())) as response:
+                with http("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "abort/%s" % job["work"]["id"]), json.dumps(worker.make_request())) as response:
                     logging.info(" - Aborted %s" % job["work"]["id"])
         return 0
 
