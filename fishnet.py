@@ -561,7 +561,7 @@ def main(args):
     elif spare_threads > multiprocessing.cpu_count():
         logging.warn("Using more threads than cores: %d/%d", spare_threads, multiprocessing.cpu_count())
     else:
-        logging.info("Using %d cores: %d", spare_threads)
+        logging.info("Using %d cores", spare_threads)
 
     # Get number of threads per engine process
     if conf.has_option("Engine", "Threads"):
@@ -613,6 +613,12 @@ def main(args):
                          int(sum(worker.nodes for worker in workers) / 1000 / 1000),
                          number_to_fishes(sum(worker.positions for worker in workers)))
     except KeyboardInterrupt:
+        logging.info("Good bye. Aborting pending jobs ...")
+        for worker in workers:
+            job = worker.job
+            if job:
+                logging.info(" - abort/%s" % job["work"]["id"])
+                http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "abort/%s" % job["work"]["id"]))
         return 0
 
 
