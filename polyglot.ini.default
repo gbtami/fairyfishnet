@@ -11,15 +11,17 @@ EngineCommand = ./stockfish
 
 Endpoint = http://en.lichess.org/fishnet/
 
-; Total threads to use. They will be distributed to the engine processes.
-; TotalEngineThreads = Auto ; Do not use all your CPU threads (default, recommended)
-; TotalEngineThreads = All  ; Use all your CPU threads (your computer will get slow)
-; TotalEngineThreads = 4    ; Manually allocate threads (if you know what you're doing)
+; Total number of cores to use.
+; They will be distributed to the engine processes.
+; Cores = Auto ; Do not use all your CPU threads (default, recommended)
+; Cores = All  ; Use all your CPU threads (your computer will get slow)
+; Cores = 4    ; Manually allocate threads (if you know what you're doing)
 
 ; Total memory to use, in Mb. It will be distributed to the engine processes.
-; TotalEngineMemory = 2048
+; Default: 256 Mb per engine process
+; Memory = 2048
 
-; Determined by benchmark
+; Time per move in ms. Default: Determined by benchmark
 ; Movetime = 1000
 
 ; For move servers:

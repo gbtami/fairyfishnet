@@ -16,6 +16,7 @@ import multiprocessing
 import threading
 import sys
 import os
+import math
 
 if os.name == "posix" and sys.version_info[0] < 3:
     try:
@@ -92,20 +93,6 @@ def http_request(method, url, body=None):
             yield response
     finally:
         con.close()
-
-
-def available_ram():
-    try:
-        with open("/proc/meminfo") as meminfo:
-            for line in meminfo:
-                if line.startswith("MemTotal:"):
-                    _, ram, unit = line.split()
-                    if unit == "kB":
-                        return int(ram) // 1024
-                    else:
-                        logging.error("Unknown unit: %s", unit)
-    except IOError:
-        return None
 
 
 class NoJobFound(Exception):
@@ -552,13 +539,29 @@ def main(args):
         logging.error("EngineDir not found. Check configuration")
         return 78
 
-    # Validate Endpoint
+    # Sanitize Endpoint
     if not conf.get("Fishnet", "Endpoint").endswith("/"):
         conf.set("Fishnet", "Endpoint", conf.get("Fishnet", "Endpoint") + "/")
 
     # Log custom UCI options
     for name, value in conf.items("Engine"):
         logging.warn("Using custom UCI option: name %s value %s", name, value)
+
+    # Determine number of cores to use for engine threads
+    if not conf.has_option("Fishnet", "Cores") or conf.get("Fishnet", "Cores").lower() == "auto":
+        spare_threads = multiprocessing.cpu_count() - 1
+    elif conf.get("Fishnet", "Cores").lower() == "all":
+        spare_threads = multiprocessing.cpu_count()
+    else:
+        spare_threads = conf.getint("Fishnet", "Cores")
+
+    if spare_threads == 0:
+        logging.warn("Not enough cores to exclusively run an engine thread")
+        spare_threads = 1
+    elif spare_threads > multiprocessing.cpu_count():
+        logging.warn("Using more threads than cores: %d/%d", spare_threads, multiprocessing.cpu_count())
+    else:
+        logging.info("Using %d cores: %d", spare_threads)
 
     # Get number of threads per engine process
     if conf.has_option("Engine", "Threads"):
@@ -567,60 +570,36 @@ def main(args):
     else:
         threads_per_process = 4
 
-    # Hashtable size
+    # Determine memory to use per process
     if conf.has_option("Engine", "Hash"):
-        memory_per_process = max(conf.getint("Engine", "Hash"), 32)
+        memory_per_process = conf.getint("Engine", "Hash")
+    elif conf.has_option("Fishnet", "Memory"):
+        memory_per_process = conf.getint("Fishnet", "Memory") // math.ceil(spare_threads / threads_per_process)
     else:
         memory_per_process = 256
-    logging.info("Hashtable size per process: %d MB", memory_per_process)
+
     conf.set("Engine", "Hash", str(memory_per_process))
 
-    # Determine the number of spare cores
-    spare_cores = multiprocessing.cpu_count() - 1
-    logging.info("Cores: %d + 1", spare_cores)
-    if spare_cores == 0:
-        logging.warn("No spare core to exclusively run an engine process")
-        spare_cores = 1  # Run 1, anyway
-
-    if conf.has_option("Fishnet", "Processes"):
-        spare_processes = max(conf.getint("Fishnet", "Processes"), 1)
-        logging.info("Number of processes capped at: %d", spare_processes)
+    if memory_per_process < 32:
+        logging.warn("Very small hashtable size per engine process: %d MB", memory_per_process)
     else:
-        spare_processes = spare_cores
+        logging.info("Hashtable size per process: %d MB", memory_per_process)
 
-    # Determine available memory
-    if conf.has_option("Fishnet", "Memory"):
-        spare_memory = conf.getint("Fishnet", "Memory")
-        logging.info("Memory capped at about %d MB", spare_memory)
-    else:
-        spare_memory = available_ram()
-        if not spare_memory:
-            logging.warn("Could not determine available memory, let's hope for the best")
-            spare_memory = 256 * spare_cores
-        else:
-            spare_memory = int(spare_memory * 0.6)
-            logging.info("Available memmory: %d MB / 60%%", spare_memory)
 
     # Let spare cores exclusively run engine processes
     workers = []
-    while spare_cores > threads_per_process and spare_processes > 0 and spare_memory > memory_per_process:
+    while spare_threads > threads_per_process:
         worker = Worker(conf, threads_per_process)
         worker.daemon = True
         workers.append(worker)
 
-        spare_cores -= threads_per_process
-        spare_processes -= 1
-        spare_memory -= memory_per_process
+        spare_threads -= threads_per_process
 
     # Use the rest of the cores
-    if spare_cores > 0 and spare_processes > 0 and spare_memory > memory_per_process:
-        worker = Worker(conf, spare_cores)
+    if spare_threads > 0:
+        worker = Worker(conf, spare_threads)
         worker.daemon = True
         workers.append(worker)
-
-    if not workers:
-        logging.error("Not enough resources to start a worker")
-        return 1
 
     # Start all threads and wait forever
     for i, worker in enumerate(workers):
