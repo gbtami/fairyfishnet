@@ -337,7 +337,7 @@ class Worker(threading.Thread):
                     logging.info("Running benchmark ...")
                     nps = bench(self.process)
                     logging.info("Benchmark determined nodes/second: %d", nps)
-                    movetime = int(6000000 * 1000 // (nps * self.threads * 0.9 ** (self.threads - 1)))
+                    movetime = int(5000000 * 1000 // (nps * self.threads * 0.9 ** (self.threads - 1)))
                     self.conf.set("Fishnet", "Movetime", str(movetime))
                     logging.info("Setting movetime: %d", movetime)
                 else:
