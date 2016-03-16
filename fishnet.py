@@ -190,16 +190,6 @@ def setoption(p, name, value):
     send(p, "setoption name %s value %s" % (name, value))
 
 
-def movetime(conf, level):
-    time = conf.getint("Fishnet", "Movetime")
-
-    if not level:  # Analysis
-        return time
-
-    # For play, divide analysis time per 10, then scale to level
-    return int(round(time / 10.0 * level / 8.0))
-
-
 def depth(level):
     if not level:  # Analysis
         return 99
@@ -324,6 +314,11 @@ class Worker(threading.Thread):
         self.engine_info = None
         self.backoff = start_backoff(self.conf)
 
+        if self.conf.has_option("Fishnet", "Movetime"):
+            self.movetime = self.conf.getint("Fishnet", "Movetime")
+        else:
+            self.movetime = None
+
     def run(self):
         while True:
             try:
@@ -335,16 +330,12 @@ class Worker(threading.Thread):
                 if not self.process or self.process.returncode is not None:
                     self.start_engine()
 
-                # Determine movetime by benchmark or config
-                if not self.conf.has_option("Fishnet", "Movetime"):
+                # Determine movetime by benchmark
+                if self.movetime is None:
                     logging.info("Running benchmark ...")
                     nps = bench(self.process)
-                    logging.info("Benchmark determined nodes/second: %d", nps)
-                    movetime = int(5000000 * 1000 // (nps * self.threads * 0.9 ** (self.threads - 1)))
-                    self.conf.set("Fishnet", "Movetime", str(movetime))
-                    logging.info("Setting movetime: %d", movetime)
-                else:
-                    logging.debug("Using movetime: %d", self.conf.getint("Fishnet", "Movetime"))
+                    self.adjust_movetime(nps * self.threads * 0.9 ** (self.threads - 1))
+                    logging.info("Benchmark completed: nodes/second: %d, movetime: %d", nps, self.movetime)
 
                 # Do the next work unit
                 path, request = self.work()
@@ -379,6 +370,7 @@ class Worker(threading.Thread):
                 self.process.kill()
 
     def start_engine(self):
+        self.movetime = None
         self.process = open_process(self.conf)
         self.engine_info = uci(self.process)
         logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
@@ -396,6 +388,14 @@ class Worker(threading.Thread):
             setoption(self.process, name, value)
 
         isready(self.process)
+
+    def adjust_movetime(self, nps):
+        if not self.conf.has_option("Fishnet", "Movetime"):
+            new_movetime = int(5000000 * 1000 / nps / (self.threads * 0.9 ** (self.threads - 1)))
+            if self.movetime is None:
+                self.movetime = new_movetime
+            else:
+                self.movetime = int(0.95 * self.movetime + 0.05 * new_movetime)
 
     def make_request(self):
         return {
@@ -432,12 +432,18 @@ class Worker(threading.Thread):
 
         moves = self.job["moves"].split(" ")
 
-        logging.info("Playing %s%s level %s",
+        movetime = int(round(self.movetime / 10.0 * lvl / 8.0))
+
+        logging.info("Playing %s%s with level %d and movetime %d ms",
                      base_url(self.conf.get("Fishnet", "Endpoint")),
-                     self.job["game_id"], self.job["work"]["level"])
+                     self.job["game_id"], lvl, movetime)
+
 
         part = go(self.process, self.job["position"], moves,
-                  movetime(self.conf, lvl), depth(lvl))
+                  movetime, depth(lvl))
+
+        if "nps" in part:
+            self.adjust_movetime(part["nps"])
 
         self.nodes += part.get("nodes", 0)
         self.positions += 1
@@ -458,12 +464,15 @@ class Worker(threading.Thread):
         result = []
 
         for ply in range(len(moves), -1, -1):
-            logging.info("Analysing %s%s#%d",
+            logging.info("Analysing %s%s#%d with movetime %d ms",
                          base_url(self.conf.get("Fishnet", "Endpoint")),
-                         self.job["game_id"], ply)
+                         self.job["game_id"], ply, self.movetime)
 
             part = go(self.process, self.job["position"], moves[0:ply],
-                      movetime(self.conf, None), depth(None))
+                      self.movetime, depth(None))
+
+            if "nps" in part:
+                self.adjust_movetime(part["nps"])
 
             self.nodes += part.get("nodes", 0)
             self.positions += 1
