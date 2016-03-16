@@ -51,15 +51,16 @@ def base_url(url):
 
 
 class HttpError(Exception):
-    def __init__(self, status, reason):
+    def __init__(self, status, reason, body):
         self.status = status
         self.reason = reason
+        self.body = body
 
     def __str__(self):
-        return "HTTP %d %s" % (self.status, self.reason)
+        return "HTTP %d %s\n\n%s" % (self.status, self.reason, self.body)
 
     def __repr__(self):
-        return "%s(%d, %s)" % (type(self).__name__, self.status, self.reason)
+        return "%s(%d, %r, %r)" % (type(self).__name__, self.status, self.reason, self.body)
 
 
 class HttpServerError(HttpError):
@@ -86,9 +87,9 @@ def http_request(method, url, body=None):
 
     try:
         if 400 <= response.status < 500:
-            raise HttpClientError(response.status, response.reason)
+            raise HttpClientError(response.status, response.reason, response.read())
         elif 500 <= response.status < 600:
-            raise HttpServerError(response.status, response.reason)
+            raise HttpServerError(response.status, response.reason, response.read())
         else:
             yield response
     finally:
@@ -396,14 +397,17 @@ class Worker(threading.Thread):
 
         isready(self.process)
 
-    def work(self):
-        result = {
+    def make_request(self):
+        return {
             "fishnet": {
                 "version": __version__,
                 "apikey": self.conf.get("Fishnet", "Apikey"),
             },
             "engine": self.engine_info
         }
+
+    def work(self):
+        result = self.make_request()
 
         if self.job and self.job["work"]["type"] == "analysis":
             result["analysis"] = self.analyse()
@@ -617,8 +621,8 @@ def main(args):
         for worker in workers:
             job = worker.job
             if job:
-                logging.info(" - abort/%s" % job["work"]["id"])
-                http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "abort/%s" % job["work"]["id"]))
+                with http_request("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "abort/%s" % job["work"]["id"]), json.dumps(worker.make_request())) as response:
+                    logging.info(" - Aborted %s" % job["work"]["id"])
         return 0
 
 
