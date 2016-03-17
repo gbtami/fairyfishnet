@@ -3,6 +3,12 @@ fishnet
 
 Distributed Stockfish analysis for lichess.org
 
+Prerequisites
+-------------
+
+- Git (to clone this repository)
+- g++ and make (to build lichess custom Stockfish)
+
 Usage
 -----
 
