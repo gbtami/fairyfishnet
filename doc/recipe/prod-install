@@ -1,0 +1,81 @@
+#!/bin/sh
+
+# Usage:
+# ssh servername "bash -s" -- < doc/recipe/prod-install apikey
+
+APIKEY=$1
+
+DIR=/home/fishnet
+PYTHON=$(which python3)
+
+echo "Found python $PYTHON"
+
+echo -e "\n"
+if [ ! -f "$DIR/polyglot.ini" ]; then
+  INSTALL=true
+  echo "Installing fishnet from scratch..."
+else
+  INSTALL=false
+  echo "Upgrading fishnet..."
+fi
+echo -e "\n"
+
+if which apt-get 2> /dev/null; then
+  apt-get install git g++ make || true
+fi
+
+useradd fishnet || true
+mkdir $DIR || true
+cd $DIR
+
+git clone https://github.com/niklasf/fishnet . || git pull
+
+echo "Installing stockfish..."
+./install-stockfish.sh > /dev/null 2>&1
+
+if $INSTALL; then
+  cp polyglot.ini.default polyglot.ini
+  config="# Production config
+[Fishnet]
+Apikey = $APIKEY
+EngineDir = $DIR/Stockfish/src/
+EngineCommand = ./stockfish
+Endpoint = http://en.lichess.org/fishnet/
+Cores = All
+Memory = 512 ; for temporary cohabitation with legacy AI node
+; Memory = 22000
+Fixed Backoff = 3
+
+[Engine]
+Threads = 4
+"
+  echo "$config" > polyglot.ini
+fi
+
+service="# Fishnet service
+[Unit]
+Description=Fishnet
+After=network.target
+
+[Service]
+User=fishnet
+Group=fishnet
+WorkingDirectory=$DIR
+ExecStart=$PYTHON fishnet.py polyglot.ini
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+"
+echo "$service" > /etc/systemd/system/fishnet.service
+systemctl daemon-reload
+
+chown -R fishnet:fishnet $DIR
+
+systemctl restart fishnet
+
+echo -e "\nFishnet (re)started!"
+
+sleep 1
+
+journalctl -u fishnet
