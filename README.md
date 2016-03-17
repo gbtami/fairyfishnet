@@ -6,11 +6,16 @@ Distributed Stockfish analysis for lichess.org
 Usage
 -----
 
-Copy the default config and configure `EngineDir`,
-`EngineCommand` and `Apikey` in `polyglot.ini`.
+Copy the default config and configure `Apikey` in `polyglot.ini`.
 
 ```
 cp polyglot.ini.default polyglot.ini
+```
+
+Install Stockfish (it's a special build for lichess, you have to use this one):
+
+```
+./install-stockfish.sh
 ```
 
 Run the client:
