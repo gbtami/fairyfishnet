@@ -35,14 +35,13 @@ echo "Installing stockfish..."
 
 if $INSTALL; then
   cp polyglot.ini.default polyglot.ini
-  config="# Production config
-[Fishnet]
+  config="[Fishnet]
 Apikey = $APIKEY
 EngineDir = $DIR/Stockfish/src/
 EngineCommand = ./stockfish
 Endpoint = http://en.lichess.org/fishnet/
 Cores = All
-Memory = 512 ; for temporary cohabitation with legacy AI node
+Memory = 512
 ; Memory = 22000
 Fixed Backoff = 3
 
@@ -69,6 +68,7 @@ WantedBy=multi-user.target
 "
 echo "$service" > /etc/systemd/system/fishnet.service
 systemctl daemon-reload
+systemctl enable fishnet
 
 chown -R fishnet:fishnet $DIR
 
