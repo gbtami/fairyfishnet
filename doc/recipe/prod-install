@@ -65,6 +65,7 @@ User=fishnet
 Group=fishnet
 WorkingDirectory=$DIR
 ExecStart=$PYTHON fishnet.py polyglot.ini
+Nice=5
 Restart=always
 
 [Install]
