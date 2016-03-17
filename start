@@ -1,0 +1,24 @@
+#!/bin/sh
+
+APIKEY=$1
+
+if [ ! -f polyglot.ini ]; then
+  # First run, API key is required
+  if [ ! $APIKEY ]; then
+    echo "Usage: ./start APIKEY"
+    exit 1
+  fi
+  cp polyglot.ini.default polyglot.ini
+fi
+
+# If API key provided, save it in config
+if [ $APIKEY ]; then
+  sed -i "s/^Apikey\s=.*/Apikey = $APIKEY/g" polyglot.ini
+fi
+
+echo "Looking for fishnet updates..."
+
+git pull https://github.com/niklasf/fishnet.git master
+./install-stockfish
+
+python fishnet.py polyglot.ini
