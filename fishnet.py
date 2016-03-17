@@ -402,7 +402,7 @@ class Worker(threading.Thread):
 
     def adjust_movetime(self, nps):
         if not self.conf.has_option("Fishnet", "Movetime"):
-            new_movetime = int(8000000 * 1000 / nps / (self.threads * 0.9 ** (self.threads - 1)))
+            new_movetime = max(min(int(8000000 * 1000 / nps / (self.threads * 0.9 ** (self.threads - 1))), 30000), 150)
             if self.movetime is None:
                 self.movetime = new_movetime
             else:
@@ -476,7 +476,14 @@ class Worker(threading.Thread):
             part = go(self.process, self.job["position"], moves[0:ply],
                       self.movetime, depth(None))
 
-            if "nps" in part and "mate" not in part["score"]:
+            if "mate" not in part["score"] and "time" in part and part["time"] < 100:
+                logging.warn("Very low time reported: %d ms. Movetime was %d ms", part["time"], self.movetime)
+
+            if "nps" in part and part["nps"] >= 10000000:
+                logging.warn("Dropping exorbitant nps: %d", part["nps"])
+                del part["nps"]
+
+            if "nps" in part and "time" in part and "mate" not in part["score"] and part["time"] > 100:
                 self.adjust_movetime(part["nps"])
 
             self.nodes += part.get("nodes", 0)
