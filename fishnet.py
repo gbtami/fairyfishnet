@@ -427,9 +427,6 @@ class Worker(threading.Thread):
         setoption(self.process, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
         isready(self.process)
 
-        send(self.process, "ucinewgame")
-        isready(self.process)
-
         moves = self.job["moves"].split(" ")
 
         movetime = int(round(self.movetime / 10.0 * lvl / 8.0))
