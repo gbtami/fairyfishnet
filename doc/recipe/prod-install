@@ -1,7 +1,10 @@
 #!/bin/sh
 
 # Usage:
+# Install:
 # ssh servername "bash -s" -- < doc/recipe/prod-install apikey
+# Upgrade:
+# ssh servername "bash -s" -- < doc/recipe/prod-install
 
 APIKEY=$1
 
