@@ -3,7 +3,7 @@
 ARCH=x86-64
 
 # detect if the CPU supports "modern" features
-if cat /proc/cpuinfo | grep -q "^flags.*popcnt" ; then
+if grep -q "^flags.*popcnt" /proc/cpuinfo ; then
     ARCH=x86-64-modern
 fi
 
