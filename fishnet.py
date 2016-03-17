@@ -462,7 +462,7 @@ class Worker(threading.Thread):
             part = go(self.process, self.job["position"], moves[0:ply],
                       self.movetime, depth(None))
 
-            if "nps" in part:
+            if "nps" in part and "mate" not in part["score"]:
                 self.adjust_movetime(part["nps"])
 
             self.nodes += part.get("nodes", 0)
