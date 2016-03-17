@@ -1,10 +1,13 @@
 #!/bin/sh
 
-ARCH=x86-64
-
-# detect if the CPU supports "modern" features
-if grep -q "^flags.*popcnt" /proc/cpuinfo ; then
-    ARCH=x86-64-modern
+if [ -f /proc/cpuinfo ]; then
+  ARCH=x86-64
+  # detect if the CPU supports "modern" features
+  if grep -q "^flags.*popcnt" /proc/cpuinfo ; then
+      ARCH=x86-64-modern
+  fi
+else
+  ARCH=x86-64-modern
 fi
 
 git submodule update --init
