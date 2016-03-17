@@ -187,17 +187,21 @@ def setoption(p, name, value):
 
 
 def depth(level):
-    if not level:  # Analysis
-        return 99
-    elif level < 5:
-        return level
+    if level in [1, 2]:
+        return 1
+    elif level == 3:
+        return 2
+    elif level == 4:
+        return 3
     elif level == 5:
-        return 6
+        return 5
     elif level == 6:
         return 8
     elif level == 7:
-        return 10
-    else:
+        return 13
+    elif level == 8:
+        return 21
+    else:  # Analysis
         return 99
 
 
