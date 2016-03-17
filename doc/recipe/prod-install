@@ -78,4 +78,4 @@ echo -e "\nFishnet (re)started!"
 
 sleep 1
 
-journalctl -u fishnet
+journalctl -ru fishnet -n 30
