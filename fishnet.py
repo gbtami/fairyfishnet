@@ -371,11 +371,13 @@ class Worker(threading.Thread):
                 self.process.kill()
 
     def start_engine(self):
-        self.movetime = None
         self.process = open_process(self.conf)
         self.engine_info = uci(self.process)
         logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
                      self.process.pid, self.threads, self.engine_info.get("name", "<none>"))
+
+        if not self.conf.has_option("Fishnet", "Movetime"):
+            self.movetime = None
 
         # Prepare UCI options
         self.engine_info["options"] = {}
