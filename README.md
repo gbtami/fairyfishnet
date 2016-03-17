@@ -6,17 +6,19 @@ Distributed Stockfish analysis for lichess.org
 Usage
 -----
 
-Copy the default config and configure `Apikey` in `polyglot.ini`.
+Run the client with your API key:
 
 ```
-cp polyglot.ini.default polyglot.ini
+./start APIKEY
 ```
 
-Run the client:
+You only need to provide your API key the first time you run fishnet.
 
-```
-./start
-```
+Configuration
+-------------
+
+After the first run, you can edit the `polyglot.ini` file.
+Note that the defaults should just work fine.
 
 Protocol
 --------
