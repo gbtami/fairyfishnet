@@ -42,7 +42,7 @@ except ImportError:
     import ConfigParser as configparser
 
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 
 def base_url(url):
@@ -315,6 +315,10 @@ class Worker(threading.Thread):
         else:
             self.movetime = None
 
+    def set_engine_options(self):
+        for name, value in self.engine_info["options"].items():
+            setoption(self.process, name, value)
+
     def run(self):
         while True:
             try:
@@ -332,6 +336,9 @@ class Worker(threading.Thread):
                     nps = bench(self.process)
                     self.adjust_movetime(nps)
                     logging.info("Benchmark completed: nodes/second: %d, movetime: %d ms", nps, self.movetime)
+
+                    # bench resets the engine options; set them again
+                    self.set_engine_options()
 
                 # Do the next work unit
                 path, request = self.work()
@@ -362,11 +369,6 @@ class Worker(threading.Thread):
 
                 # If in doubt, restart engine
                 self.process.kill()
-
-
-    def set_engine_options(self):
-        for name, value in self.engine_info["options"].items():
-            setoption(self.process, name, value)
 
     def start_engine(self):
         self.movetime = None
@@ -423,7 +425,6 @@ class Worker(threading.Thread):
         lvl = self.job["work"]["level"]
         set_variant_options(self.process, self.job)
         setoption(self.process, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
-        self.set_engine_options()
         isready(self.process)
 
         send(self.process, "ucinewgame")
@@ -451,7 +452,6 @@ class Worker(threading.Thread):
     def analyse(self):
         set_variant_options(self.process, self.job)
         setoption(self.process, "Skill Level", 20)
-        self.set_engine_options()
         isready(self.process)
 
         send(self.process, "ucinewgame")
