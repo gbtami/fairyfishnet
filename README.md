@@ -12,16 +12,10 @@ Copy the default config and configure `Apikey` in `polyglot.ini`.
 cp polyglot.ini.default polyglot.ini
 ```
 
-Install Stockfish (it's a special build for lichess, you have to use this one):
-
-```
-./install-stockfish.sh
-```
-
 Run the client:
 
 ```
-python fishnet.py polyglot.ini
+./start
 ```
 
 Protocol

@@ -1,0 +1,8 @@
+#!/bin/sh
+
+echo "Looking for updates..."
+
+git pull https://github.com/niklasf/fishnet.git master
+./install-stockfish
+
+python fishnet.py polyglot.ini
