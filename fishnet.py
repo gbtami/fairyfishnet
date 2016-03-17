@@ -42,7 +42,7 @@ except ImportError:
     import ConfigParser as configparser
 
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 
 def base_url(url):
@@ -391,7 +391,7 @@ class Worker(threading.Thread):
 
     def adjust_movetime(self, nps):
         if not self.conf.has_option("Fishnet", "Movetime"):
-            new_movetime = int(5000000 * 1000 / nps / (self.threads * 0.9 ** (self.threads - 1)))
+            new_movetime = int(8000000 * 1000 / nps / (self.threads * 0.9 ** (self.threads - 1)))
             if self.movetime is None:
                 self.movetime = new_movetime
             else:
