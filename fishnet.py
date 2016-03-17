@@ -476,6 +476,9 @@ class Worker(threading.Thread):
             part = go(self.process, self.job["position"], moves[0:ply],
                       self.movetime, depth(None))
 
+            send(self.process, "stop")
+            isready(self.process)
+
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
                 logging.warn("Very low time reported: %d ms. Movetime was %d ms", part["time"], self.movetime)
 
