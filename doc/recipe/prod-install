@@ -24,6 +24,7 @@ fi
 echo -e "\n"
 
 if which apt-get 2> /dev/null; then
+  apt-get -qq update
   apt-get install git g++ make || true
 fi
 
