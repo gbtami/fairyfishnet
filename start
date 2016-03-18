@@ -17,8 +17,12 @@ if [ $APIKEY ]; then
 fi
 
 echo "Looking for fishnet updates..."
+git fetch origin
+git checkout stable
+git merge origin/stable
 
-git pull https://github.com/niklasf/fishnet.git stable
+echo "Looking for stockfish updates..."
 ./install-stockfish
 
+echo "Starting fishnet!"
 python fishnet.py polyglot.ini
