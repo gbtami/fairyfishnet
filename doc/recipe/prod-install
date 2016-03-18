@@ -10,10 +10,10 @@ APIKEY=$1
 
 DIR=/home/fishnet
 PYTHON=$(which python3)
+REPO_URL=https://github.com/niklasf/fishnet
 
 echo "Found python $PYTHON"
 
-echo -e "\n"
 if [ ! -f "$DIR/polyglot.ini" ]; then
   INSTALL=true
   echo "Installing fishnet from scratch..."
@@ -24,9 +24,8 @@ else
   INSTALL=false
   echo "Upgrading fishnet..."
 fi
-echo -e "\n"
 
-if which apt-get 2> /dev/null; then
+if which apt-get > /dev/null; then
   apt-get -qq update
   apt-get install git g++ make || true
 fi
@@ -35,7 +34,9 @@ useradd fishnet || true
 mkdir -p $DIR
 cd $DIR
 
-git clone https://github.com/niklasf/fishnet --branch stable . || git pull origin stable
+git clone $REPO_URL --branch stable . 2> /dev/null || git fetch origin
+git checkout stable
+git merge origin/stable
 
 echo "Installing stockfish..."
 ./install-stockfish
