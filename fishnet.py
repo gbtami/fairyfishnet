@@ -211,6 +211,7 @@ def go(p, starting_fen, uci_moves, movetime, depth):
     send(p, "go movetime %d depth %d" % (movetime, depth))
 
     info = {}
+    info["bestmove"] = None
 
     while True:
         command, arg = recv(p)
@@ -219,8 +220,6 @@ def go(p, starting_fen, uci_moves, movetime, depth):
             bestmove = arg.split()[0]
             if bestmove and bestmove != "(none)":
                 info["bestmove"] = bestmove
-            else:
-                info["bestmove"] = None
 
             return info
         elif command == "info":
@@ -269,6 +268,23 @@ def go(p, starting_fen, uci_moves, movetime, depth):
                         info[current_parameter] += " " + token
                     else:
                         info[current_parameter] = token
+
+            # Stop immediately in mated positions
+            if info["score"].get("mate") == 0 and info.get("multipv", 1) == 1:
+                send(p, "stop")
+                send(p, "isready")
+                while True:
+                    command, arg = recv(p)
+                    if command == "readyok":
+                        return info
+                    elif command == "info":
+                        logging.info("Ignoring superfluous info: %s", arg)
+                    elif command == "bestmove" and "(none)" in arg:
+                        pass
+                    elif command == "bestmove":
+                        logging.info("Ignoring bestmove: %s", arg)
+                    else:
+                        logging.warn("Unexpected engine output: %s %s", command, arg)
         else:
             logging.warn("Unexpected engine output: %s %s", command, arg)
 
