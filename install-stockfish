@@ -10,7 +10,13 @@ else
   ARCH=x86-64-modern
 fi
 
+echo "- Detected architecture $ARCH"
+
+echo "- Fetching latest Stockfish..."
 git submodule update --init
+
 cd Stockfish/src
+echo "- Building Stockfish..."
 make build ARCH=$ARCH > /dev/null
 cd ../..
+echo "- Done!"

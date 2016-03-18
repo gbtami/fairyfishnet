@@ -6,7 +6,7 @@
 # - matthews
 
 # for server in marta ushio flynn cammy rambo adele khiaw homer clyde; do
-for server in clyde marta ushio flynn cammy rambo adele khiaw homer; do
+for server in clyde bofur marta ushio flynn cammy rambo adele khiaw homer; do
   echo "Upgrading $server..."
   ssh $server "bash -s" -- < doc/recipe/prod-install
 done;

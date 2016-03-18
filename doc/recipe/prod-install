@@ -32,7 +32,7 @@ useradd fishnet || true
 mkdir -p $DIR
 cd $DIR
 
-git clone https://github.com/niklasf/fishnet . || git pull
+git clone https://github.com/niklasf/fishnet stable . || git pull
 
 echo "Installing stockfish..."
 ./install-stockfish.sh > /dev/null 2>&1
