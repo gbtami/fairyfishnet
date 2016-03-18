@@ -17,6 +17,9 @@ echo -e "\n"
 if [ ! -f "$DIR/polyglot.ini" ]; then
   INSTALL=true
   echo "Installing fishnet from scratch..."
+  if [ ! $APIKEY ]; then
+    echo "API key required for first install!"
+  fi
 else
   INSTALL=false
   echo "Upgrading fishnet..."
@@ -32,10 +35,10 @@ useradd fishnet || true
 mkdir -p $DIR
 cd $DIR
 
-git clone https://github.com/niklasf/fishnet stable . || git pull
+git clone https://github.com/niklasf/fishnet --branch stable . || git pull origin stable
 
 echo "Installing stockfish..."
-./install-stockfish.sh > /dev/null 2>&1
+./install-stockfish
 
 if $INSTALL; then
   cp polyglot.ini.default polyglot.ini
@@ -46,8 +49,7 @@ EngineCommand = ./stockfish
 Endpoint = http://en.lichess.org/fishnet/
 Cores = All
 Memory = 512
-; Memory = 22000
-Fixed Backoff = 3
+; Fixed Backoff = 3
 
 [Engine]
 Threads = 4
