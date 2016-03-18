@@ -498,7 +498,7 @@ class Worker(threading.Thread):
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
                 logging.warn("Very low time reported: %d ms. Movetime was %d ms", part["time"], self.movetime)
 
-            if "nps" in part and part["nps"] >= 10000000:
+            if "nps" in part and part["nps"] >= 100000000:
                 logging.warn("Dropping exorbitant nps: %d", part["nps"])
                 del part["nps"]
 
