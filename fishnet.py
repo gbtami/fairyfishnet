@@ -410,10 +410,10 @@ class Worker(threading.Thread):
         result = self.make_request()
 
         if self.job and self.job["work"]["type"] == "analysis":
-            result["analysis"] = self.analyse()
+            result["analysis"] = self.analysis(self.job)
             return "analysis" + "/" + self.job["work"]["id"], result
         elif self.job and self.job["work"]["type"] == "move":
-            result["move"] = self.bestmove()
+            result["move"] = self.bestmove(self.job)
             return "move" + "/" + self.job["work"]["id"], result
         else:
             if self.job:
@@ -421,21 +421,21 @@ class Worker(threading.Thread):
 
             return "acquire", result
 
-    def bestmove(self):
-        lvl = self.job["work"]["level"]
-        set_variant_options(self.process, self.job)
+    def bestmove(self, job):
+        lvl = job["work"]["level"]
+        set_variant_options(self.process, job)
         setoption(self.process, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
         isready(self.process)
 
-        moves = self.job["moves"].split(" ")
+        moves = job["moves"].split(" ")
 
         movetime = int(round(4000.0 / (self.threads * 0.9 ** (self.threads - 1)) / 10.0 * lvl / 8.0))
 
         logging.info("Playing %s%s with level %d and movetime %d ms",
                      base_url(self.conf.get("Fishnet", "Endpoint")),
-                     self.job["game_id"], lvl, movetime)
+                     job["game_id"], lvl, movetime)
 
-        part = go(self.process, self.job["position"], moves,
+        part = go(self.process, job["position"], moves,
                   movetime=movetime, depth=depth(lvl))
 
         self.nodes += part.get("nodes", 0)
@@ -445,15 +445,15 @@ class Worker(threading.Thread):
             "bestmove": part["bestmove"],
         }
 
-    def analyse(self):
-        set_variant_options(self.process, self.job)
+    def analysis(self, job):
+        set_variant_options(self.process, job)
         setoption(self.process, "Skill Level", 20)
         isready(self.process)
 
         send(self.process, "ucinewgame")
         isready(self.process)
 
-        moves = self.job["moves"].split(" ")
+        moves = job["moves"].split(" ")
         result = []
 
         start = time.time()
@@ -461,9 +461,9 @@ class Worker(threading.Thread):
         for ply in range(len(moves), -1, -1):
             logging.info("Analysing %s%s#%d",
                          base_url(self.conf.get("Fishnet", "Endpoint")),
-                         self.job["game_id"], ply)
+                         job["game_id"], ply)
 
-            part = go(self.process, self.job["position"], moves[0:ply],
+            part = go(self.process, job["position"], moves[0:ply],
                       nodes=2800000, movetime=4000)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
@@ -481,7 +481,7 @@ class Worker(threading.Thread):
         end = time.time()
         logging.info("Time taken for %s%s: %0.1fs (%0.1fs per position)",
                      base_url(self.conf.get("Fishnet", "Endpoint")),
-                     self.job["game_id"], end - start,
+                     job["game_id"], end - start,
                      (end - start) / (len(moves) + 1))
 
         return result
