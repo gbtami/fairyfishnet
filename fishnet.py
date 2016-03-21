@@ -42,7 +42,7 @@ except ImportError:
     import ConfigParser as configparser
 
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 def base_url(url):
@@ -463,7 +463,7 @@ class Worker(threading.Thread):
                          job["game_id"], ply)
 
             part = go(self.process, job["position"], moves[0:ply],
-                      nodes=2800000, movetime=4000)
+                      nodes=3000000, movetime=4000)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
                 logging.warn("Very low time reported: %d ms.", part["time"])
