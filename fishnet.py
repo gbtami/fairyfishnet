@@ -384,7 +384,10 @@ class Worker(threading.Thread):
             except HttpClientError as err:
                 self.job = None
                 t = next(self.backoff)
-                logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s", err.status, err.reason, t, json.dumps(request))
+                try:
+                    logging.error(json.loads(err.body.decode("utf-8"))["error"])
+                except:
+                    logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s", err.status, err.reason, t, json.dumps(request))
                 time.sleep(t)
             except:
                 self.job = None
