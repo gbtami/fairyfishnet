@@ -1,2 +1,3 @@
 venv
 polyglot.ini
+*.py[cd]
