@@ -205,10 +205,22 @@ def depth(level):
         return 99
 
 
-def go(p, starting_fen, uci_moves, movetime, depth):
-    send(p, "position fen %s moves %s" % (starting_fen, " ".join(uci_moves)))
+def go(p, position, moves, movetime=None, depth=None, nodes=None):
+    send(p, "position fen %s moves %s" % (position, " ".join(moves)))
     isready(p)
-    send(p, "go movetime %d depth %d" % (movetime, depth))
+
+    builder = []
+    builder.append("go")
+    if movetime is not None:
+        builder.append("movetime")
+        builder.append(str(movetime))
+    if depth is not None:
+        builder.append("depth")
+        builder.append(str(depth))
+    if nodes is not None:
+        builder.append("nodes")
+        builder.append(str(nodes))
+    send(p, " ".join(builder))
 
     info = {}
     info["bestmove"] = None
@@ -300,22 +312,6 @@ def set_variant_options(p, job):
     setoption(p, "UCI_3Check", variant == "threecheck")
 
 
-def bench(p):
-    send(p, "bench")
-
-    while True:
-        line = " ".join(recv(p))
-        if line.lower().startswith("nodes/second"):
-            _, nps = line.split(":")
-            return int(nps.strip())
-        elif any(line.lower().startswith(prefix)
-                 for prefix in ["info", "position:", "===", "bestmove",
-                                "nodes searched", "total time"]):
-            pass
-        else:
-            logging.warn("Unexpected engine output: %s", line)
-
-
 class Worker(threading.Thread):
     def __init__(self, conf, threads):
         super(Worker, self).__init__()
@@ -329,11 +325,6 @@ class Worker(threading.Thread):
         self.process = None
         self.engine_info = None
         self.backoff = start_backoff(self.conf)
-
-        if self.conf.has_option("Fishnet", "Movetime"):
-            self.movetime = self.conf.getint("Fishnet", "Movetime")
-        else:
-            self.movetime = None
 
     def set_engine_options(self):
         for name, value in self.engine_info["options"].items():
@@ -349,16 +340,6 @@ class Worker(threading.Thread):
                 # Restart the engine
                 if not self.process or self.process.returncode is not None:
                     self.start_engine()
-
-                # Determine movetime by benchmark
-                if self.movetime is None:
-                    logging.info("Running benchmark ...")
-                    nps = bench(self.process)
-                    self.adjust_movetime(nps)
-                    logging.info("Benchmark completed: nodes/second: %d, movetime: %d ms", nps, self.movetime)
-
-                    # bench resets the engine options; set them again
-                    self.set_engine_options()
 
                 # Do the next work unit
                 path, request = self.work()
@@ -404,9 +385,6 @@ class Worker(threading.Thread):
         logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
                      self.process.pid, self.threads, self.engine_info.get("name", "<none>"))
 
-        if not self.conf.has_option("Fishnet", "Movetime"):
-            self.movetime = None
-
         # Prepare UCI options
         self.engine_info["options"] = {}
         for name, value in self.conf.items("Engine"):
@@ -418,14 +396,6 @@ class Worker(threading.Thread):
         self.set_engine_options()
 
         isready(self.process)
-
-    def adjust_movetime(self, nps):
-        if not self.conf.has_option("Fishnet", "Movetime"):
-            new_movetime = max(min(int(8000000 * 1000 / nps / (self.threads * 0.9 ** (self.threads - 1))), 30000), 150)
-            if self.movetime is None:
-                self.movetime = new_movetime
-            else:
-                self.movetime = int(0.95 * self.movetime + 0.05 * new_movetime)
 
     def make_request(self):
         return {
@@ -459,15 +429,14 @@ class Worker(threading.Thread):
 
         moves = self.job["moves"].split(" ")
 
-        movetime = int(round(self.movetime / 10.0 * lvl / 8.0))
+        movetime = int(round(4000.0 / (self.threads * 0.9 ** (self.threads - 1)) / 10.0 * lvl / 8.0))
 
         logging.info("Playing %s%s with level %d and movetime %d ms",
                      base_url(self.conf.get("Fishnet", "Endpoint")),
                      self.job["game_id"], lvl, movetime)
 
-
         part = go(self.process, self.job["position"], moves,
-                  movetime, depth(lvl))
+                  movetime=movetime, depth=depth(lvl))
 
         self.nodes += part.get("nodes", 0)
         self.positions += 1
@@ -487,31 +456,33 @@ class Worker(threading.Thread):
         moves = self.job["moves"].split(" ")
         result = []
 
+        start = time.time()
+
         for ply in range(len(moves), -1, -1):
-            logging.info("Analysing %s%s#%d with movetime %d ms",
+            logging.info("Analysing %s%s#%d",
                          base_url(self.conf.get("Fishnet", "Endpoint")),
-                         self.job["game_id"], ply, self.movetime)
+                         self.job["game_id"], ply)
 
             part = go(self.process, self.job["position"], moves[0:ply],
-                      self.movetime, depth(None))
-
-            send(self.process, "stop")
-            isready(self.process)
+                      nodes=2800000, movetime=4000)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
-                logging.warn("Very low time reported: %d ms. Movetime was %d ms", part["time"], self.movetime)
+                logging.warn("Very low time reported: %d ms.", part["time"])
 
             if "nps" in part and part["nps"] >= 100000000:
                 logging.warn("Dropping exorbitant nps: %d", part["nps"])
                 del part["nps"]
 
-            if "nps" in part and "time" in part and "mate" not in part["score"] and part["time"] > 100:
-                self.adjust_movetime(part["nps"])
-
             self.nodes += part.get("nodes", 0)
             self.positions += 1
 
             result.insert(0, part)
+
+        end = time.time()
+        logging.info("Time taken for %s%s: %0.1fs (%0.1fs per position)",
+                     base_url(self.conf.get("Fishnet", "Endpoint")),
+                     self.job["game_id"], end - start,
+                     (end - start) / (len(moves) + 1))
 
         return result
 
