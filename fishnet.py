@@ -302,7 +302,7 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
 
 
 def set_variant_options(p, job):
-    variant = job["variant"].lower()
+    variant = job.get("variant", "standard").lower()
     setoption(p, "UCI_Chess960", variant == "chess960")
     setoption(p, "UCI_Atomic", variant == "atomic")
     setoption(p, "UCI_Horde", variant == "horde")
