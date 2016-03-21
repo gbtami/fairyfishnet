@@ -3,6 +3,8 @@ fishnet
 
 Distributed Stockfish analysis for lichess.org
 
+[![Build Status](https://travis-ci.org/niklasf/fishnet.svg?branch=master)](https://travis-ci.org/niklasf/fishnet)
+
 Prerequisites
 -------------
 
