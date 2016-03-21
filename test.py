@@ -4,6 +4,7 @@
 import fishnet
 import unittest
 import logging
+import sys
 import os.path
 
 try:
@@ -64,5 +65,9 @@ class FishnetTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    if "-v" in sys.argv or "--verbose" in sys.argv:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
     unittest.main()
