@@ -2,12 +2,12 @@
 
 Apikey = XXXXXXXX
 
-EngineDir = Stockfish/src/
-EngineCommand = ./stockfish
-
 ; -------------------------------------- ;
 ; You don't need to edit below this line ;
 ; -------------------------------------- ;
+
+EngineDir = Stockfish/src/
+EngineCommand = ./stockfish
 
 Endpoint = http://en.lichess.org/fishnet/
 
@@ -21,15 +21,8 @@ Endpoint = http://en.lichess.org/fishnet/
 ; Default: 256 Mb per engine process
 ; Memory = 2048
 
-; Time per move in ms. Default: Determined by benchmark
-; Movetime = 1000
-
-; For move servers:
-; Fixed Backoff = 3
-
 [Engine]
 
 ; Extra UCI options
 
 ; Threads = 4
-; Hash = 256
