@@ -565,6 +565,7 @@ def default_config():
     conf.add_section("Fishnet")
     conf.set("Fishnet", "EngineDir", os.path.dirname(os.path.abspath(__file__)))
     conf.set("Fishnet", "Endpoint", "http://en.lichess.org/fishnet/")
+    conf.set("Fishnet", "Cores", "auto")
 
     conf.add_section("Engine")
 
@@ -673,6 +674,12 @@ def ensure_stockfish(conf):
             raise ConfigError("Unsupported engine option %s. Ensure you are using lichess custom Stockfish", required_option)
 
 
+def sanitize_config(conf):
+    # Sanitize Endpoint
+    if not conf.get("Fishnet", "Endpoint").endswith("/"):
+        conf.set("Fishnet", "Endpoint", conf.get("Fishnet", "Endpoint") + "/")
+
+
 def main(args):
     # Setup logging
     logger = logging.getLogger()
@@ -685,6 +692,7 @@ def main(args):
     conf = default_config()
     for c in args.conf:
         conf.readfp(c, c.name)
+    sanitize_config(conf)
 
     # Ensure Stockfish is available
     ensure_stockfish(conf)
@@ -694,16 +702,12 @@ def main(args):
         logging.error("Apikey not found. Check configuration")
         return 78
 
-    # Sanitize Endpoint
-    if not conf.get("Fishnet", "Endpoint").endswith("/"):
-        conf.set("Fishnet", "Endpoint", conf.get("Fishnet", "Endpoint") + "/")
-
     # Log custom UCI options
     for name, value in conf.items("Engine"):
         logging.warning("Using custom UCI option: name %s value %s", name, value)
 
     # Determine number of cores to use for engine threads
-    if not conf.has_option("Fishnet", "Cores") or conf.get("Fishnet", "Cores").lower() == "auto":
+    if conf.get("Fishnet", "Cores").lower() == "auto":
         spare_threads = multiprocessing.cpu_count() - 1
     elif conf.get("Fishnet", "Cores").lower() == "all":
         spare_threads = multiprocessing.cpu_count()
