@@ -16,7 +16,9 @@ import multiprocessing
 import threading
 import sys
 import os
+import stat
 import math
+import platform
 
 if os.name == "posix" and sys.version_info[0] < 3:
     try:
@@ -35,6 +37,11 @@ try:
     import urlparse
 except ImportError:
     import urllib.parse as urlparse
+
+try:
+    import urllib.request as urllib
+except ImportError:
+    import urllib
 
 try:
     import configparser
@@ -81,8 +88,12 @@ class HttpClientError(HttpError):
     pass
 
 
+class ConfigError(Exception):
+    pass
+
+
 @contextlib.contextmanager
-def http(method, url, body=None):
+def http(method, url, body=None, headers=None):
     logging.debug("HTTP request: %s %s, body: %s", method, url, body)
 
     url_info = urlparse.urlparse(url)
@@ -91,7 +102,11 @@ def http(method, url, body=None):
     else:
         con = httplib.HTTPConnection(url_info.hostname, url_info.port or 80)
 
-    con.request(method, url_info.path, body)
+    headers_with_useragent = {"User-Agent": "fishnet %s" % __version__}
+    if headers:
+        headers_with_useragent.update(headers)
+
+    con.request(method, url_info.path, body, headers_with_useragent)
     response = con.getresponse()
     logging.debug("HTTP response: %d %s", response.status, response.reason)
 
@@ -117,7 +132,7 @@ def start_backoff(conf):
             backoff = min(backoff + 1, 60)
 
 
-def open_process(conf, _popen_lock=threading.Lock()):
+def popen_engine(conf, _popen_lock=threading.Lock()):
     with _popen_lock:  # Work around Python 2 Popen race condition
         return subprocess.Popen(conf.get("Fishnet", "EngineCommand"),
                                 shell=True,
@@ -172,7 +187,7 @@ def uci(p):
             # Ignore identification line
             pass
         else:
-            logging.warn("Unexpected engine output: %s %s", command, arg)
+            logging.warning("Unexpected engine output: %s %s", command, arg)
 
 
 def isready(p):
@@ -182,7 +197,7 @@ def isready(p):
         if command == "readyok":
             break
         else:
-            logging.warn("Unexpected engine output: %s %s", command, arg)
+            logging.warning("Unexpected engine output: %s %s", command, arg)
 
 
 def setoption(p, name, value):
@@ -305,9 +320,9 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
                         isready(p)
                         return info
                     else:
-                        logging.warn("Unexpected engine output: %s %s", command, arg)
+                        logging.warning("Unexpected engine output: %s %s", command, arg)
         else:
-            logging.warn("Unexpected engine output: %s %s", command, arg)
+            logging.warning("Unexpected engine output: %s %s", command, arg)
 
 
 def set_variant_options(p, job):
@@ -389,7 +404,7 @@ class Worker(threading.Thread):
                 self.process.kill()
 
     def start_engine(self):
-        self.process = open_process(self.conf)
+        self.process = popen_engine(self.conf)
         self.engine_info = uci(self.process)
         logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
                      self.process.pid, self.threads, self.engine_info.get("name", "<none>"))
@@ -476,10 +491,10 @@ class Worker(threading.Thread):
                       nodes=3000000, movetime=4000)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
-                logging.warn("Very low time reported: %d ms.", part["time"])
+                logging.warning("Very low time reported: %d ms.", part["time"])
 
             if "nps" in part and part["nps"] >= 100000000:
-                logging.warn("Dropping exorbitant nps: %d", part["nps"])
+                logging.warning("Dropping exorbitant nps: %d", part["nps"])
                 del part["nps"]
 
             self.nodes += part.get("nodes", 0)
@@ -544,6 +559,135 @@ def intro():
 """ % __version__)
 
 
+def default_config():
+    conf = configparser.SafeConfigParser()
+
+    conf.add_section("Fishnet")
+    conf.set("Fishnet", "EngineDir", os.path.dirname(os.path.abspath(__file__)))
+    conf.set("Fishnet", "Endpoint", "http://en.lichess.org/fishnet/")
+    conf.set("Fishnet", "Cores", "auto")
+
+    conf.add_section("Engine")
+
+    return conf
+
+
+def stockfish_filename():
+    if os.name == "posix":
+        base = "stockfish-%s" % platform.machine()
+        with open("/proc/cpuinfo") as cpu_info:
+            for line in cpu_info:
+                if line.startswith("flags") and "bmi2" in line and "popcnt" in line:
+                    return base + "-bmi2"
+                if line.startswith("flags") and "popcnt" in line:
+                    return base + "-modern"
+        return base
+    elif os.name == "nt":
+        return "stockfish-%s.exe" % platform.machine()
+
+
+def update_stockfish(conf, filename):
+    path = os.path.join(conf.get("Fishnet", "EngineDir"), filename)
+
+    headers = {}
+
+    # Only update to newer versions
+    try:
+        headers["If-Modified-Since"] = time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(os.path.getmtime(path)))
+    except OSError:
+        pass
+
+    # Escape GitHub API rate limiting
+    if "GITHUB_API_TOKEN" in os.environ:
+        headers["Authorization"] = "token %s" % os.environ["GITHUB_API_TOKEN"]
+
+    # Find latest release
+    filename = stockfish_filename()
+    logging.info("Looking up %s ...", filename)
+
+    with http("GET", "https://api.github.com/repos/niklasf/Stockfish/releases/latest", headers=headers) as response:
+        if response.status == 304:
+            logging.info("Local %s is newer than release", filename)
+            return filename
+
+        release = json.loads(response.read().decode("utf-8"))
+
+    logging.info("Latest stockfish release is tagged %s", release["tag_name"])
+
+    for asset in release["assets"]:
+        if asset["name"] == filename:
+            logging.info("Found %s" % asset["browser_download_url"])
+            break
+    else:
+        logging.error("Did not find a precompiled Stockfish for your architecture: %s", filename)
+        logging.error("You might want to build an instance yourself and run with --stockfish")
+        raise ConfigError("EngineCommand required (no precompiled %s)" % filename)
+
+    # Download
+    logging.info("Downloading %s ...", filename)
+    def reporthook(a, b, c):
+        sys.stdout.write("\rDownloading %s: %d/%d (%d%%)" % (filename, a * b, c, round(min(a * b, c) * 100 / c)))
+        sys.stdout.flush()
+
+    urllib.urlretrieve(asset["browser_download_url"], path, reporthook)
+
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+
+    # Make executable
+    logging.info("chmod +x %s", filename)
+    st = os.stat(path)
+    os.chmod(path, st.st_mode | stat.S_IEXEC)
+    return filename
+
+
+def ensure_stockfish(conf):
+    if not os.path.isdir(conf.get("Fishnet", "EngineDir")):
+        raise ConfigError("EngineDir not found: %s", conf.get("Fishnet", "EngineDir"))
+
+    # No fixed path configured. Download latest version
+    if not conf.has_option("Fishnet", "EngineCommand"):
+        conf.set("Fishnet", "EngineCommand", os.path.join(".", update_stockfish(conf, stockfish_filename())))
+
+    # Ensure the required options are supported
+    process = popen_engine(conf)
+    options = []
+    send(process, "uci")
+    while True:
+        command, arg = recv(process)
+
+        if command == "uciok":
+            break
+        elif command in ["id", "Stockfish"]:
+            pass
+        elif command == "option":
+            name = []
+            for token in arg.split(" ")[1:]:
+                if name and token == "type":
+                    break
+                name.append(token)
+            options.append(" ".join(name))
+        else:
+            logging.warning("Unexpected engine output: %s %s", command, arg)
+    process.kill()
+
+    logging.debug("Supported options: %s", ", ".join(options))
+
+    required_options = ["UCI_Chess960", "UCI_Atomic", "UCI_Horde", "UCI_House",
+                        "UCI_KingOfTheHill", "UCI_Race", "UCI_3Check",
+                        "Threads", "Hash"]
+
+    for required_option in required_options:
+        if required_option not in options:
+            raise ConfigError("Unsupported engine option %s. Ensure you are using lichess custom Stockfish", required_option)
+
+
+def sanitize_config(conf):
+    # Sanitize Endpoint
+    if not conf.get("Fishnet", "Endpoint").endswith("/"):
+        conf.set("Fishnet", "Endpoint", conf.get("Fishnet", "Endpoint") + "/")
+
+
 def main(args):
     # Setup logging
     logger = logging.getLogger()
@@ -553,30 +697,25 @@ def main(args):
     logger.addHandler(handler)
 
     # Parse polyglot.ini
-    conf = configparser.SafeConfigParser()
+    conf = default_config()
     for c in args.conf:
         conf.readfp(c, c.name)
+    sanitize_config(conf)
+
+    # Ensure Stockfish is available
+    ensure_stockfish(conf)
 
     # Ensure Apikey is set
     if not conf.has_option("Fishnet", "Apikey"):
         logging.error("Apikey not found. Check configuration")
         return 78
 
-    # Validate EngineDir
-    if not os.path.isdir(conf.get("Fishnet", "EngineDir")):
-        logging.error("EngineDir not found. Check configuration")
-        return 78
-
-    # Sanitize Endpoint
-    if not conf.get("Fishnet", "Endpoint").endswith("/"):
-        conf.set("Fishnet", "Endpoint", conf.get("Fishnet", "Endpoint") + "/")
-
     # Log custom UCI options
     for name, value in conf.items("Engine"):
-        logging.warn("Using custom UCI option: name %s value %s", name, value)
+        logging.warning("Using custom UCI option: name %s value %s", name, value)
 
     # Determine number of cores to use for engine threads
-    if not conf.has_option("Fishnet", "Cores") or conf.get("Fishnet", "Cores").lower() == "auto":
+    if conf.get("Fishnet", "Cores").lower() == "auto":
         spare_threads = multiprocessing.cpu_count() - 1
     elif conf.get("Fishnet", "Cores").lower() == "all":
         spare_threads = multiprocessing.cpu_count()
@@ -584,10 +723,10 @@ def main(args):
         spare_threads = conf.getint("Fishnet", "Cores")
 
     if spare_threads == 0:
-        logging.warn("Not enough cores to exclusively run an engine thread")
+        logging.warning("Not enough cores to exclusively run an engine thread")
         spare_threads = 1
     elif spare_threads > multiprocessing.cpu_count():
-        logging.warn("Using more threads than cores: %d/%d", spare_threads, multiprocessing.cpu_count())
+        logging.warning("Using more threads than cores: %d/%d", spare_threads, multiprocessing.cpu_count())
     else:
         logging.info("Using %d cores", spare_threads)
 
@@ -609,7 +748,7 @@ def main(args):
     conf.set("Engine", "Hash", str(memory_per_process))
 
     if memory_per_process < 32:
-        logging.warn("Very small hashtable size per engine process: %d MB", memory_per_process)
+        logging.warning("Very small hashtable size per engine process: %d MB", memory_per_process)
     else:
         logging.info("Hashtable size per process: %d MB", memory_per_process)
 

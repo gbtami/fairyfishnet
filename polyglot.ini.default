@@ -6,9 +6,6 @@ Apikey = XXXXXXXX
 ; You don't need to edit below this line ;
 ; -------------------------------------- ;
 
-EngineDir = Stockfish/src/
-EngineCommand = ./stockfish
-
 Endpoint = http://en.lichess.org/fishnet/
 
 ; Total number of cores to use.
