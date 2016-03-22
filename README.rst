@@ -10,9 +10,10 @@ fishnet: distributed Stockfish analysis for lichess.org
 Installing
 ----------
 
+To install or upgrade to the latest version do:
+
 ::
 
-    # Install or upgrade to the latest version
     pip install --upgrade fishnet
 
 Running fishnet
@@ -26,6 +27,6 @@ Running fishnet
 Overview
 --------
 
-.. image:: https://raw.githubusercontent.com/niklasf/fishnet/master/doc/sequence-diagram
+.. image:: https://raw.githubusercontent.com/niklasf/fishnet/master/doc/sequence-diagram.png
 
 See `protocol.md <https://github.com/niklasf/fishnet/blob/master/doc/protocol.md>`_ for details.
