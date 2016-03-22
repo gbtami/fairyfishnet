@@ -17,6 +17,7 @@ import threading
 import sys
 import os
 import math
+import platform
 
 if os.name == "posix" and sys.version_info[0] < 3:
     try:
@@ -91,7 +92,10 @@ def http(method, url, body=None):
     else:
         con = httplib.HTTPConnection(url_info.hostname, url_info.port or 80)
 
-    con.request(method, url_info.path, body)
+    con.request(method, url_info.path, body, {
+        "User-Agent": "fishnet %s" % __version__,
+    })
+
     response = con.getresponse()
     logging.debug("HTTP response: %d %s", response.status, response.reason)
 
@@ -544,6 +548,35 @@ def intro():
 """ % __version__)
 
 
+def stockfish_filename():
+    if os.name == "posix":
+        base = "stockfish-%s" % platform.machine()
+        with open("/proc/cpuinfo") as cpu_info:
+            for line in cpu_info:
+                if line.startswith("flags") and "bmi2" in line and "popcnt" in line:
+                    return base + "-bmi2"
+                if line.startswith("flags") and "popcnt" in line:
+                    return base + "-modern"
+        return base
+    elif os.name == "nt":
+        return "stockfish-%s.exe" % platform.machine()
+
+
+def update_stockfish():
+    filename = stockfish_filename()
+    logging.info("Looking up %s ...", filename)
+
+    with http("GET", "https://api.github.com/repos/niklasf/Stockfish/releases/latest") as response:
+        release = json.loads(response.read().decode("utf-8"))
+
+    for asset in release["assets"]:
+        if asset["name"] == filename:
+            logging.info("Found %s" % asset["browser_download_url"])
+            break
+    else:
+        logging.error("Did not find %s", filename)
+
+
 def main(args):
     # Setup logging
     logger = logging.getLogger()
@@ -551,6 +584,8 @@ def main(args):
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
+
+    return update_stockfish()
 
     # Parse polyglot.ini
     conf = configparser.SafeConfigParser()
