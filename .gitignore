@@ -2,3 +2,4 @@ venv
 polyglot.ini
 *.py[cd]
 stockfish-*
+Stockfish

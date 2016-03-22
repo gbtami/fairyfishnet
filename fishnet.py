@@ -731,8 +731,9 @@ def main(args):
 
     # Parse configuration
     conf = default_config()
-    conf.read("/etc/fishnet.ini")
     conf.read(os.path.expanduser("~/.fishnet.ini"))
+    conf.read("/etc/fishnet.ini")
+    conf.read(os.path.expanduser("~/fishnet.ini"))
     if args.polyglot:
         conf.readfp(args.polyglot, args.polyglot.name)
     if args.cores:
