@@ -588,10 +588,16 @@ def stockfish_filename():
 
 def update_stockfish(filename):
     headers = {}
+
+    # Only update to newer versions
     try:
         headers["If-Modified-Since"] = time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(os.path.getmtime(filename)))
     except OSError:
         pass
+
+    # Escape GitHub API rate limiting
+    if "GITHUB_API_TOKEN" in os.environ:
+        headers["Authorization"] = "token %s" % os.environ["GITHUB_API_TOKEN"]
 
     # Find latest release
     filename = stockfish_filename()
