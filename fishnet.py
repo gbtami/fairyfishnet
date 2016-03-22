@@ -127,6 +127,10 @@ class ConfigError(Exception):
     pass
 
 
+class UpdateRequired(Exception):
+    pass
+
+
 @contextlib.contextmanager
 def http(method, url, body=None, headers=None):
     logging.debug("HTTP request: %s %s, body: %s", method, url, body)
@@ -882,4 +886,11 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", "-v", action="store_true", help="enable verbose log output")
 
     # Run
-    sys.exit(main(parser.parse_args()))
+    try:
+        sys.exit(main(parser.parse_args()))
+    except UpdateRequired:
+        logging.error("Update required. Exiting (status 70)")
+        sys.exit(70)
+    except ConfigError:
+        logging.exception("Configuration error")
+        sys.exit(78)
