@@ -696,10 +696,22 @@ def main(args):
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
 
-    # Parse polyglot.ini
+    # Parse configuration
     conf = default_config()
-    for c in args.conf:
-        conf.readfp(c, c.name)
+    if args.polyglot:
+        conf.readfp(args.polyglot, args.polyglot.name)
+    if args.cores:
+        conf.set("Fishnet", "Cores", args.cores)
+    if args.memory:
+        conf.set("Fishnet", "Memory", args.memory)
+    if args.endpoint:
+        conf.set("Fishnet", "Endpoint", args.endpoint)
+    if args.apikey:
+        conf.set("Fishnet", "Apikey", args.apikey)
+    if args.engine_dir:
+        conf.set("Fishnet", "EngineDir", args.engine_dir)
+    if args.engine_command:
+        conf.set("Fishnet", "EngineCommand", args.engine_command)
     sanitize_config(conf)
 
     # Ensure Stockfish is available
@@ -794,8 +806,16 @@ if __name__ == "__main__":
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("conf", type=argparse.FileType("r"), nargs="+")
-    parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument(dest="polyglot", metavar="polyglot.ini",
+                        type=argparse.FileType("r"), nargs="?",
+                        help="polylgot.ini engine configuration file")
+    parser.add_argument("--cores", help="Number of cores to use for engine processes")
+    parser.add_argument("--memory", help="Total number of MB to use for engine hashtables")
+    parser.add_argument("--endpoint", help="Lichess HTTP endpoint")
+    parser.add_argument("--apikey", help="Fishnet API Key")
+    parser.add_argument("--engine-dir", help="Engine working directory")
+    parser.add_argument("--engine-command", help="Engine command. Default: Download precompiled Stockfish")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose log output")
 
     # Run
     sys.exit(main(parser.parse_args()))
