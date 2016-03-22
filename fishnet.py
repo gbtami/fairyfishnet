@@ -9,7 +9,7 @@ from __future__ import print_function
 from __future__ import division
 
 
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 
 __author__ = "Niklas Fiekas"
 __email__ = "niklas.fiekas@backscattering.de"
@@ -581,7 +581,7 @@ def default_config():
     conf = configparser.SafeConfigParser()
 
     conf.add_section("Fishnet")
-    conf.set("Fishnet", "EngineDir", os.path.dirname(os.path.abspath(".")))
+    conf.set("Fishnet", "EngineDir", os.path.abspath("."))
     conf.set("Fishnet", "Endpoint", "http://en.lichess.org/fishnet/")
     conf.set("Fishnet", "Cores", "auto")
 
