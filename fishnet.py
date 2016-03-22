@@ -578,7 +578,7 @@ def default_config():
     conf = configparser.SafeConfigParser()
 
     conf.add_section("Fishnet")
-    conf.set("Fishnet", "EngineDir", os.path.dirname(os.path.abspath(__file__)))
+    conf.set("Fishnet", "EngineDir", os.path.dirname(os.path.abspath(".")))
     conf.set("Fishnet", "Endpoint", "http://en.lichess.org/fishnet/")
     conf.set("Fishnet", "Cores", "auto")
 
