@@ -3,3 +3,6 @@ polyglot.ini
 *.py[cd]
 stockfish-*
 Stockfish
+build/
+dist/
+fishnet.egg-info/

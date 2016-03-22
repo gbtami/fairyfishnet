@@ -1,47 +1,5 @@
-fishnet
-=======
-
-Distributed Stockfish analysis for lichess.org
-
-[![Build Status](https://travis-ci.org/niklasf/fishnet.svg?branch=master)](https://travis-ci.org/niklasf/fishnet)
-
-Current version: 1.1.2
-
-Prerequisites
--------------
-
-- **Git** to clone this repository
-- **g++** and **make** to build lichess custom Stockfish
-
-Installation
-------------
-
-Just clone this repository:
-
-```sh
-git clone https://github.com/niklasf/fishnet
-cd fishnet
-```
-
-Usage
------
-
-Run the client with your API key:
-
-```sh
-./start APIKEY
-```
-
-You only need to provide your API key the first time you run fishnet.
-
-Configuration
--------------
-
-After the first run, you can edit the `polyglot.ini` file.
-Note that the defaults should just work fine.
-
 Protocol
---------
+========
 
 ![Fishnet sequence diagram](https://raw.githubusercontent.com/niklasf/fishnet/master/doc/sequence-diagram.png)
 
