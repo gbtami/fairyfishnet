@@ -562,7 +562,7 @@ def default_config():
     conf = configparser.SafeConfigParser()
 
     conf.add_section("Fishnet")
-    conf.set("Fishnet", "EngineDir", os.path.dirname(__file__))
+    conf.set("Fishnet", "EngineDir", os.path.dirname(os.path.abspath(__file__)))
     conf.set("Fishnet", "Endpoint", "http://en.lichess.org/fishnet/")
 
     conf.add_section("Engine")
@@ -623,7 +623,7 @@ def download_stockfish():
 
 def ensure_stockfish(conf):
     if not os.path.isdir(conf.get("Fishnet", "EngineDir")):
-        raise ConfigError("EngineDir not found")
+        raise ConfigError("EngineDir not found: %s", conf.get("Fishnet", "EngineDir"))
 
     if not conf.has_option("Fishnet", "EngineCommand"):
         conf.set("Fishnet", "EngineCommand", os.path.join(".", download_stockfish()))
