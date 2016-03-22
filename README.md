@@ -5,18 +5,30 @@ Distributed Stockfish analysis for lichess.org
 
 [![Build Status](https://travis-ci.org/niklasf/fishnet.svg?branch=master)](https://travis-ci.org/niklasf/fishnet)
 
+Current version: 1.1.2
+
 Prerequisites
 -------------
 
-- Git (to clone this repository)
-- g++ and make (to build lichess custom Stockfish)
+- **Git** to clone this repository
+- **g++** and **make** to build lichess custom Stockfish
+
+Installation
+------------
+
+Just clone this repository:
+
+```sh
+git clone https://github.com/niklasf/fishnet
+cd fishnet
+```
 
 Usage
 -----
 
 Run the client with your API key:
 
-```
+```sh
 ./start APIKEY
 ```
 
