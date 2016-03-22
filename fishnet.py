@@ -93,7 +93,7 @@ class ConfigError(Exception):
 
 
 @contextlib.contextmanager
-def http(method, url, body=None):
+def http(method, url, body=None, headers=None):
     logging.debug("HTTP request: %s %s, body: %s", method, url, body)
 
     url_info = urlparse.urlparse(url)
@@ -102,10 +102,11 @@ def http(method, url, body=None):
     else:
         con = httplib.HTTPConnection(url_info.hostname, url_info.port or 80)
 
-    con.request(method, url_info.path, body, {
-        "User-Agent": "fishnet %s" % __version__,
-    })
+    headers_with_useragent = {"User-Agent": "fishnet %s" % __version__}
+    if headers:
+        headers_with_useragent.update(headers)
 
+    con.request(method, url_info.path, body, headers_with_useragent)
     response = con.getresponse()
     logging.debug("HTTP response: %d %s", response.status, response.reason)
 
@@ -584,12 +585,22 @@ def stockfish_filename():
         return "stockfish-%s.exe" % platform.machine()
 
 
-def download_stockfish():
+def update_stockfish(filename):
+    headers = {}
+    try:
+        headers["If-Modified-Since"] = time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(os.path.getmtime(filename)))
+    except OSError:
+        pass
+
     # Find latest release
     filename = stockfish_filename()
     logging.info("Looking up %s ...", filename)
 
-    with http("GET", "https://api.github.com/repos/niklasf/Stockfish/releases/latest") as response:
+    with http("GET", "https://api.github.com/repos/niklasf/Stockfish/releases/latest", headers=headers) as response:
+        if response.status == 304:
+            logging.info("Local %s is newer than release", filename)
+            return filename
+
         release = json.loads(response.read().decode("utf-8"))
 
     logging.info("Latest stockfish release is tagged %s", release["tag_name"])
@@ -626,7 +637,7 @@ def ensure_stockfish(conf):
         raise ConfigError("EngineDir not found: %s", conf.get("Fishnet", "EngineDir"))
 
     if not conf.has_option("Fishnet", "EngineCommand"):
-        conf.set("Fishnet", "EngineCommand", os.path.join(".", download_stockfish()))
+        conf.set("Fishnet", "EngineCommand", os.path.join(".", update_stockfish(stockfish_filename())))
 
 
 def main(args):
