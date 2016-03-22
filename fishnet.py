@@ -4,7 +4,16 @@
 
 """Distributed analysis for lichess.org"""
 
+
 from __future__ import print_function
+
+
+__version__ = "1.2.0"
+
+__author__ = "Niklas Fiekas"
+__email__ = "niklas.fiekas@backscattering.de"
+__license__ = "MIT"
+
 
 import argparse
 import logging
@@ -52,13 +61,6 @@ try:
     input = raw_input
 except NameError:
     pass
-
-
-__version__ = "1.2.0"
-
-__author__ = "Niklas Fiekas"
-__email__ = "niklas.fiekas@backscattering.de"
-__license__ = "MIT"
 
 
 class LogFormatter(logging.Formatter):
