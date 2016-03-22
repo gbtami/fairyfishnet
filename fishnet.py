@@ -45,6 +45,16 @@ except ImportError:
 __version__ = "1.1.2"
 
 
+class LogFormatter(logging.Formatter):
+    def format(self, record):
+        msg = super(LogFormatter, self).format(record)
+
+        if record.threadName == "MainThread" and record.levelno == logging.INFO:
+            return "[fishnet %s] %s" % (__version__, msg)
+        else:
+            return "%s: %s: %s" % (record.threadName, record.levelname, msg)
+
+
 def base_url(url):
     url_info = urlparse.urlparse(url)
     return "%s://%s/" % (url_info.scheme, url_info.hostname)
@@ -536,10 +546,11 @@ def intro():
 
 def main(args):
     # Setup logging
-    logging.basicConfig(
-        stream=sys.stdout,
-        format="%(levelname)s: %(threadName)s: %(message)s",
-        level=logging.DEBUG if args.verbose else logging.INFO)
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(LogFormatter())
+    logger.addHandler(handler)
 
     # Parse polyglot.ini
     conf = configparser.SafeConfigParser()
@@ -625,8 +636,7 @@ def main(args):
     try:
         while True:
             time.sleep(60)
-            logging.info("[fishnet %s] Analyzed %d positions, crunched %d million nodes  %s",
-                         __version__,
+            logging.info("Analyzed %d positions, crunched %d million nodes  %s",
                          sum(worker.positions for worker in workers),
                          int(sum(worker.nodes for worker in workers) / 1000 / 1000),
                          number_to_fishes(sum(worker.positions for worker in workers)))
