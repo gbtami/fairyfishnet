@@ -666,7 +666,7 @@ def update_stockfish(conf, filename):
             break
     else:
         logging.error("Did not find a precompiled Stockfish for your architecture: %s", filename)
-        logging.error("You might want to build an instance yourself and run with --stockfish")
+        logging.error("You might want to build an instance yourself and run with --engine-command")
         raise ConfigError("EngineCommand required (no precompiled %s)" % filename)
 
     # Download
