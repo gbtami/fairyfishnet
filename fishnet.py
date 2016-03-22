@@ -132,7 +132,7 @@ def start_backoff(conf):
             backoff = min(backoff + 1, 60)
 
 
-def open_process(conf, _popen_lock=threading.Lock()):
+def popen_engine(conf, _popen_lock=threading.Lock()):
     with _popen_lock:  # Work around Python 2 Popen race condition
         return subprocess.Popen(conf.get("Fishnet", "EngineCommand"),
                                 shell=True,
@@ -404,7 +404,7 @@ class Worker(threading.Thread):
                 self.process.kill()
 
     def start_engine(self):
-        self.process = open_process(self.conf)
+        self.process = popen_engine(self.conf)
         self.engine_info = uci(self.process)
         logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
                      self.process.pid, self.threads, self.engine_info.get("name", "<none>"))
@@ -638,6 +638,38 @@ def ensure_stockfish(conf):
 
     if not conf.has_option("Fishnet", "EngineCommand"):
         conf.set("Fishnet", "EngineCommand", os.path.join(".", update_stockfish(stockfish_filename())))
+
+    # Ensure the required options are supported
+    process = popen_engine(conf)
+    options = []
+    send(process, "uci")
+    while True:
+        command, arg = recv(process)
+
+        if command == "uciok":
+            break
+        elif command in ["id", "Stockfish"]:
+            pass
+        elif command == "option":
+            name = []
+            for token in arg.split(" ")[1:]:
+                if name and token == "type":
+                    break
+                name.append(token)
+            options.append(" ".join(name))
+        else:
+            logging.warning("Unexpected engine output: %s %s", command, arg)
+    process.kill()
+
+    logging.debug("Supported options: %s", ", ".join(options))
+
+    required_options = ["UCI_Chess960", "UCI_Atomic", "UCI_Horde", "UCI_House",
+                        "UCI_KingOfTheHill", "UCI_Race", "UCI_3Check",
+                        "Threads", "Hash"]
+
+    for required_option in required_options:
+        if required_option not in options:
+            raise ConfigError("Unsupported engine option %s. Ensure you are using lichess custom Stockfish", required_option)
 
 
 def main(args):
