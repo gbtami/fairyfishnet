@@ -586,12 +586,14 @@ def stockfish_filename():
         return "stockfish-%s.exe" % platform.machine()
 
 
-def update_stockfish(filename):
+def update_stockfish(conf, filename):
+    path = os.path.join(conf.get("Fishnet", "EngineDir"), filename)
+
     headers = {}
 
     # Only update to newer versions
     try:
-        headers["If-Modified-Since"] = time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(os.path.getmtime(filename)))
+        headers["If-Modified-Since"] = time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(os.path.getmtime(path)))
     except OSError:
         pass
 
@@ -627,15 +629,15 @@ def update_stockfish(filename):
         sys.stdout.write("\rDownloading %s: %d/%d (%d%%)" % (filename, a * b, c, round(min(a * b, c) * 100 / c)))
         sys.stdout.flush()
 
-    urllib.urlretrieve(asset["browser_download_url"], filename, reporthook)
+    urllib.urlretrieve(asset["browser_download_url"], path, reporthook)
 
     sys.stdout.write("\n")
     sys.stdout.flush()
 
     # Make executable
     logging.info("chmod +x %s", filename)
-    st = os.stat(filename)
-    os.chmod(filename, st.st_mode | stat.S_IEXEC)
+    st = os.stat(path)
+    os.chmod(path, st.st_mode | stat.S_IEXEC)
     return filename
 
 
@@ -645,7 +647,7 @@ def ensure_stockfish(conf):
 
     # No fixed path configured. Download latest version
     if not conf.has_option("Fishnet", "EngineCommand"):
-        conf.set("Fishnet", "EngineCommand", os.path.join(".", update_stockfish(stockfish_filename())))
+        conf.set("Fishnet", "EngineCommand", os.path.join(".", update_stockfish(conf, stockfish_filename())))
 
     # Ensure the required options are supported
     process = popen_engine(conf)
