@@ -21,19 +21,19 @@ def system(command):
 
 
 def check_git():
-    print("--- CHECK GIT ----------------------------------")
+    print("--- CHECK GIT --------------------------------------------------------")
     system("git diff --exit-code")
     system("git diff --cached --exit-code")
 
 
 def test():
-    print("--- TEST ---------------------------------------")
+    print("--- TEST -------------------------------------------------------------")
     system("python2 test.py")
     system("python3 test.py")
 
 
 def check_docs():
-    print("--- CHECK DOCS ---------------------------------")
+    print("--- CHECK DOCS -------------------------------------------------------")
     system("python3 setup.py --long-description | rst2html --strict --no-raw > /dev/null")
 
 
@@ -50,7 +50,7 @@ def tag_and_push():
 
 
 def pypi():
-    print("--- PYPI ---------------------------------------")
+    print("--- PYPI -------------------------------------------------------------")
     system("python3 setup.py sdist upload")
 
 
