@@ -14,5 +14,6 @@ addons:
      - libstdc++6
      - libc6
      - libgcc1
+     - g++-4.9
 
 script: python test.py -v
