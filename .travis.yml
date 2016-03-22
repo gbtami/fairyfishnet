@@ -6,15 +6,5 @@ python:
  - "3.5"
 
 sudo: false
-addons:
-  apt:
-    sources:
-     - ubuntu-toolchain-r-test
-    packages:
-     - g++-4.9
-env:
- - COMPILER=g++-4.9
-
-install: ./install-stockfish
 
 script: python test.py -v

@@ -88,6 +88,10 @@ class HttpClientError(HttpError):
     pass
 
 
+class ConfigError(Exception):
+    pass
+
+
 @contextlib.contextmanager
 def http(method, url, body=None):
     logging.debug("HTTP request: %s %s, body: %s", method, url, body)
@@ -554,6 +558,18 @@ def intro():
 """ % __version__)
 
 
+def default_config():
+    conf = configparser.SafeConfigParser()
+
+    conf.add_section("Fishnet")
+    conf.set("Fishnet", "EngineDir", os.path.dirname(__file__))
+    conf.set("Fishnet", "Endpoint", "http://en.lichess.org/fishnet/")
+
+    conf.add_section("Engine")
+
+    return conf
+
+
 def stockfish_filename():
     if os.name == "posix":
         base = "stockfish-%s" % platform.machine()
@@ -585,7 +601,7 @@ def download_stockfish():
     else:
         logging.error("Did not find a precompiled Stockfish for your architecture: %s", filename)
         logging.error("You might want to build an instance yourself and run with --stockfish")
-        raise ValueError("No precompiled Stockfish: %s" % filename)
+        raise ConfigError("EngineCommand required (no precompiled %s)" % filename)
 
     # Download
     logging.info("Downloading %s ...", filename)
@@ -605,6 +621,14 @@ def download_stockfish():
     return filename
 
 
+def ensure_stockfish(conf):
+    if not os.path.isdir(conf.get("Fishnet", "EngineDir")):
+        raise ConfigError("EngineDir not found")
+
+    if not conf.has_option("Fishnet", "EngineCommand"):
+        conf.set("Fishnet", "EngineCommand", os.path.join(".", download_stockfish()))
+
+
 def main(args):
     # Setup logging
     logger = logging.getLogger()
@@ -614,23 +638,12 @@ def main(args):
     logger.addHandler(handler)
 
     # Parse polyglot.ini
-    conf = configparser.SafeConfigParser()
-    conf.add_section("Fishnet")
-    conf.set("Fishnet", "EngineDir", ".")
+    conf = default_config()
     for c in args.conf:
         conf.readfp(c, c.name)
 
-    # Sanitize EngineDir
-    if not os.path.isdir(conf.get("Fishnet", "EngineDir")):
-        logging.error("EngineDir not found. Check configuration")
-        return 78
-
-    # Autoinstall Stockfish
-    if not conf.has_option("Fishnet", "EngineCommand"):
-        try:
-            conf.set("Fishnet", "EngineCommand", os.path.join(".", download_stockfish()))
-        except ValueError:
-            return 78
+    # Ensure Stockfish is available
+    ensure_stockfish(conf)
 
     # Ensure Apikey is set
     if not conf.has_option("Fishnet", "Apikey"):

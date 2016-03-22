@@ -19,8 +19,8 @@ STARTPOS = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 class FishnetTest(unittest.TestCase):
 
     def setUp(self):
-        conf = configparser.SafeConfigParser()
-        conf.read(os.path.join(os.path.dirname(__file__), "polyglot.ini.default"))
+        conf = fishnet.default_config()
+        fishnet.ensure_stockfish(conf)
 
         self.worker = fishnet.Worker(conf, threads=1)
         self.worker.start_engine()
