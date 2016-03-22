@@ -877,12 +877,12 @@ if __name__ == "__main__":
     parser.add_argument(dest="polyglot", metavar="polyglot.ini",
                         type=argparse.FileType("r"), nargs="?",
                         help="polylgot.ini engine configuration file")
+    parser.add_argument("--apikey", "-k", help="fishnet api key")
+    parser.add_argument("--engine-command", "-e", help="engine command (default: download precompiled Stockfish)")
+    parser.add_argument("--engine-dir", help="engine working directory")
     parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
     parser.add_argument("--memory", help="total number of memory (MB) to use for engine hashtables")
     parser.add_argument("--endpoint", help="lichess http endpoint")
-    parser.add_argument("--apikey", help="fishnet api key")
-    parser.add_argument("--engine-dir", help="engine working directory")
-    parser.add_argument("--engine-command", help="engine command (default: download precompiled Stockfish)")
     parser.add_argument("--verbose", "-v", action="store_true", help="enable verbose log output")
 
     # Run
