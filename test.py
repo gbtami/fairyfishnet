@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# This file is part of the lichess.org fishnet client.
+# Copyright (C) 2016 Niklas Fiekas <niklas.fiekas@backscattering.de>
+# See LICENSE.txt for licensing information.
+
 import fishnet
 import unittest
 import logging
