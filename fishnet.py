@@ -629,6 +629,7 @@ def stockfish_filename():
 
 def update_stockfish(conf, filename):
     path = os.path.join(conf.get("Fishnet", "EngineDir"), filename)
+    logging.info("Engine path: %s", path)
 
     headers = {}
 
@@ -684,7 +685,7 @@ def update_stockfish(conf, filename):
 
 def ensure_stockfish(conf):
     if not os.path.isdir(conf.get("Fishnet", "EngineDir")):
-        raise ConfigError("EngineDir not found: %s", conf.get("Fishnet", "EngineDir"))
+        raise ConfigError("EngineDir not found: %s" % conf.get("Fishnet", "EngineDir"))
 
     # No fixed path configured. Download latest version
     if not conf.has_option("Fishnet", "EngineCommand"):
@@ -720,7 +721,7 @@ def ensure_stockfish(conf):
 
     for required_option in required_options:
         if required_option not in options:
-            raise ConfigError("Unsupported engine option %s. Ensure you are using lichess custom Stockfish", required_option)
+            raise ConfigError("Unsupported engine option %s. Ensure you are using lichess custom Stockfish" % required_option)
 
 
 def ensure_apikey(conf):
