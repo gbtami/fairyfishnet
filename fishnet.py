@@ -48,6 +48,11 @@ try:
 except ImportError:
     import ConfigParser as configparser
 
+try:
+    input = raw_input
+except NameError:
+    pass
+
 
 __version__ = "1.1.2"
 
@@ -130,6 +135,14 @@ def start_backoff(conf):
         while True:
             yield 0.5 * backoff + 0.5 * backoff * random.random()
             backoff = min(backoff + 1, 60)
+
+
+def endpoint(conf, sub=""):
+    endpoint = conf.get("Fishnet", "Endpoint")
+    if not endpoint.endswith("/"):
+        endpoint += "/"
+
+    return urlparse.urljoin(endpoint, sub)
 
 
 def popen_engine(conf, _popen_lock=threading.Lock()):
@@ -369,7 +382,7 @@ class Worker(threading.Thread):
                 path, request = self.work()
 
                 # Report result and fetch next job
-                with http("POST", urlparse.urljoin(self.conf.get("Fishnet", "Endpoint"), path), json.dumps(request)) as response:
+                with http("POST", endpoint(self.conf, path), json.dumps(request)) as response:
                     if response.status == 204:
                         self.job = None
                         t = next(self.backoff)
@@ -456,8 +469,8 @@ class Worker(threading.Thread):
         movetime = int(round(4000.0 / (self.threads * 0.9 ** (self.threads - 1)) / 10.0 * lvl / 8.0))
 
         logging.info("Playing %s%s with level %d and movetime %d ms",
-                     base_url(self.conf.get("Fishnet", "Endpoint")),
-                     job["game_id"], lvl, movetime)
+                     base_url(endpoint(self.conf)), job["game_id"],
+                     lvl, movetime)
 
         part = go(self.process, job["position"], moves,
                   movetime=movetime, depth=depth(lvl))
@@ -484,8 +497,7 @@ class Worker(threading.Thread):
 
         for ply in range(len(moves), -1, -1):
             logging.info("Analysing %s%s#%d",
-                         base_url(self.conf.get("Fishnet", "Endpoint")),
-                         job["game_id"], ply)
+                         endpoint(self.conf), job["game_id"], ply)
 
             part = go(self.process, job["position"], moves[0:ply],
                       nodes=3000000, movetime=4000)
@@ -504,9 +516,8 @@ class Worker(threading.Thread):
 
         end = time.time()
         logging.info("Time taken for %s%s: %0.1fs (%0.1fs per position)",
-                     base_url(self.conf.get("Fishnet", "Endpoint")),
-                     job["game_id"], end - start,
-                     (end - start) / (len(moves) + 1))
+                     base_url(endpoint(self.conf)), job["game_id"],
+                     end - start, (end - start) / (len(moves) + 1))
 
         return result
 
@@ -682,10 +693,32 @@ def ensure_stockfish(conf):
             raise ConfigError("Unsupported engine option %s. Ensure you are using lichess custom Stockfish", required_option)
 
 
-def sanitize_config(conf):
-    # Sanitize Endpoint
-    if not conf.get("Fishnet", "Endpoint").endswith("/"):
-        conf.set("Fishnet", "Endpoint", conf.get("Fishnet", "Endpoint") + "/")
+def ensure_apikey(conf):
+    if not conf.has_option("Fishnet", "Apikey"):
+        while True:
+            apikey = input("Enter your API key (to be saved in ~/.fishnet.ini): ")
+            apikey = apikey.strip()
+
+            try:
+                # TODO:
+                #with http("GET", endpoint(conf, "key/%s" % apikey)) as response:
+                if True:
+                    conf.set("Fishnet", "Apikey", apikey)
+
+                    persistent_conf = configparser.SafeConfigParser()
+                    persistent_conf.add_section("Fishnet")
+                    persistent_conf.set("Fishnet", "Apikey", apikey)
+                    with open(os.path.expanduser("~/.fishnet.ini"), "w") as out:
+                        persistent_conf.write(out)
+
+                    break
+            except HttpClientError as error:
+                if error.status == 404:
+                    print("Invalid Apikey. Try again ...")
+                else:
+                    logging.exception("Could not verify Apikey")
+
+    return conf.get("Fishnet", "Apikey")
 
 
 def main(args):
@@ -698,6 +731,7 @@ def main(args):
 
     # Parse configuration
     conf = default_config()
+    conf.read(os.path.expanduser("~/.fishnet.ini"))
     if args.polyglot:
         conf.readfp(args.polyglot, args.polyglot.name)
     if args.cores:
@@ -712,15 +746,12 @@ def main(args):
         conf.set("Fishnet", "EngineDir", args.engine_dir)
     if args.engine_command:
         conf.set("Fishnet", "EngineCommand", args.engine_command)
-    sanitize_config(conf)
 
     # Ensure Stockfish is available
     ensure_stockfish(conf)
 
     # Ensure Apikey is set
-    if not conf.has_option("Fishnet", "Apikey"):
-        logging.error("Apikey not found. Check configuration")
-        return 78
+    ensure_apikey(conf)
 
     # Log custom UCI options
     for name, value in conf.items("Engine"):
@@ -796,7 +827,7 @@ def main(args):
         for worker in workers:
             job = worker.job
             if job:
-                with http("POST", urlparse.urljoin(conf.get("Fishnet", "Endpoint"), "abort/%s" % job["work"]["id"]), json.dumps(worker.make_request())) as response:
+                with http("POST", endpoint(conf, "abort/%s" % job["work"]["id"]), json.dumps(worker.make_request())) as response:
                     logging.info(" - Aborted %s" % job["work"]["id"])
         return 0
 
