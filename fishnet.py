@@ -186,7 +186,7 @@ def uci(p):
             # Ignore identification line
             pass
         else:
-            logging.warn("Unexpected engine output: %s %s", command, arg)
+            logging.warning("Unexpected engine output: %s %s", command, arg)
 
 
 def isready(p):
@@ -196,7 +196,7 @@ def isready(p):
         if command == "readyok":
             break
         else:
-            logging.warn("Unexpected engine output: %s %s", command, arg)
+            logging.warning("Unexpected engine output: %s %s", command, arg)
 
 
 def setoption(p, name, value):
@@ -319,9 +319,9 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
                         isready(p)
                         return info
                     else:
-                        logging.warn("Unexpected engine output: %s %s", command, arg)
+                        logging.warning("Unexpected engine output: %s %s", command, arg)
         else:
-            logging.warn("Unexpected engine output: %s %s", command, arg)
+            logging.warning("Unexpected engine output: %s %s", command, arg)
 
 
 def set_variant_options(p, job):
@@ -490,10 +490,10 @@ class Worker(threading.Thread):
                       nodes=3000000, movetime=4000)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
-                logging.warn("Very low time reported: %d ms.", part["time"])
+                logging.warning("Very low time reported: %d ms.", part["time"])
 
             if "nps" in part and part["nps"] >= 100000000:
-                logging.warn("Dropping exorbitant nps: %d", part["nps"])
+                logging.warning("Dropping exorbitant nps: %d", part["nps"])
                 del part["nps"]
 
             self.nodes += part.get("nodes", 0)
@@ -656,7 +656,7 @@ def main(args):
 
     # Log custom UCI options
     for name, value in conf.items("Engine"):
-        logging.warn("Using custom UCI option: name %s value %s", name, value)
+        logging.warning("Using custom UCI option: name %s value %s", name, value)
 
     # Determine number of cores to use for engine threads
     if not conf.has_option("Fishnet", "Cores") or conf.get("Fishnet", "Cores").lower() == "auto":
@@ -667,10 +667,10 @@ def main(args):
         spare_threads = conf.getint("Fishnet", "Cores")
 
     if spare_threads == 0:
-        logging.warn("Not enough cores to exclusively run an engine thread")
+        logging.warning("Not enough cores to exclusively run an engine thread")
         spare_threads = 1
     elif spare_threads > multiprocessing.cpu_count():
-        logging.warn("Using more threads than cores: %d/%d", spare_threads, multiprocessing.cpu_count())
+        logging.warning("Using more threads than cores: %d/%d", spare_threads, multiprocessing.cpu_count())
     else:
         logging.info("Using %d cores", spare_threads)
 
@@ -692,7 +692,7 @@ def main(args):
     conf.set("Engine", "Hash", str(memory_per_process))
 
     if memory_per_process < 32:
-        logging.warn("Very small hashtable size per engine process: %d MB", memory_per_process)
+        logging.warning("Very small hashtable size per engine process: %d MB", memory_per_process)
     else:
         logging.info("Hashtable size per process: %d MB", memory_per_process)
 
