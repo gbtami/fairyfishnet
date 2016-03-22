@@ -636,6 +636,7 @@ def ensure_stockfish(conf):
     if not os.path.isdir(conf.get("Fishnet", "EngineDir")):
         raise ConfigError("EngineDir not found: %s", conf.get("Fishnet", "EngineDir"))
 
+    # No fixed path configured. Download latest version
     if not conf.has_option("Fishnet", "EngineCommand"):
         conf.set("Fishnet", "EngineCommand", os.path.join(".", update_stockfish(stockfish_filename())))
 
