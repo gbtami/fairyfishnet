@@ -625,11 +625,10 @@ def main(args):
     try:
         while True:
             time.sleep(60)
-            print("[fishnet %s] Analyzed %d positions, crunched %d million nodes  %s" % (
-                __version__,
-                sum(worker.positions for worker in workers),
-                int(sum(worker.nodes for worker in workers) / 1000 / 1000),
-                number_to_fishes(sum(worker.positions for worker in workers))))
+            logging.info("Analyzed %d positions, crunched %d million nodes  %s",
+                         sum(worker.positions for worker in workers),
+                         int(sum(worker.nodes for worker in workers) / 1000 / 1000),
+                         number_to_fishes(sum(worker.positions for worker in workers)))
     except KeyboardInterrupt:
         logging.info("Good bye. Aborting pending jobs ...")
         for worker in workers:
