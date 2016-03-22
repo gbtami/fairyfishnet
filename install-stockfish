@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ -d Stockfish/src ] && [ ! "$(git status | grep "Stockfish (new commits")" ]; then
+if [ -f Stockfish/src/stockfish ] && [ ! "$(git status --porcelain | grep 'M Stockfish')" ]; then
   echo "- Stockfish is up to date"
   exit 0;
 fi
@@ -17,7 +17,7 @@ fi
 
 echo "- Detected architecture $ARCH"
 
-echo "- Fetching latest Stockfish..."
+echo "- Checking out latest Stockfish..."
 git submodule update --init
 
 cd Stockfish/src
