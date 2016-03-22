@@ -30,3 +30,9 @@ Overview
 .. image:: https://raw.githubusercontent.com/niklasf/fishnet/master/doc/sequence-diagram.png
 
 See `protocol.md <https://github.com/niklasf/fishnet/blob/master/doc/protocol.md>`_ for details.
+
+License
+-------
+
+fishnet is licensed under the MIT license. See LICENSE.txt for the full license
+text.
