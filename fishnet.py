@@ -16,6 +16,7 @@ import multiprocessing
 import threading
 import sys
 import os
+import stat
 import math
 import platform
 
@@ -36,6 +37,11 @@ try:
     import urlparse
 except ImportError:
     import urllib.parse as urlparse
+
+try:
+    import urllib.request as urllib
+except ImportError:
+    import urllib
 
 try:
     import configparser
@@ -562,19 +568,41 @@ def stockfish_filename():
         return "stockfish-%s.exe" % platform.machine()
 
 
-def update_stockfish():
+def download_stockfish():
+    # Find latest release
     filename = stockfish_filename()
     logging.info("Looking up %s ...", filename)
 
     with http("GET", "https://api.github.com/repos/niklasf/Stockfish/releases/latest") as response:
         release = json.loads(response.read().decode("utf-8"))
 
+    logging.info("Latest stockfish release is tagged %s", release["tag_name"])
+
     for asset in release["assets"]:
         if asset["name"] == filename:
             logging.info("Found %s" % asset["browser_download_url"])
             break
     else:
-        logging.error("Did not find %s", filename)
+        logging.error("Did not find a precompiled Stockfish for your architecture: %s", filename)
+        logging.error("You might want to build an instance yourself and run with --stockfish")
+        raise ValueError("No precompiled Stockfish: %s" % filename)
+
+    # Download
+    logging.info("Downloading %s ...", filename)
+    def reporthook(a, b, c):
+        sys.stdout.write("\rDownloading %s: %d/%d (%d%%)" % (filename, a * b, c, round(a * b * 100 / c)))
+        sys.stdout.flush()
+
+    urllib.urlretrieve(asset["browser_download_url"], filename, reporthook)
+
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+
+    # Make executable
+    logging.info("chmod +x %s", filename)
+    st = os.stat(filename)
+    os.chmod(filename, st.st_mode | stat.S_IEXEC)
+    return filename
 
 
 def main(args):
@@ -585,21 +613,28 @@ def main(args):
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
 
-    return update_stockfish()
-
     # Parse polyglot.ini
     conf = configparser.SafeConfigParser()
+    conf.add_section("Fishnet")
+    conf.set("Fishnet", "EngineDir", ".")
     for c in args.conf:
         conf.readfp(c, c.name)
+
+    # Sanitize EngineDir
+    if not os.path.isdir(conf.get("Fishnet", "EngineDir")):
+        logging.error("EngineDir not found. Check configuration")
+        return 78
+
+    # Autoinstall Stockfish
+    if not conf.has_option("Fishnet", "EngineCommand"):
+        try:
+            conf.set("Fishnet", "EngineCommand", os.path.join(".", download_stockfish()))
+        except ValueError:
+            return 78
 
     # Ensure Apikey is set
     if not conf.has_option("Fishnet", "Apikey"):
         logging.error("Apikey not found. Check configuration")
-        return 78
-
-    # Validate EngineDir
-    if not os.path.isdir(conf.get("Fishnet", "EngineDir")):
-        logging.error("EngineDir not found. Check configuration")
         return 78
 
     # Sanitize Endpoint
