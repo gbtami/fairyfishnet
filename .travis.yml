@@ -5,15 +5,7 @@ python:
  - "3.4"
  - "3.5"
 
-sudo: false
-addons:
-  apt:
-    sources:
-     - ubuntu-toolchain-r-test
-    packages:
-     - libstdc++6
-     - libc6
-     - libgcc1
-     - g++-4.9
+sudo: required
+dist: trusty
 
 script: python test.py -v
