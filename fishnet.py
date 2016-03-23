@@ -32,7 +32,7 @@ from __future__ import print_function
 from __future__ import division
 
 
-__version__ = "1.2.2"
+__version__ = "1.2.3"
 
 __author__ = "Niklas Fiekas"
 __email__ = "niklas.fiekas@backscattering.de"
@@ -783,6 +783,8 @@ def main(args):
         conf.set("Fishnet", "EngineDir", args.engine_dir)
     if args.engine_command:
         conf.set("Fishnet", "EngineCommand", args.engine_command)
+    if args.threads:
+        conf.set("Engine", "Threads", str(args.threads))
 
     # Ensure Stockfish is available
     ensure_stockfish(conf)
@@ -882,6 +884,7 @@ if __name__ == "__main__":
     parser.add_argument("--engine-dir", help="engine working directory")
     parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
     parser.add_argument("--memory", help="total number of memory (MB) to use for engine hashtables")
+    parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
     parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--verbose", "-v", action="store_true", help="enable verbose log output")
 
