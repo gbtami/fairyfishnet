@@ -739,9 +739,7 @@ def ensure_apikey(conf):
             apikey = apikey.strip()
 
             try:
-                # TODO:
-                #with http("GET", endpoint(conf, "key/%s" % apikey)) as response:
-                if True:
+                with http("GET", endpoint(conf, "key/%s" % apikey)) as response:
                     conf.set("Fishnet", "Apikey", apikey)
 
                     persistent_conf = configparser.SafeConfigParser()
