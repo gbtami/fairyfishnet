@@ -11,6 +11,7 @@ POST http://lichess.org/fishnet/acquire
 {
   "fishnet": {
     "version": "0.0.1",
+    "python": "2.7.11+",
     "apikey": "XXX"
   },
   "engine": {
@@ -53,6 +54,7 @@ POST http://lichess.org/fishnet/analysis/{work_id}
 {
   "fishnet": {
     "version": "0.0.1",
+    "python": "2.7.11+",
     "apikey": "XXX"
   },
   "engine": {
@@ -107,6 +109,7 @@ POST http://lichess.org/fishnet/move/{work_id}
 {
   "fishnet": {
     "version": "0.0.1",
+    "python": "2.7.11+",
     "apikey": "XXX"
   },
   "engine": {

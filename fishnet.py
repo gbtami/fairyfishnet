@@ -472,7 +472,7 @@ class Worker(threading.Thread):
         return {
             "fishnet": {
                 "version": __version__,
-                "python": sys.version,
+                "python": platform.python_version(),
                 "apikey": self.conf.get("Fishnet", "Apikey"),
             },
             "engine": self.engine_info
