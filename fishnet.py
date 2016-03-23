@@ -531,7 +531,7 @@ class Worker(threading.Thread):
 
         for ply in range(len(moves), -1, -1):
             logging.info("Analysing %s%s#%d",
-                         endpoint(self.conf), job["game_id"], ply)
+                         base_url(endpoint(self.conf)), job["game_id"], ply)
 
             part = go(self.process, job["position"], moves[0:ply],
                       nodes=3000000, movetime=4000)
