@@ -618,8 +618,10 @@ def default_config():
 
 
 def stockfish_filename():
+    machine = platform.machine().lower()
+
     if os.name == "posix":
-        base = "stockfish-%s" % platform.machine()
+        base = "stockfish-%s" % machine
         with open("/proc/cpuinfo") as cpu_info:
             for line in cpu_info:
                 if line.startswith("flags") and "bmi2" in line and "popcnt" in line:
@@ -628,9 +630,9 @@ def stockfish_filename():
                     return base + "-modern"
         return base
     elif os.name == "os2":
-        return "stockfish-osx-%s" % platform.machine()
+        return "stockfish-osx-%s" % machine
     elif os.name == "nt":
-        return "stockfish-windows-%s.exe" % platform.machine()
+        return "stockfish-windows-%s.exe" % machine
 
 
 def update_stockfish(conf, filename):
