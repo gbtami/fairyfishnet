@@ -627,6 +627,8 @@ def stockfish_filename():
                 if line.startswith("flags") and "popcnt" in line:
                     return base + "-modern"
         return base
+    elif os.name == "os2":
+        return "stockfish-osx-%s" % platform.machine()
     elif os.name == "nt":
         return "stockfish-%s.exe" % platform.machine()
 
