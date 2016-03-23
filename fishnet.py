@@ -630,7 +630,7 @@ def stockfish_filename():
     elif os.name == "os2":
         return "stockfish-osx-%s" % platform.machine()
     elif os.name == "nt":
-        return "stockfish-%s.exe" % platform.machine()
+        return "stockfish-windows-%s.exe" % platform.machine()
 
 
 def update_stockfish(conf, filename):
