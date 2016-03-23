@@ -27,7 +27,7 @@ lichess.org custom Stockfish
 ----------------------------
 
 fishnet is using
-`lichess.org custom Stockfish <https://github.com/niklasf/Stockfish>`_
+`lichess.org custom Stockfish <https://github.com/niklasf/Stockfish>`__
 by `@ddugovic <https://github.com/ddugovic/Stockfish>`_.
 
 You can build Stockfish yourself (for example with ``./build-stockfish.sh``)
