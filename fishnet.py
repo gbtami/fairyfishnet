@@ -1110,7 +1110,7 @@ def cmd_systemd(args):
         [Install]
         WantedBy=multi-user.target""")
 
-    config_file = args.conf or DEFAULT_CONFIG
+    config_file = os.path.abspath(args.conf or DEFAULT_CONFIG)
     start = [shell_quote(os.path.abspath(sys.argv[0])), "--conf", shell_quote(config_file)]
 
     print(template.format(
@@ -1120,6 +1120,21 @@ def cmd_systemd(args):
         path=shell_quote(os.environ.get("PATH", "")),
         start=" ".join(start)
     ))
+
+    print(file=sys.stderr)
+
+    if not os.path.isfile(config_file):
+        print("# WARNING: Config file %s does not exist" % config_file, file=sys.stderr)
+        print(file=sys.stderr)
+
+    if os.geteuid() == 0:
+        print("# WARNING: Running as root is not recommended!", file=sys.stderr)
+        print(file=sys.stderr)
+
+    print("# Example usage:", file=sys.stderr)
+    print("# python -m fishnet systemd | sudo tee /etc/systemd/system/fishnet.service", file=sys.stderr)
+    print("# sudo systemctl enable fishnet.service")
+    print("# sudo systemctl start fishnet.service")
 
 
 def main(argv):
