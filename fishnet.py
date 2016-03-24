@@ -728,7 +728,17 @@ def load_conf(args):
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
     conf.add_section("Engine")
-    conf.read(os.path.expanduser(args.conf))
+
+    if not args.conf and not os.path.isfile(os.path.expanduser("~/.fishnet.ini")):
+        return configure(args)
+
+    config_file = args.conf or os.path.expanduser("~/.fishnet.ini")
+
+    if not conf.read(config_file):
+        raise ConfigError("Could not read config file: %s" % config_file)
+
+    logging.info("Using config file: %s" % config_file)
+
     return conf
 
 
@@ -742,7 +752,7 @@ def configure(args):
     conf.add_section("Engine")
 
     # Ensure the config file is going to be writable
-    config_file = os.path.abspath(os.path.expanduser("~/.fishnet.ini"))
+    config_file = os.path.abspath(args.conf or os.path.expanduser("~/.fishnet.ini"))
     if os.path.isfile(config_file):
         conf.read(config_file)
         with open(config_file, "r+"):
@@ -867,7 +877,7 @@ def configure(args):
     print()
     while True:
         try:
-            if parse_bool(input("Done. Write configuration to ~/.fishnet.ini now? (default: yes): "), True):
+            if parse_bool(input("Done. Write configuration to %s now? (default: yes): " % (config_file, )), True):
                 break
         except ConfigError as error:
             print(error)
@@ -1195,7 +1205,7 @@ def main(argv):
     parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--verbose", "-v", action="store_true", help="enable verbose log output")
     parser.add_argument("--version", action="version", version="fishnet v{0}".format(__version__))
-    parser.add_argument("--conf", default="~/.fishnet.ini", help="configuration file")
+    parser.add_argument("--conf", help="configuration file")
     parser.set_defaults(func=main)
 
     subparsers = parser.add_subparsers()
