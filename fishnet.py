@@ -1366,8 +1366,11 @@ def main(argv):
     elif args.verbose >= 1:
         logger.setLevel(PROGRESS)
     else:
-        collapse_progress = True
-        logger.setLevel(PROGRESS)
+        if sys.stdout.isatty():
+            collapse_progress = True
+            logger.setLevel(PROGRESS)
+        else:
+            logger.setLevel(logging.INFO)
     handler = LogHandler(collapse_progress, args.stdlog)
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
