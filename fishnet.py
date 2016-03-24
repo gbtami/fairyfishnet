@@ -785,7 +785,7 @@ def configure(args):
                 break
             except ConfigError as error:
                 print(error, file=sys.stderr)
-        conf.set("Fishnet", "FixedBackoff", endpoint)
+        conf.set("Fishnet", "FixedBackoff", str(fixed_backoff))
 
     key = None
     if conf.has_option("Fishnet", "Key"):
