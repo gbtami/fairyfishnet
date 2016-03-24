@@ -1036,7 +1036,7 @@ def validate_memory(memory, conf):
     threads = validate_threads(conf_get(conf, "Threads"), conf)
     processes = math.ceil(cores / threads)
 
-    if not memory or memory.strip().lower() == "auto":
+    if not memory or not memory.strip() or memory.strip().lower() == "auto":
         return processes * HASH_DEFAULT
 
     try:
