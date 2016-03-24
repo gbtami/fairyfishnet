@@ -1202,9 +1202,12 @@ def cmd_main(args):
     except KeyboardInterrupt:
         logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
 
-        # Prepare to stop workers gracefully
+        # Prepare to stop workers
         for worker in workers:
             worker.prepare_stop()
+
+        # Grace period
+        time.sleep(0.5)
 
         # Kill engine processes
         for worker in workers:
