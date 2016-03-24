@@ -1121,14 +1121,19 @@ def cmd_systemd(args):
         WantedBy=multi-user.target""")
 
     config_file = os.path.abspath(args.conf or DEFAULT_CONFIG)
-    start = [shell_quote(os.path.abspath(sys.argv[0])), "--conf", shell_quote(config_file)]
+
+    start = " ".join([shell_quote(os.path.abspath(sys.argv[0])), "--conf", shell_quote(config_file)])
+
+    # Virtualenv support
+    if hasattr(sys, "real_prefix"):
+        start = "/bin/sh -c \"source %s; %s; deactivate\"" % (shell_quote(os.path.abspath(os.path.join(sys.prefix, "bin", "activate"))), start)
 
     print(template.format(
         user=getpass.getuser(),
         group=getpass.getuser(),
         cwd=os.path.abspath("."),
         path=shell_quote(os.environ.get("PATH", "")),
-        start=" ".join(start)
+        start=start
     ))
 
     print(file=sys.stderr)
