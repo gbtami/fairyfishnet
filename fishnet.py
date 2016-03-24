@@ -783,6 +783,14 @@ def configure(args):
             pass
         os.remove(config_file)
 
+    # Stockfish working directory
+    while True:
+        try:
+            engine_dir = configure_engine_dir(input("Stockfish working directory (default: %s): " % os.path.abspath(".")))
+            break
+        except ConfigError as error:
+            print(error)
+
     # Interactive configuration
     while True:
         try:
@@ -814,7 +822,7 @@ def configure(args):
 
     while True:
         try:
-            advanced = configure_bool(input("Configure advanced options (default: no): "))
+            advanced = configure_bool(input("Configure advanced options? (default: no): "))
             break
         except ConfigError as error:
             print(error)
@@ -832,7 +840,7 @@ def configure(args):
 
         while True:
             try:
-                fixed_backoff = configure_bool(input("Fixed backoff (for move servers, default: no): "))
+                fixed_backoff = configure_bool(input("Fixed backoff? (for move servers, default: no): "))
                 break
             except ConfigError as error:
                 print(error)
@@ -857,6 +865,7 @@ def configure(args):
             key = None
 
     # Write configuration
+    conf.set("Fishnet", "EngineDir", engine_dir)
     conf.set("Fishnet", "Cores", str(cores))
     conf.set("Fishnet", "Threads", str(threads))
     conf.set("Fishnet", "Memory", str(memory))
@@ -866,6 +875,18 @@ def configure(args):
     with open(config_file, "w") as f:
         conf.write(f)
     return conf
+
+
+def configure_engine_dir(engine_dir):
+    if not engine_dir or not engine_dir.strip():
+        return os.path.abspath(".")
+
+    engine_dir = os.path.abspath(os.path.expanduser(engine_dir.strip()))
+
+    if not os.path.isdir(engine_dir):
+        raise ConfigError("Directory not found: %s" % engine_dir)
+
+    return engine_dir
 
 
 def configure_bool(inp, default=False):
