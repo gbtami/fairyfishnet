@@ -85,6 +85,18 @@ except ImportError:
     import ConfigParser as configparser
 
 try:
+    from shlex import quote as shell_quote
+except ImportError:
+    def shell_quote(s, _find_unsafe=re.compile(r'[a-zA-Z0-9_^@%+=:,./-]').search):
+        if not s:
+            return "''"
+
+        if not _find_unsafe(s):
+            return s
+
+        return "'" + s.replace("'", "'\"'\"'") + "'"
+
+try:
     input = raw_input
 except NameError:
     pass
@@ -1091,21 +1103,21 @@ def cmd_systemd(args):
         User={user}
         Group={group}
         WorkingDirectory={cwd}
-        Environment=PATH="{path}"
+        Environment=PATH={path}
         ExecStart={start}
         Restart=always
 
         [Install]
         WantedBy=multi-user.target""")
 
-    config_file = args.conf or DEFALUT_CONFIG
-    start = [os.path.abspath(sys.argv[0]), "--conf", config_file]
+    config_file = args.conf or DEFAULT_CONFIG
+    start = [shell_quote(os.path.abspath(sys.argv[0])), "--conf", shell_quote(config_file)]
 
     print(template.format(
         user=getpass.getuser(),
         group=getpass.getuser(),
         cwd=os.path.abspath("."),
-        path=os.environ.get("PATH", ""),
+        path=shell_quote(os.environ.get("PATH", "")),
         start=" ".join(start)
     ))
 
