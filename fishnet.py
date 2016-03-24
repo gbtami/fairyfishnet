@@ -847,7 +847,7 @@ def validate_engine_dir(engine_dir):
     engine_dir = os.path.abspath(os.path.expanduser(engine_dir.strip()))
 
     if not os.path.isdir(engine_dir):
-        raise ConfigError("Directory not found: %s" % engine_dir)
+        raise ConfigError("EngineDir not found: %s" % engine_dir)
 
     return engine_dir
 
