@@ -70,9 +70,13 @@ class FishnetTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    logger = logging.getLogger()
     if "-v" in sys.argv or "--verbose" in sys.argv:
-        logging.basicConfig(level=logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
     else:
-        logging.basicConfig(level=logging.INFO)
+        logger.setLevel(fishnet.PROGRESS)
+    handler = fishnet.LogHandler()
+    handler.setFormatter(fishnet.LogFormatter())
+    logger.addHandler(handler)
 
     unittest.main()
