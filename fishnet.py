@@ -419,7 +419,7 @@ class Worker(threading.Thread):
                 path, request = self.work()
 
                 # Report result and fetch next job
-                with http("POST", endpoint(self.conf, path), json.dumps(request)) as response:
+                with http("POST", get_endpoint(self.conf, path), json.dumps(request)) as response:
                     if response.status == 204:
                         self.job = None
                         t = next(self.backoff)
@@ -507,7 +507,7 @@ class Worker(threading.Thread):
         movetime = int(round(4000.0 / (self.threads * 0.9 ** (self.threads - 1)) / 10.0 * lvl / 8.0))
 
         logging.info("Playing %s%s with level %d and movetime %d ms",
-                     base_url(endpoint(self.conf)), job["game_id"],
+                     base_url(get_endpoint(self.conf)), job["game_id"],
                      lvl, movetime)
 
         part = go(self.process, job["position"], moves,
@@ -535,7 +535,7 @@ class Worker(threading.Thread):
 
         for ply in range(len(moves), -1, -1):
             logging.info("Analysing %s%s#%d",
-                         base_url(endpoint(self.conf)), job["game_id"], ply)
+                         base_url(get_endpoint(self.conf)), job["game_id"], ply)
 
             part = go(self.process, job["position"], moves[0:ply],
                       nodes=3000000, movetime=4000)
@@ -554,7 +554,7 @@ class Worker(threading.Thread):
 
         end = time.time()
         logging.info("Time taken for %s%s: %0.1fs (%0.1fs per position)",
-                     base_url(endpoint(self.conf)), job["game_id"],
+                     base_url(get_endpoint(self.conf)), job["game_id"],
                      end - start, (end - start) / (len(moves) + 1))
 
         return result
