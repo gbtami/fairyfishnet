@@ -75,7 +75,7 @@ if __name__ == "__main__":
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(fishnet.PROGRESS)
-    handler = fishnet.LogHandler()
+    handler = fishnet.LogHandler(collapse_progress=False, stream=sys.stdout)
     handler.setFormatter(fishnet.LogFormatter())
     logger.addHandler(handler)
 

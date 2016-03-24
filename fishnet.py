@@ -144,15 +144,21 @@ class LogFormatter(logging.Formatter):
 
 
 PROGRESS = 15
+ENGINE = 5
 logging.addLevelName(PROGRESS, "PROGRESS")
+logging.addLevelName(ENGINE, "ENGINE")
 
 
 class LogHandler(logging.StreamHandler):
-    def __init__(self, stream=None):
+    def __init__(self, collapse_progress=True, stream=sys.stdout):
         super(LogHandler, self).__init__(stream)
         self.last_level = logging.INFO
+        self.collapse_progress = collapse_progress
 
     def emit(self, record):
+        if not self.collapse_progress:
+            return super(LogHandler, self).emit(record)
+
         try:
             if self.last_level == PROGRESS:
                 if record.levelno == PROGRESS:
@@ -246,7 +252,7 @@ def popen_engine(engine_command, engine_dir, _popen_lock=threading.Lock()):
 
 
 def send(p, line):
-    logging.debug("%s << %s", p.pid, line)
+    logging.log(ENGINE, "%s << %s", p.pid, line)
     p.stdin.write(line)
     p.stdin.write("\n")
     p.stdin.flush()
@@ -259,7 +265,7 @@ def recv(p):
             raise EOFError()
         line = line.rstrip()
 
-        logging.debug("%s >> %s", p.pid, line)
+        logging.log(ENGINE, "%s >> %s", p.pid, line)
 
         command_and_args = line.split(None, 1)
         if len(command_and_args) == 1:
@@ -1290,7 +1296,7 @@ def cmd_systemd(args):
 def main(argv):
     # Parse command line arguments
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--verbose", "-v", action="store_true", help="enable verbose log output")
+    parser.add_argument("--verbose", "-v", default=0, action="count", help="increase verbosity")
     parser.add_argument("--version", action="version", version="fishnet v{0}".format(__version__))
     parser.add_argument("--conf", help="configuration file")
     parser.add_argument("--no-conf", action="store_true", help="do not use a configuration file")
@@ -1327,8 +1333,17 @@ def main(argv):
 
     # Setup logging
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
-    handler = LogHandler(args.stdlog)
+    collapse_progress = False
+    if args.verbose >= 3:
+        logger.setLevel(ENGINE)
+    elif args.verbose >= 2:
+        logger.setLevel(logging.DEBUG)
+    elif args.verbose >= 1:
+        logger.setLevel(PROGRESS)
+    else:
+        collapse_progress = True
+        logger.setLevel(PROGRESS)
+    handler = LogHandler(collapse_progress, args.stdlog)
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
 
