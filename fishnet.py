@@ -768,9 +768,14 @@ def ensure_apikey(conf):
 
 
 def configure(args):
+    conf = configparser.ConfigParser()
+    conf.add_section("Fishnet")
+    conf.add_section("Engine")
+
     # Ensure the config file is going to be writable
     config_file = os.path.abspath(os.path.expanduser("~/.fishnet.ini"))
     if os.path.isfile(config_file):
+        conf.read(config_file)
         with open(config_file, "r+"):
             pass
     else:
@@ -832,24 +837,32 @@ def configure(args):
             except ConfigError as error:
                 print(error)
 
+    key = None
+    if conf.has_option("Fishnet", "Key"):
+        while True:
+            try:
+                change_key = configure_bool(input("Change fishnet key? (default: no) "))
+                if not change_key:
+                    key = conf.get("Fishnet", "Key")
+                break
+            except ConfigError as error:
+                print(error)
+
     while True:
         try:
-            key = configure_key(input("Personal fishnet key: "), endpoint)
+            key = configure_key(key or input("Personal fishnet key: "), endpoint)
             break
         except ConfigError as error:
             print(error)
+            key = None
 
     # Write configuration
-    conf = configparser.ConfigParser()
-    conf.read(config_file)
-    conf.add_section("Fishnet")
     conf.set("Fishnet", "Cores", str(cores))
     conf.set("Fishnet", "Threads", str(threads))
     conf.set("Fishnet", "Memory", str(memory))
     conf.set("Fishnet", "Endpoint", endpoint)
     conf.set("Fishnet", "FixedBackoff", str(fixed_backoff))
     conf.set("Fishnet", "Key", key)
-    conf.add_section("Engine")
     with open(config_file, "w") as f:
         conf.write(f)
     return conf
