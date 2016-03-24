@@ -464,6 +464,7 @@ class Worker(threading.Thread):
                 self.job = None
                 t = next(self.backoff)
                 try:
+                    logging.debug("Client error: HTTP %d %s: %s", err.status, err.reason, err.body.decode("utf-8"))
                     logging.error(json.loads(err.body.decode("utf-8"))["error"])
                 except:
                     logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s", err.status, err.reason, t, json.dumps(request))
