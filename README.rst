@@ -21,7 +21,7 @@ Running fishnet
 
 ::
 
-    python -m fishnet
+    python -m fishnet run
 
 lichess.org custom Stockfish
 ----------------------------
