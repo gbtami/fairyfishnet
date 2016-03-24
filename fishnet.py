@@ -697,46 +697,6 @@ def update_stockfish(conf, filename):
     return filename
 
 
-def ensure_stockfish(conf):
-    if not os.path.isdir(conf.get("Fishnet", "EngineDir")):
-        raise ConfigError("EngineDir not found: %s" % conf.get("Fishnet", "EngineDir"))
-
-    # No fixed path configured. Download latest version
-    if not conf.has_option("Fishnet", "EngineCommand"):
-        conf.set("Fishnet", "EngineCommand", os.path.join(".", update_stockfish(conf, stockfish_filename())))
-
-    # Ensure the required options are supported
-    process = popen_engine(conf)
-    options = []
-    send(process, "uci")
-    while True:
-        command, arg = recv(process)
-
-        if command == "uciok":
-            break
-        elif command in ["id", "Stockfish"]:
-            pass
-        elif command == "option":
-            name = []
-            for token in arg.split(" ")[1:]:
-                if name and token == "type":
-                    break
-                name.append(token)
-            options.append(" ".join(name))
-        else:
-            logging.warning("Unexpected engine output: %s %s", command, arg)
-    process.kill()
-
-    logging.debug("Supported options: %s", ", ".join(options))
-
-    required_options = ["UCI_Chess960", "UCI_Atomic", "UCI_Horde", "UCI_House",
-                        "UCI_KingOfTheHill", "UCI_Race", "UCI_3Check",
-                        "Threads", "Hash"]
-
-    for required_option in required_options:
-        if required_option not in options:
-            raise ConfigError("Unsupported engine option %s. Ensure you are using lichess custom Stockfish" % required_option)
-
 
 def ensure_apikey(conf):
     if not conf.has_option("Fishnet", "Apikey"):
@@ -762,6 +722,14 @@ def ensure_apikey(conf):
                     logging.exception("Could not verify Apikey")
 
     return conf.get("Fishnet", "Apikey")
+
+
+def load_conf(args):
+    conf = configparser.ConfigParser()
+    conf.add_section("Fishnet")
+    conf.add_section("Engine")
+    conf.read(os.path.expanduser(args.conf))
+    return conf
 
 
 def configure(args):
@@ -805,14 +773,14 @@ def configure(args):
     while True:
         try:
             engine_command = validate_engine_command(input("Path or command (default: download): "), conf)
-            if not engine_command:
-                filename = update_stockfish(conf, stockfish_filename())
-                validate_engine_command(os.path.join(".", filename), conf)
+            conf.set("Fishnet", "EngineCommand", engine_command or "")
+
+            # Download Stockfish if nescessary
+            get_engine_command(conf)
 
             break
         except ConfigError as error:
             print(error)
-    conf.set("Fishnet", "EngineCommand", engine_command or "")
     print()
 
     # Interactive configuration
@@ -1072,15 +1040,29 @@ def validate_key(key, endpoint):
             raise
 
 
+def get_engine_dir(conf):
+    if conf.has_option("Fishnet", "EngineDir"):
+        return validate_engine_dir(conf.get("Fishnet", "EngineDir"))
+    else:
+        return validate_engine_dir(None)
+
+
+def get_engine_command(conf):
+    if conf.has_option("Fishnet", "EngineCommand"):
+        engine_command = validate_engine_command(conf.get("Fishnet", "EngineCommand"), conf)
+    else:
+        engine_command = None
+
+    if not engine_command:
+        filename = update_stockfish(conf, stockfish_filename())
+        engine_command = validate_engine_command(os.path.join(".", filename), conf)
+
+    return engine_command
+
+
 def main(args):
     intro()
 
-    # Setup logging
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(LogFormatter())
-    logger.addHandler(handler)
 
     if args.conf:
         return configure(args);
@@ -1192,7 +1174,13 @@ def main(args):
         return 0
 
 
-if __name__ == "__main__":
+def cmd_stockfish(args):
+    conf = load_conf(args)
+    os.chdir(get_engine_dir(conf))
+    return subprocess.call(get_engine_command(conf), shell=True)
+
+
+def main(argv):
     # Parse command line arguments
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(dest="polyglot", metavar="polyglot.ini",
@@ -1207,14 +1195,32 @@ if __name__ == "__main__":
     parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--verbose", "-v", action="store_true", help="enable verbose log output")
     parser.add_argument("--version", action="version", version="fishnet v{0}".format(__version__))
-    parser.add_argument("--conf")
+    parser.add_argument("--conf", default="~/.fishnet.ini", help="configuration file")
+    parser.set_defaults(func=main)
+
+    subparsers = parser.add_subparsers()
+    stockfish_parser = subparsers.add_parser("stockfish")
+    stockfish_parser.set_defaults(func=cmd_stockfish)
+
+    args = parser.parse_args(argv)
+
+    # Setup logging
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(LogFormatter())
+    logger.addHandler(handler)
 
     # Run
     try:
-        sys.exit(main(parser.parse_args()))
+        sys.exit(args.func(args))
     except UpdateRequired:
         logging.error("Update required. Exiting (status 70)")
-        sys.exit(70)
+        return 70
     except ConfigError:
         logging.exception("Configuration error")
-        sys.exit(78)
+        return 78
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
