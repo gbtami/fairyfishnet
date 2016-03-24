@@ -170,18 +170,6 @@ def http(method, url, body=None, headers=None):
         con.close()
 
 
-def start_backoff(conf):
-    if conf.has_option("Fishnet", "Fixed Backoff"):
-        while True:
-            yield random.random() * conf.getfloat("Fishnet", "Fixed Backoff")
-    else:
-        backoff = 1
-        while True:
-            yield 0.5 * backoff + 0.5 * backoff * random.random()
-            backoff = min(backoff + 1, 60)
-
-
-
 def popen_engine(engine_command, engine_dir, _popen_lock=threading.Lock()):
     with _popen_lock:  # Work around Python 2 Popen race condition
         return subprocess.Popen(engine_command,
@@ -916,6 +904,9 @@ def validate_engine_command(engine_command, conf):
 
 
 def parse_bool(inp, default=False):
+    if not inp:
+        return default
+
     inp = inp.strip().lower()
     if not inp:
         return default
@@ -1054,6 +1045,17 @@ def get_key(conf):
     return validate_key(conf_get(conf, "Key"), conf, network=False)
 
 
+def start_backoff(conf):
+    if parse_bool(conf_get(conf, "FixedBackoff")):
+        while True:
+            yield random.random() * 3.0
+    else:
+        backoff = 1
+        while True:
+            yield 0.5 * backoff + 0.5 * backoff * random.random()
+            backoff = min(backoff + 1, 60)
+
+
 def cmd_main(args):
     conf = load_conf(args)
 
@@ -1188,6 +1190,7 @@ def main(argv):
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
 
+    # Show intro
     if args.intro:
         intro()
 
