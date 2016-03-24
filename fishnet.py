@@ -1107,7 +1107,7 @@ def cmd_main(args):
         for worker in workers:
             job = worker.job
             if job:
-                with http("POST", endpoint(conf, "abort/%s" % job["work"]["id"]), json.dumps(worker.make_request())) as response:
+                with http("POST", get_endpoint(conf, "abort/%s" % job["work"]["id"]), json.dumps(worker.make_request())) as response:
                     logging.info(" - Aborted %s" % job["work"]["id"])
         return 0
 
