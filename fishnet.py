@@ -181,19 +181,12 @@ def start_backoff(conf):
             backoff = min(backoff + 1, 60)
 
 
-def endpoint(conf, sub=""):
-    endpoint = conf.get("Fishnet", "Endpoint")
-    if not endpoint.endswith("/"):
-        endpoint += "/"
 
-    return urlparse.urljoin(endpoint, sub)
-
-
-def popen_engine(conf, _popen_lock=threading.Lock()):
+def popen_engine(engine_command, engine_dir, _popen_lock=threading.Lock()):
     with _popen_lock:  # Work around Python 2 Popen race condition
-        return subprocess.Popen(conf.get("Fishnet", "EngineCommand"),
+        return subprocess.Popen(engine_command,
                                 shell=True,
-                                cwd=conf.get("Fishnet", "EngineDir"),
+                                cwd=engine_dir,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
                                 stdin=subprocess.PIPE,
@@ -461,7 +454,7 @@ class Worker(threading.Thread):
                 self.process.kill()
 
     def start_engine(self):
-        self.process = popen_engine(self.conf)
+        self.process = popen_engine(get_engine_command(self.conf), get_engine_dir(self.conf))
         self.engine_info = uci(self.process)
         logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
                      self.process.pid, self.threads, self.engine_info.get("name", "<none>"))
@@ -483,7 +476,7 @@ class Worker(threading.Thread):
             "fishnet": {
                 "version": __version__,
                 "python": platform.python_version(),
-                "apikey": self.conf.get("Fishnet", "Apikey"),
+                "apikey": get_key(self.conf),
             },
             "engine": self.engine_info
         }
@@ -699,33 +692,6 @@ def update_stockfish(conf, filename):
     return filename
 
 
-
-def ensure_apikey(conf):
-    if not conf.has_option("Fishnet", "Apikey"):
-        while True:
-            apikey = input("Enter your API key (to be saved in ~/.fishnet.ini): ")
-            apikey = apikey.strip()
-
-            try:
-                with http("GET", endpoint(conf, "key/%s" % apikey)) as response:
-                    conf.set("Fishnet", "Apikey", apikey)
-
-                    persistent_conf = configparser.SafeConfigParser()
-                    persistent_conf.add_section("Fishnet")
-                    persistent_conf.set("Fishnet", "Apikey", apikey)
-                    with open(os.path.expanduser("~/.fishnet.ini"), "w") as out:
-                        persistent_conf.write(out)
-
-                    break
-            except HttpClientError as error:
-                if error.status == 404:
-                    print("Invalid Apikey. Try again ...")
-                else:
-                    logging.exception("Could not verify Apikey")
-
-    return conf.get("Fishnet", "Apikey")
-
-
 def load_conf(args):
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
@@ -810,7 +776,7 @@ def configure(args):
     while True:
         try:
             default_threads = min(DEFAULT_THREADS, cores)
-            threads = validate_threads(input("Number of threads to use per engine process (default %d, max %d): "  % (default_threads, cores)), cores)
+            threads = validate_threads(input("Number of threads to use per engine process (default %d, max %d): "  % (default_threads, cores)), conf)
             break
         except ConfigError as error:
             print(error)
@@ -870,7 +836,7 @@ def configure(args):
 
     while True:
         try:
-            key = validate_key(key or input("Personal fishnet key: "), endpoint)
+            key = validate_key(key or input("Personal fishnet key: "), conf, network=True)
             break
         except ConfigError as error:
             print(error)
@@ -912,14 +878,10 @@ def validate_engine_command(engine_command, conf):
         return None
 
     engine_command = engine_command.strip()
-
-    dummy_conf = configparser.ConfigParser()
-    dummy_conf.add_section("Fishnet")
-    dummy_conf.set("Fishnet", "EngineDir", conf.get("Fishnet", "EngineDir"))
-    dummy_conf.set("Fishnet", "EngineCommand", engine_command)
+    engine_dir = get_engine_dir(conf)
 
     # Ensure the required options are supported
-    process = popen_engine(dummy_conf)
+    process = popen_engine(engine_command, engine_dir)
     options = []
     send(process, "uci")
     while True:
@@ -987,7 +949,9 @@ def validate_cores(cores):
     return cores
 
 
-def validate_threads(threads, cores):
+def validate_threads(threads, conf):
+    cores = validate_cores(conf_get(conf, "Cores"))
+
     if not threads or threads.strip().lower() == "auto":
         return min(DEFAULT_THREADS, cores)
 
@@ -1035,122 +999,79 @@ def validate_endpoint(endpoint):
     return endpoint
 
 
-def validate_key(key, endpoint):
+def validate_key(key, conf, network=False):
     if not key or not key.strip():
         raise ConfigError("Fishnet key required")
 
     key = key.strip()
 
+    network = network and not key.endswith("!")
+    key = key.rstrip("!").strip()
+
     if not re.match(r"^[a-zA-Z0-9]+$", key):
         raise ConfigError("Fishnet key is expected to be alphanumeric")
 
-    try:
-        with http("GET", "%skey/%s" % (endpoint, key)) as response:
-            return key
-    except HttpClientError as error:
-        if error.status == 404:
-            raise ConfigError("Invalid or inactive fishnet key")
-        else:
-            raise
+    if network:
+        try:
+            with http("GET", get_endpoint(conf, "key/%s" % key)) as response:
+                pass
+        except HttpClientError as error:
+            if error.status == 404:
+                raise ConfigError("Invalid or inactive fishnet key")
+            else:
+                raise
+
+    return key
+
+
+def conf_get(conf, key, default=None, section="Fishnet"):
+    if not conf.has_section(section):
+        return default
+    elif not conf.has_option(section, key):
+        return default
+    else:
+        return conf.get(section, key)
 
 
 def get_engine_dir(conf):
-    if conf.has_option("Fishnet", "EngineDir"):
-        return validate_engine_dir(conf.get("Fishnet", "EngineDir"))
-    else:
-        return validate_engine_dir(None)
+    return validate_engine_dir(conf_get(conf, "EngineDir"))
 
 
 def get_engine_command(conf):
-    if conf.has_option("Fishnet", "EngineCommand"):
-        engine_command = validate_engine_command(conf.get("Fishnet", "EngineCommand"), conf)
-    else:
-        engine_command = None
-
+    engine_command = validate_engine_command(conf_get(conf, "EngineCommand"), conf)
     if not engine_command:
         filename = update_stockfish(conf, stockfish_filename())
-        engine_command = validate_engine_command(os.path.join(".", filename), conf)
-
-    return engine_command
-
-
-def main(args):
-    intro()
+        return validate_engine_command(os.path.join(".", filename), conf)
+    else:
+        return engine_command
 
 
-    if args.conf:
-        return configure(args);
+def get_endpoint(conf, sub=""):
+    return urlparse.urljoin(validate_endpoint(conf_get(conf, "Endpoint")), sub)
 
-    # Parse configuration
-    conf = default_config()
-    conf.read(os.path.expanduser("~/.fishnet.ini"))
-    conf.read("/etc/fishnet.ini")
-    conf.read(os.path.expanduser("~/fishnet.ini"))
-    if args.polyglot:
-        conf.readfp(args.polyglot, args.polyglot.name)
-    if args.cores:
-        conf.set("Fishnet", "Cores", args.cores)
-    if args.memory:
-        conf.set("Fishnet", "Memory", args.memory)
-    if args.endpoint:
-        conf.set("Fishnet", "Endpoint", args.endpoint)
-    if args.apikey:
-        conf.set("Fishnet", "Apikey", args.apikey)
-    if args.engine_dir:
-        conf.set("Fishnet", "EngineDir", args.engine_dir)
-    if args.engine_command:
-        conf.set("Fishnet", "EngineCommand", args.engine_command)
-    if args.threads:
-        conf.set("Engine", "Threads", str(args.threads))
+
+def get_key(conf):
+    return validate_key(conf_get(conf, "Key"), conf, network=False)
+
+
+def cmd_main(args):
+    conf = load_conf(args)
+
+    print()
+    print("Working")
+    print("=======")
+    print()
 
     # Ensure Stockfish is available
-    ensure_stockfish(conf)
-
-    # Ensure Apikey is set
-    ensure_apikey(conf)
+    get_engine_command(conf)
 
     # Log custom UCI options
     for name, value in conf.items("Engine"):
         logging.warning("Using custom UCI option: name %s value %s", name, value)
 
-    # Determine number of cores to use for engine threads
-    if conf.get("Fishnet", "Cores").lower() == "auto":
-        spare_threads = multiprocessing.cpu_count() - 1
-    elif conf.get("Fishnet", "Cores").lower() == "all":
-        spare_threads = multiprocessing.cpu_count()
-    else:
-        spare_threads = conf.getint("Fishnet", "Cores")
-
-    if spare_threads == 0:
-        logging.warning("Not enough cores to exclusively run an engine thread")
-        spare_threads = 1
-    elif spare_threads > multiprocessing.cpu_count():
-        logging.warning("Using more threads than cores: %d/%d", spare_threads, multiprocessing.cpu_count())
-    else:
-        logging.info("Using %d cores", spare_threads)
-
-    # Get number of threads per engine process
-    if conf.has_option("Engine", "Threads"):
-        threads_per_process = max(conf.getint("Engine", "Threads"), 1)
-        conf.remove_option("Engine", "Threads")
-    else:
-        threads_per_process = DEFAULT_THREADS
-
-    # Determine memory to use per process
-    if conf.has_option("Engine", "Hash"):
-        memory_per_process = conf.getint("Engine", "Hash")
-    elif conf.has_option("Fishnet", "Memory"):
-        memory_per_process = conf.getint("Fishnet", "Memory") // math.ceil(spare_threads / threads_per_process)
-    else:
-        memory_per_process = 256
-
-    conf.set("Engine", "Hash", str(memory_per_process))
-
-    if memory_per_process < 32:
-        logging.warning("Very small hashtable size per engine process: %d MB", memory_per_process)
-    else:
-        logging.info("Hashtable size per process: %d MB", memory_per_process)
-
+    # Validate configuration
+    spare_threads = validate_cores(conf_get(conf, "Cores"))
+    threads_per_process = validate_threads(conf_get(conf, "Threads"), conf)
 
     # Let spare cores exclusively run engine processes
     workers = []
@@ -1235,7 +1156,7 @@ def cmd_systemd(args):
 def main(argv):
     # Parse command line arguments
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--apikey", "-k", help="fishnet api key")
+    parser.add_argument("--key", "--apikey", "-k", help="fishnet api key")
     parser.add_argument("--engine-command", "-e", help="engine command (default: download precompiled Stockfish)")
     parser.add_argument("--engine-dir", help="engine working directory")
     parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
@@ -1245,7 +1166,7 @@ def main(argv):
     parser.add_argument("--verbose", "-v", action="store_true", help="enable verbose log output")
     parser.add_argument("--version", action="version", version="fishnet v{0}".format(__version__))
     parser.add_argument("--conf", help="configuration file")
-    parser.set_defaults(func=main)
+    parser.set_defaults(func=cmd_main, intro=True)
 
     subparsers = parser.add_subparsers()
     stockfish_parser = subparsers.add_parser("stockfish")
