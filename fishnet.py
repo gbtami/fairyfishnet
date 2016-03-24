@@ -32,7 +32,7 @@ from __future__ import print_function
 from __future__ import division
 
 
-__version__ = "1.3.0"
+__version__ = "0.0.1"
 
 __author__ = "Niklas Fiekas"
 __email__ = "niklas.fiekas@backscattering.de"
@@ -1290,7 +1290,8 @@ def cmd_systemd(args):
 
     # Virtualenv support
     if hasattr(sys, "real_prefix"):
-        shell_cmd = "source %s; %s; deactivate;" % (shell_quote(os.path.abspath(os.path.join(sys.prefix, "bin", "activate"))), start)
+        start = "while [ true ]; do %s; ret=$?; if [ $ret -eq 70 ]; then pip install --upgrade fishnet || sleep 10; else exit $ret; fi; done" % start
+        shell_cmd = "source %s; %s" % (shell_quote(os.path.abspath(os.path.join(sys.prefix, "bin", "activate"))), start)
         start = "/bin/sh -c %s" % shell_quote(shell_cmd)
 
     print(template.format(
@@ -1305,6 +1306,10 @@ def cmd_systemd(args):
 
     if os.geteuid() == 0:
         print("# WARNING: Running as root is not recommended!", file=sys.stderr)
+        print(file=sys.stderr)
+
+    if not hasattr(sys, "real_prefix"):
+        print("# WARNING: Using a virtualenv (to enable auto update) is recommended!", file=sys.stderr)
         print(file=sys.stderr)
 
     print("# Example usage:", file=sys.stderr)
