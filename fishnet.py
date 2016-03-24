@@ -1351,7 +1351,7 @@ def main(argv):
     stockfish_parser.set_defaults(func=cmd_stockfish, intro=True, stdlog=sys.stdout)
     stockfish_parser.add_argument("args", nargs="*")
 
-    args = parser.parse_args(argv[1:])
+    args = parser.parse_args(argv[1:] or ["run"])
 
     # Setup logging
     logger = logging.getLogger()
