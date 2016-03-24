@@ -131,7 +131,7 @@ class LogFormatter(logging.Formatter):
         msg = super(LogFormatter, self).format(record)
 
         # Add level name
-        if record.levelno == logging.INFO:
+        if record.levelno in [logging.INFO, PROGRESS]:
             with_level = msg
         else:
             with_level = "%s: %s" % (record.levelname, msg)
