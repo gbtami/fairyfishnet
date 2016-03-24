@@ -285,25 +285,6 @@ def setoption(p, name, value):
     send(p, "setoption name %s value %s" % (name, value))
 
 
-def depth(level):
-    if level in [1, 2]:
-        return 1
-    elif level == 3:
-        return 2
-    elif level == 4:
-        return 3
-    elif level == 5:
-        return 5
-    elif level == 6:
-        return 8
-    elif level == 7:
-        return 13
-    elif level == 8:
-        return 21
-    else:  # Analysis
-        return 99
-
-
 def go(p, position, moves, movetime=None, depth=None, nodes=None):
     send(p, "position fen %s moves %s" % (position, " ".join(moves)))
     isready(p)
@@ -408,6 +389,25 @@ def set_variant_options(p, variant):
     setoption(p, "UCI_KingOfTheHill", variant == "kingofthehill")
     setoption(p, "UCI_Race", variant == "racingkings")
     setoption(p, "UCI_3Check", variant == "threecheck")
+
+
+def depth(level):
+    if level in [1, 2]:
+        return 1
+    elif level == 3:
+        return 2
+    elif level == 4:
+        return 3
+    elif level == 5:
+        return 5
+    elif level == 6:
+        return 8
+    elif level == 7:
+        return 13
+    elif level == 8:
+        return 21
+    else:  # Analysis
+        return 99
 
 
 class Worker(threading.Thread):
