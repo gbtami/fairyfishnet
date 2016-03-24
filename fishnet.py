@@ -52,6 +52,7 @@ import os
 import stat
 import math
 import platform
+import re
 
 if os.name == "posix" and sys.version_info[0] < 3:
     try:
@@ -87,6 +88,7 @@ except NameError:
     pass
 
 
+DEFAULT_ENDPOINT = "http://en.lichess.org/fishnet/"
 DEFAULT_THREADS = 4
 HASH_MIN = 32
 HASH_DEFAULT = 256
@@ -796,10 +798,48 @@ def configure(args):
 
     while True:
         try:
-            key = configure_key(input("Personal fishnet key: "))
+            advanced = configure_bool(input("Configure advanced options (default: no): "))
             break
         except ConfigError as error:
             print(error)
+
+    endpoint = DEFAULT_ENDPOINT
+    fixed_backoff = False
+
+    if advanced:
+        while True:
+            try:
+                endoint = configure_endpoint(input("Fishnet API endpoint (default: %s): " % (endpoint, )))
+                break
+            except ConfigError as error:
+                print(error)
+
+        while True:
+            try:
+                fixed_backoff = configure_bool(input("Fixed backoff (for move servers, default: no): "))
+                break
+            except ConfigError as error:
+                print(error)
+
+    while True:
+        try:
+            key = configure_key(input("Personal fishnet key: "), endpoint)
+            break
+        except ConfigError as error:
+            print(error)
+
+
+def configure_bool(inp, default=False):
+    inp = inp.strip()
+    if not inp:
+        return default
+
+    if inp in ["y", "j", "yes", "yep", "true", "t", "1", "ok"]:
+        return True
+    elif inp in ["n", "no", "nop", "nope", "f", "false", "0"]:
+        return False
+    else:
+        raise ConfigError("Not a boolean value: %s", inp)
 
 
 def configure_cores(cores):
@@ -861,13 +901,33 @@ def configure_memory(memory, cores, threads):
     return memory
 
 
-def configure_key(key):
+def configure_endpoint(endpoint):
+    if not endpoint or not endpoint.strip():
+        return DEFAULT_ENDPOINT
+
+    if not endpoint.endswith("/"):
+        endpoint += "/"
+
+    return endpoint
+
+
+def configure_key(key, endpoint):
     if not key or not key.strip():
         raise ConfigError("Fishnet key required")
 
-    if not key.isalnum():
+    key = key.strip()
+
+    if not re.match(r"^[a-zA-Z0-9]+$", key):
         raise ConfigError("Fishnet key is expected to be alphanumeric")
 
+    try:
+        with http("GET", "%skey/%s" % (endpoint, key)) as response:
+            return key
+    except HttpClientError as error:
+        if error.status == 404:
+            raise ConfigError("Invalid or inactive fishnet key")
+        else:
+            raise
 
 
 def main(args):
