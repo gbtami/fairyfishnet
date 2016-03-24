@@ -800,7 +800,7 @@ def configure(args):
 
     while True:
         try:
-            key = validate_key(key or config_input("Personal fishnet key: "), conf, network=True)
+            key = validate_key(key or config_input("Personal fishnet key (append ! to force): "), conf, network=True)
             break
         except ConfigError as error:
             print(error, file=sys.stderr)
