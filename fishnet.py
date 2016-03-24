@@ -661,7 +661,6 @@ def update_stockfish(conf, filename):
         headers["Authorization"] = "token %s" % os.environ["GITHUB_API_TOKEN"]
 
     # Find latest release
-    filename = stockfish_filename()
     logging.info("Looking up %s ...", filename)
 
     with http("GET", "https://api.github.com/repos/niklasf/Stockfish/releases/latest", headers=headers) as response:
@@ -678,9 +677,7 @@ def update_stockfish(conf, filename):
             logging.info("Found %s" % asset["browser_download_url"])
             break
     else:
-        logging.error("Did not find a precompiled Stockfish for your architecture: %s", filename)
-        logging.error("You might want to build an instance yourself and run with --engine-command")
-        raise ConfigError("EngineCommand required (no precompiled %s)" % filename)
+        raise ConfigError("No precompiled %s for your platform" % filename)
 
     # Download
     logging.info("Downloading %s ...", filename)
@@ -794,6 +791,7 @@ def configure(args):
             break
         except ConfigError as error:
             print(error)
+    conf.set("Fishnet", "EngineDir", engine_dir)
 
     # Stockfish command
     print()
@@ -806,10 +804,15 @@ def configure(args):
     print()
     while True:
         try:
-            engine_command = validate_engine_command(input("Path or command (default: download): "), engine_dir)
+            engine_command = validate_engine_command(input("Path or command (default: download): "), conf)
+            if not engine_command:
+                filename = update_stockfish(conf, stockfish_filename())
+                validate_engine_command(os.path.join(".", filename), conf)
+
             break
         except ConfigError as error:
             print(error)
+    conf.set("Fishnet", "EngineCommand", engine_command or "")
     print()
 
     # Interactive configuration
@@ -821,6 +824,7 @@ def configure(args):
             break
         except ConfigError as error:
             print(error)
+    conf.set("Fishnet", "Cores", str(cores))
 
     while True:
         try:
@@ -829,6 +833,7 @@ def configure(args):
             break
         except ConfigError as error:
             print(error)
+    conf.set("Fishnet", "Threads", str(threads))
 
     while True:
         try:
@@ -840,6 +845,7 @@ def configure(args):
             break
         except ConfigError as error:
             print(error)
+    conf.set("Fishnet", "Memory", str(memory))
 
     while True:
         try:
@@ -850,6 +856,8 @@ def configure(args):
 
     endpoint = DEFAULT_ENDPOINT
     fixed_backoff = False
+    conf.set("Fishnet", "Endpoint", endpoint)
+    conf.set("Fishnet", "FixedBackoff", str(fixed_backoff))
 
     if advanced:
         while True:
@@ -858,6 +866,7 @@ def configure(args):
                 break
             except ConfigError as error:
                 print(error)
+        conf.set("Fishnet", "Endpoint", endpoint)
 
         while True:
             try:
@@ -865,6 +874,7 @@ def configure(args):
                 break
             except ConfigError as error:
                 print(error)
+        conf.set("Fishnet", "FixedBackoff", endpoint)
 
     key = None
     if conf.has_option("Fishnet", "Key"):
@@ -884,6 +894,7 @@ def configure(args):
         except ConfigError as error:
             print(error)
             key = None
+    conf.set("Fishnet", "Key", key)
 
     print()
     while True:
@@ -894,14 +905,6 @@ def configure(args):
             print(error)
 
     # Write configuration
-    conf.set("Fishnet", "EngineDir", engine_dir)
-    conf.set("Fishnet", "EngineCommand", engine_command or "")
-    conf.set("Fishnet", "Cores", str(cores))
-    conf.set("Fishnet", "Threads", str(threads))
-    conf.set("Fishnet", "Memory", str(memory))
-    conf.set("Fishnet", "Endpoint", endpoint)
-    conf.set("Fishnet", "FixedBackoff", str(fixed_backoff))
-    conf.set("Fishnet", "Key", key)
     with open(config_file, "w") as f:
         conf.write(f)
 
@@ -922,20 +925,19 @@ def validate_engine_dir(engine_dir):
     return engine_dir
 
 
-def validate_engine_command(engine_command, engine_dir):
+def validate_engine_command(engine_command, conf):
     if not engine_command or not engine_command.strip():
         return None
 
     engine_command = engine_command.strip()
 
-    conf = configparser.ConfigParser()
-    conf.add_section("Fishnet")
-    conf.add_section("Engine")
-    conf.set("Fishnet", "EngineDir", engine_dir)
-    conf.set("Fishnet", "EngineCommand", engine_command)
+    dummy_conf = configparser.ConfigParser()
+    dummy_conf.add_section("Fishnet")
+    dummy_conf.set("Fishnet", "EngineDir", conf.get("Fishnet", "EngineDir"))
+    dummy_conf.set("Fishnet", "EngineCommand", engine_command)
 
     # Ensure the required options are supported
-    process = popen_engine(conf)
+    process = popen_engine(dummy_conf)
     options = []
     send(process, "uci")
     while True:
