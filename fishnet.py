@@ -959,7 +959,9 @@ def validate_threads(threads, conf):
     return threads
 
 
-def validate_memory(memory, cores, threads):
+def validate_memory(memory, conf):
+    cores = validate_cores(conf_get(conf, "Cores"))
+    threads = validate_threads(conf_get(conf, "Threads"), conf)
     processes = math.ceil(cores / threads)
 
     if not memory or memory.strip().lower() == "auto":
@@ -1059,23 +1061,34 @@ def cmd_main(args):
     conf = load_conf(args)
 
     print()
-    print("Working")
-    print("=======")
+    print("Checking Stockfish")
+    print("==================")
+    engine_command = get_engine_command(conf)
+
+    print()
+    print("Checking configuration")
+    print("======================")
+    print()
+    print("EngineDir:     %s" % get_engine_dir(conf))
+    print("EngineCommand: %s" % engine_command)
+    print("Key:           %s" % ("*" * len(get_key(conf))))
+
+    spare_threads = validate_cores(conf_get(conf, "Cores"))
+    print("Cores:         %d" % spare_threads)
+    threads_per_process = validate_threads(conf_get(conf, "Threads"), conf)
+    print("Threads:       %d (per engine process)" % threads_per_process)
+    memory = validate_memory(conf_get(conf, "Memory"), conf)
+    print("Memory:        %d MB" % memory)
     print()
 
-    # Ensure Stockfish is available
-    get_engine_command(conf)
+    if conf.has_section("Engine") and conf.items("Engine"):
+        print("Using custom UCI options is discouraged:")
+        for name, value in conf.items("Engine"):
+            print(" * %s = %s" % (name, value))
+        print()
 
-    # Ensure key is available
-    get_key(conf)
-
-    # Log custom UCI options
-    for name, value in conf.items("Engine"):
-        logging.warning("Using custom UCI option: name %s value %s", name, value)
-
-    # Validate configuration
-    spare_threads = validate_cores(conf_get(conf, "Cores"))
-    threads_per_process = validate_threads(conf_get(conf, "Threads"), conf)
+    print("Starting workers ...")
+    print("====================")
 
     # Let spare cores exclusively run engine processes
     workers = []
