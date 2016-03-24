@@ -742,7 +742,13 @@ def load_conf(args):
     return conf
 
 
+def cmd_configure(args):
+    configure(args)
+    return 0
+
+
 def configure(args):
+    print()
     print("Configuration")
     print("=============")
     print()
@@ -1188,6 +1194,7 @@ def main(args):
 def cmd_stockfish(args):
     conf = load_conf(args)
 
+    print()
     print("Stockfish")
     print("=========")
     os.chdir(get_engine_dir(conf))
@@ -1211,8 +1218,11 @@ def main(argv):
 
     subparsers = parser.add_subparsers()
     stockfish_parser = subparsers.add_parser("stockfish")
-    stockfish_parser.set_defaults(func=cmd_stockfish)
+    stockfish_parser.set_defaults(func=cmd_stockfish, intro=True)
     stockfish_parser.add_argument("args", nargs="*")
+
+    configure_parser = subparsers.add_parser("configure", aliases=["config", "conf"])
+    configure_parser.set_defaults(func=cmd_configure, intro=True)
 
     args = parser.parse_args(argv[1:])
 
@@ -1222,6 +1232,9 @@ def main(argv):
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
+
+    if args.intro:
+        intro()
 
     # Run
     try:
