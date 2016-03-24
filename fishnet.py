@@ -596,7 +596,7 @@ def stockfish_filename():
 
 
 def update_stockfish(conf, filename):
-    path = os.path.join(conf.get("Fishnet", "EngineDir"), filename)
+    path = os.path.join(get_engine_dir(conf), filename)
     logging.info("Engine path: %s", path)
 
     headers = {}
@@ -653,14 +653,15 @@ def load_conf(args):
     conf.add_section("Fishnet")
     conf.add_section("Engine")
 
-    if not args.conf and not os.path.isfile(DEFAULT_CONFIG):
-        return configure(args)
+    if not args.no_conf:
+        if not args.conf and not os.path.isfile(DEFAULT_CONFIG):
+            return configure(args)
 
-    config_file = args.conf or DEFAULT_CONFIG
-    logging.debug("Using config file: %s", config_file)
+        config_file = args.conf or DEFAULT_CONFIG
+        logging.debug("Using config file: %s", config_file)
 
-    if not conf.read(config_file):
-        raise ConfigError("Could not read config file: %s" % config_file)
+        if not conf.read(config_file):
+            raise ConfigError("Could not read config file: %s" % config_file)
 
     if hasattr(args, "engine_dir") and args.engine_dir is not None:
         conf.set("Fishnet", "EngineDir", args.engine_dir)
@@ -1169,6 +1170,7 @@ def main(argv):
     parser.add_argument("--verbose", "-v", action="store_true", help="enable verbose log output")
     parser.add_argument("--version", action="version", version="fishnet v{0}".format(__version__))
     parser.add_argument("--conf", help="configuration file")
+    parser.add_argument("--no-conf", action="store_true", help="do not use a configuration file")
     parser.set_defaults(func=cmd_main, intro=True, stdlog=sys.stdout, key=None, engine_command=None, engine_dir=None, cores=None, memory=None, threads=None, endpoint=None)
 
     subparsers = parser.add_subparsers()
