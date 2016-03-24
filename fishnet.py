@@ -1120,7 +1120,7 @@ def cmd_configure(args):
 
 
 def cmd_systemd(args):
-    load_conf(args)
+    conf = load_conf(args)
 
     template = textwrap.dedent("""\
         [Unit]
@@ -1150,22 +1150,22 @@ def cmd_systemd(args):
         builder.append("--no-conf")
         if args.key is not None:
             builder.append("--key")
-            builder.append(shell_quote(validate_key(args.key)))
+            builder.append(shell_quote(validate_key(args.key, conf)))
         if args.engine_dir is not None:
             builder.append("--engine-dir")
             builder.append(shell_quote(validate_engine_dir(args.engine_dir)))
         if args.engine_command is not None:
             builder.append("--engine-command")
-            builder.append(shell_quote(validate_engine_command(args.engine_command)))
+            builder.append(shell_quote(validate_engine_command(args.engine_command, conf)))
         if args.cores is not None:
             builder.append("--cores")
             builder.append(shell_quote(str(validate_cores(args.cores))))
         if args.memory is not None:
             builder.append("--memory")
-            builder.append(shell_quote(str(validate_memory(args.memory))))
+            builder.append(shell_quote(str(validate_memory(args.memory, conf))))
         if args.threads is not None:
             builder.append("--threads")
-            builder.append(shell_quote(str(validate_threads(args.threads))))
+            builder.append(shell_quote(str(validate_threads(args.threads, conf))))
         if args.endpoint is not None:
             builder.append("--endpoint")
             builder.append(shell_quote(validate_endpoint(args.endpoint)))
