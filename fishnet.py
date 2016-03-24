@@ -125,15 +125,22 @@ def intro():
 """ % __version__)
 
 
-# TODO: Improve logging
 class LogFormatter(logging.Formatter):
     def format(self, record):
+        # Format message
         msg = super(LogFormatter, self).format(record)
 
-        if record.threadName == "MainThread" and record.levelno == logging.INFO:
-            return "[fishnet %s] %s" % (__version__, msg)
+        # Add level name
+        if record.levelno == logging.INFO:
+            with_level = msg
         else:
-            return "%s: %s: %s" % (record.threadName, record.levelname, msg)
+            with_level = "%s: %s" % (record.levelname, msg)
+
+        # Add thread name
+        if record.threadName == "MainThread":
+            return with_level
+        else:
+            return "%s: %s" % (record.threadName, with_level)
 
 
 def base_url(url):
