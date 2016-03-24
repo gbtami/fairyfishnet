@@ -146,6 +146,7 @@ class LogHandler(logging.StreamHandler):
     def __init__(self, collapse_progress=True, stream=sys.stdout):
         super(LogHandler, self).__init__(stream)
         self.last_level = logging.INFO
+        self.last_len = 0
         self.collapse_progress = collapse_progress
 
     def emit(self, record):
@@ -159,8 +160,13 @@ class LogHandler(logging.StreamHandler):
                 else:
                     self.stream.write("\n")
 
-            self.stream.write(self.format(record))
-            if record.levelno != PROGRESS:
+            msg = self.format(record)
+            if record.levelno == PROGRESS:
+                self.stream.write(msg.ljust(self.last_len))
+                self.last_len = max(len(msg), self.last_len)
+            else:
+                self.last_len = 0
+                self.stream.write(msg)
                 self.stream.write("\n")
 
             self.last_level = record.levelno
