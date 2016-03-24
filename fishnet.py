@@ -742,11 +742,6 @@ def load_conf(args):
     return conf
 
 
-def cmd_configure(args):
-    configure(args)
-    return 0
-
-
 def configure(args):
     print()
     print("Configuration")
@@ -1199,6 +1194,11 @@ def cmd_stockfish(args):
     print("=========")
     os.chdir(get_engine_dir(conf))
     return subprocess.call(get_engine_command(conf) + " " + " ".join(args.args), shell=True)
+
+
+def cmd_configure(args):
+    configure(args)
+    return 0
 
 
 def main(argv):
