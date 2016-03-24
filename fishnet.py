@@ -1158,6 +1158,7 @@ def cmd_systemd(args):
         WorkingDirectory={cwd}
         Environment=PATH={path}
         ExecStart={start}
+        KillSignal=SIGINT
         Restart=always
 
         [Install]
