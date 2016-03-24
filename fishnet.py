@@ -1126,7 +1126,8 @@ def cmd_systemd(args):
 
     # Virtualenv support
     if hasattr(sys, "real_prefix"):
-        start = "/bin/sh -c \"source %s; %s; deactivate\"" % (shell_quote(os.path.abspath(os.path.join(sys.prefix, "bin", "activate"))), start)
+        shell_cmd = "source %s; %s; deactivate;" % (shell_quote(os.path.abspath(os.path.join(sys.prefix, "bin", "activate"))), start)
+        start = "/bin/sh -c %s" % shell_quote(shell_cmd)
 
     print(template.format(
         user=getpass.getuser(),
