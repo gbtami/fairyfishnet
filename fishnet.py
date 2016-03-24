@@ -478,7 +478,7 @@ class Worker(threading.Thread):
                 self.process.kill()
 
     def start_engine(self):
-        self.process = popen_engine(get_engine_command(self.conf), get_engine_dir(self.conf))
+        self.process = popen_engine(get_engine_command(self.conf, False), get_engine_dir(self.conf))
         self.engine_info = uci(self.process)
         logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
                      self.process.pid, self.threads, self.engine_info.get("name", "<none>"))
@@ -605,7 +605,7 @@ def stockfish_filename():
 
 def update_stockfish(conf, filename):
     path = os.path.join(get_engine_dir(conf), filename)
-    logging.info("Engine path: %s", path)
+    logging.info("Engine target path: %s", path)
 
     headers = {}
 
@@ -1029,10 +1029,12 @@ def get_engine_dir(conf):
     return validate_engine_dir(conf_get(conf, "EngineDir"))
 
 
-def get_engine_command(conf):
+def get_engine_command(conf, update=True):
     engine_command = validate_engine_command(conf_get(conf, "EngineCommand"), conf)
     if not engine_command:
-        filename = update_stockfish(conf, stockfish_filename())
+        filename = stockfish_filename()
+        if update:
+            filename = update_stockfish(conf, filename)
         return validate_engine_command(os.path.join(".", filename), conf)
     else:
         return engine_command
@@ -1060,10 +1062,12 @@ def start_backoff(conf):
 def cmd_main(args):
     conf = load_conf(args)
 
-    print()
-    print("Checking Stockfish")
-    print("==================")
-    engine_command = get_engine_command(conf)
+    engine_command = validate_engine_command(conf_get(conf, "EngineCommand"), conf)
+    if not engine_command:
+        print()
+        print("Updating Stockfish")
+        print("==================")
+        engine_command = get_engine_command(conf)
 
     print()
     print("Checking configuration")
@@ -1079,6 +1083,8 @@ def cmd_main(args):
     print("Threads:       %d (per engine process)" % threads_per_process)
     memory = validate_memory(conf_get(conf, "Memory"), conf)
     print("Memory:        %d MB" % memory)
+    print("Endpoint:      %s" % get_endpoint(conf))
+    print("FixedBackoff:  %s" % parse_bool(conf_get(conf, "FixedBackoff")))
     print()
 
     if conf.has_section("Engine") and conf.items("Engine"):
