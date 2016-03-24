@@ -95,6 +95,7 @@ DEFAULT_THREADS = 4
 HASH_MIN = 32
 HASH_DEFAULT = 256
 HASH_MAX = 512
+DEFAULT_CONFIG = "fishnet.ini"
 
 
 class LogFormatter(logging.Formatter):
@@ -685,10 +686,10 @@ def load_conf(args):
     conf.add_section("Fishnet")
     conf.add_section("Engine")
 
-    if not args.conf and not os.path.isfile(os.path.expanduser("~/.fishnet.ini")):
+    if not args.conf and not os.path.isfile(DEFAULT_CONFIG):
         return configure(args)
 
-    config_file = args.conf or os.path.expanduser("~/.fishnet.ini")
+    config_file = args.conf or DEFAULT_CONFIG
 
     if not conf.read(config_file):
         raise ConfigError("Could not read config file: %s" % config_file)
@@ -709,7 +710,7 @@ def configure(args):
     conf.add_section("Engine")
 
     # Ensure the config file is going to be writable
-    config_file = os.path.abspath(args.conf or os.path.expanduser("~/.fishnet.ini"))
+    config_file = os.path.abspath(args.conf or DEFAULT_CONFIG)
     if os.path.isfile(config_file):
         conf.read(config_file)
         with open(config_file, "r+"):
@@ -1143,7 +1144,7 @@ def cmd_systemd(args):
         [Install]
         WantedBy=multi-user.target""")
 
-    config_file = args.conf or os.path.expanduser("~/.fishnet.ini")
+    config_file = args.conf or DEFALUT_CONFIG
     start = [os.path.abspath(sys.argv[0]), "--conf", config_file]
 
     print(template.format(
