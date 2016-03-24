@@ -87,14 +87,7 @@ except ImportError:
 try:
     from shlex import quote as shell_quote
 except ImportError:
-    def shell_quote(s, _find_unsafe=re.compile(r'[a-zA-Z0-9_^@%+=:,./-]').search):
-        if not s:
-            return "''"
-
-        if not _find_unsafe(s):
-            return s
-
-        return "'" + s.replace("'", "'\"'\"'") + "'"
+    from pipes import quote as shell_quote
 
 try:
     input = raw_input
