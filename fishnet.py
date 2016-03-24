@@ -1165,15 +1165,17 @@ def main(argv):
     parser.set_defaults(func=cmd_main, intro=True, stdlog=sys.stdout)
 
     subparsers = parser.add_subparsers()
-    stockfish_parser = subparsers.add_parser("stockfish")
+
+    configure_parser = subparsers.add_parser("configure", help="interactive configuration")
+    configure_parser.set_defaults(func=cmd_configure, intro=True, stdlog=sys.stdout)
+
+    systemd_parser = subparsers.add_parser("systemd", help="helps to create a systemd service file")
+    systemd_parser.set_defaults(func=cmd_systemd, intro=False, stdlog=sys.stderr)
+
+    stockfish_parser = subparsers.add_parser("stockfish", help="start a stockfish instance for testing")
     stockfish_parser.set_defaults(func=cmd_stockfish, intro=True, stdlog=sys.stdout)
     stockfish_parser.add_argument("args", nargs="*")
 
-    configure_parser = subparsers.add_parser("configure", aliases=["config", "conf"])
-    configure_parser.set_defaults(func=cmd_configure, intro=True, stdlog=sys.stdout)
-
-    systemd_parser = subparsers.add_parser("systemd")
-    systemd_parser.set_defaults(func=cmd_systemd, intro=False, stdlog=sys.stderr)
 
     args = parser.parse_args(argv[1:])
 
