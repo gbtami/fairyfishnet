@@ -416,6 +416,10 @@ class Worker(threading.Thread):
         self.conf = conf
         self.threads = threads
 
+        self.alive = True
+        self.finished = threading.Event()
+        self.sleep = threading.Event()
+
         self.nodes = 0
         self.positions = 0
 
@@ -424,8 +428,12 @@ class Worker(threading.Thread):
         self.engine_info = None
         self.backoff = start_backoff(self.conf)
 
+    def prepare_stop(self):
+        self.alive = False
+        self.sleep.set()
+
     def run(self):
-        while True:
+        while self.alive:
             try:
                 # Check if engine is still alive
                 if self.process:
@@ -444,7 +452,7 @@ class Worker(threading.Thread):
                         self.job = None
                         t = next(self.backoff)
                         logging.debug("No job found. Backing off %0.1fs", t)
-                        time.sleep(t)
+                        self.sleep.wait(t)
                     else:
                         data = response.read().decode("utf-8")
                         logging.debug("Got job: %s", data)
@@ -455,7 +463,7 @@ class Worker(threading.Thread):
                 self.job = None
                 t = next(self.backoff)
                 logging.error("Server error: HTTP %d %s. Backing off %0.1fs", err.status, err.reason, t)
-                time.sleep(t)
+                self.sleep.wait(t)
             except HttpClientError as err:
                 self.job = None
                 t = next(self.backoff)
@@ -464,15 +472,28 @@ class Worker(threading.Thread):
                     logging.error(json.loads(err.body.decode("utf-8"))["error"])
                 except:
                     logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s", err.status, err.reason, t, json.dumps(request))
-                time.sleep(t)
+                self.sleep.wait(t)
+            except EOFError:
+                if not self.alive:
+                    # Abort
+                    if self.job:
+                        logging.debug("Aborting %s", job["work"]["id"])
+                        with http("POST", get_endpoint(conf, "abort/%s" % job["work"]["id"]), json.dumps(self.make_request())) as response:
+                            logging.info("Aborted %s", job["work"]["id"])
+                else:
+                    logging.exception("Engine process has died")
+                    self.process.kill()
             except:
                 self.job = None
                 t = next(self.backoff)
                 logging.exception("Backing off %0.1fs after exception in worker", t)
-                time.sleep(t)
+                self.sleep.wait(t)
 
                 # If in doubt, restart engine
                 self.process.kill()
+
+        # Set finished flag
+        self.finished.set()
 
     def start_engine(self):
         # Start process
@@ -1118,12 +1139,20 @@ def cmd_main(args):
                          sum(worker.positions for worker in workers),
                          int(sum(worker.nodes for worker in workers) / 1000 / 1000))
     except KeyboardInterrupt:
-        logging.info("Good bye. Aborting pending jobs ...")
+        logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
+
+        # Prepare to stop workers gracefully
         for worker in workers:
-            job = worker.job
-            if job:
-                with http("POST", get_endpoint(conf, "abort/%s" % job["work"]["id"]), json.dumps(worker.make_request())) as response:
-                    logging.info(" - Aborted %s" % job["work"]["id"])
+            worker.prepare_stop()
+
+        # Kill engine processes
+        for worker in workers:
+            worker.process.kill()
+
+        # Wait
+        for worker in workers:
+            worker.finished.wait()
+
         return 0
 
 
