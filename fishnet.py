@@ -1058,6 +1058,9 @@ def cmd_main(args):
     # Ensure Stockfish is available
     get_engine_command(conf)
 
+    # Ensure key is available
+    get_key(conf)
+
     # Log custom UCI options
     for name, value in conf.items("Engine"):
         logging.warning("Using custom UCI option: name %s value %s", name, value)
