@@ -768,6 +768,17 @@ def ensure_apikey(conf):
 
 
 def configure(args):
+    # Ensure the config file is going to be writable
+    config_file = os.path.abspath(os.path.expanduser("~/.fishnet.ini"))
+    if os.path.isfile(config_file):
+        with open(config_file, "r+"):
+            pass
+    else:
+        with open(config_file, "w"):
+            pass
+        os.remove(config_file)
+
+    # Interactive configuration
     while True:
         try:
             max_cores = multiprocessing.cpu_count()
@@ -828,9 +839,24 @@ def configure(args):
         except ConfigError as error:
             print(error)
 
+    # Write configuration
+    conf = configparser.ConfigParser()
+    conf.read(config_file)
+    conf.add_section("Fishnet")
+    conf.set("Fishnet", "Cores", str(cores))
+    conf.set("Fishnet", "Threads", str(threads))
+    conf.set("Fishnet", "Memory", str(memory))
+    conf.set("Fishnet", "Endpoint", endpoint)
+    conf.set("Fishnet", "FixedBackoff", str(fixed_backoff))
+    conf.set("Fishnet", "Key", key)
+    conf.add_section("Engine")
+    with open(config_file, "w") as f:
+        conf.write(f)
+    return conf
+
 
 def configure_bool(inp, default=False):
-    inp = inp.strip()
+    inp = inp.strip().lower()
     if not inp:
         return default
 
