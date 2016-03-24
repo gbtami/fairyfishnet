@@ -53,6 +53,8 @@ import stat
 import math
 import platform
 import re
+import textwrap
+import getpass
 
 if os.name == "posix" and sys.version_info[0] < 3:
     try:
@@ -1201,6 +1203,35 @@ def cmd_configure(args):
     return 0
 
 
+def cmd_systemd(args):
+    template = textwrap.dedent("""\
+        [Unit]
+        Description=Fishnet instance
+        After=network.target
+
+        [Service]
+        User={user}
+        Group={group}
+        WorkingDirectory={cwd}
+        Environment=PATH="{path}"
+        ExecStart={start}
+        Restart=always
+
+        [Install]
+        WantedBy=multi-user.target""")
+
+    config_file = args.conf or os.path.expanduser("~/.fishnet.ini")
+    start = [os.path.abspath(sys.argv[0]), "--conf", config_file]
+
+    print(template.format(
+        user=getpass.getuser(),
+        group=getpass.getuser(),
+        cwd=os.path.abspath("."),
+        path=os.environ.get("PATH", ""),
+        start=" ".join(start)
+    ))
+
+
 def main(argv):
     # Parse command line arguments
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1223,6 +1254,9 @@ def main(argv):
 
     configure_parser = subparsers.add_parser("configure", aliases=["config", "conf"])
     configure_parser.set_defaults(func=cmd_configure, intro=True)
+
+    systemd_parser = subparsers.add_parser("systemd")
+    systemd_parser.set_defaults(func=cmd_systemd, intro=False)
 
     args = parser.parse_args(argv[1:])
 
