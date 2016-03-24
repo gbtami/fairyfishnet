@@ -791,6 +791,23 @@ def configure(args):
         except ConfigError as error:
             print(error)
 
+    # Stockfish command
+    print()
+    print("Fishnet uses a custom Stockfish build with variant support.")
+    print("Stockfish is licensed under the GNU General Public License v3.")
+    print("You can find the source at: https://github.com/ddugovic/Stockfish")
+    print()
+    print("You can build lichess.org custom Stockfish yourself and provide")
+    print("the path or automatically download a precompiled binary.")
+    print()
+    while True:
+        try:
+            engine_command = configure_engine_command(input("Path or command (default: download): "), engine_dir)
+            break
+        except ConfigError as error:
+            print(error)
+    print()
+
     # Interactive configuration
     while True:
         try:
@@ -887,6 +904,53 @@ def configure_engine_dir(engine_dir):
         raise ConfigError("Directory not found: %s" % engine_dir)
 
     return engine_dir
+
+
+def configure_engine_command(engine_command, engine_dir):
+    if not engine_command or not engine_command.strip():
+        return None
+
+    engine_command = engine_command.strip()
+
+    conf = configparser.ConfigParser()
+    conf.add_section("Fishnet")
+    conf.add_section("Engine")
+    conf.set("Fishnet", "EngineDir", engine_dir)
+    conf.set("Fishnet", "EngineCommand", engine_command)
+
+    # Ensure the required options are supported
+    process = popen_engine(conf)
+    options = []
+    send(process, "uci")
+    while True:
+        command, arg = recv(process)
+
+        if command == "uciok":
+            break
+        elif command in ["id", "Stockfish"]:
+            pass
+        elif command == "option":
+            name = []
+            for token in arg.split(" ")[1:]:
+                if name and token == "type":
+                    break
+                name.append(token)
+            options.append(" ".join(name))
+        else:
+            logging.warning("Unexpected engine output: %s %s", command, arg)
+    process.kill()
+
+    logging.debug("Supported options: %s", ", ".join(options))
+
+    required_options = ["UCI_Chess960", "UCI_Atomic", "UCI_Horde", "UCI_House",
+                        "UCI_KingOfTheHill", "UCI_Race", "UCI_3Check",
+                        "Threads", "Hash"]
+
+    for required_option in required_options:
+        if required_option not in options:
+            raise ConfigError("Unsupported engine option %s. Ensure you are using lichess custom Stockfish" % required_option)
+
+    return engine_command
 
 
 def configure_bool(inp, default=False):
