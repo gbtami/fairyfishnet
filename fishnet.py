@@ -768,6 +768,10 @@ def ensure_apikey(conf):
 
 
 def configure(args):
+    print("Configuration")
+    print("=============")
+    print()
+
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
     conf.add_section("Engine")
@@ -786,7 +790,7 @@ def configure(args):
     # Stockfish working directory
     while True:
         try:
-            engine_dir = configure_engine_dir(input("Stockfish working directory (default: %s): " % os.path.abspath(".")))
+            engine_dir = validate_engine_dir(input("Stockfish working directory (default: %s): " % os.path.abspath(".")))
             break
         except ConfigError as error:
             print(error)
@@ -802,7 +806,7 @@ def configure(args):
     print()
     while True:
         try:
-            engine_command = configure_engine_command(input("Path or command (default: download): "), engine_dir)
+            engine_command = validate_engine_command(input("Path or command (default: download): "), engine_dir)
             break
         except ConfigError as error:
             print(error)
@@ -813,7 +817,7 @@ def configure(args):
         try:
             max_cores = multiprocessing.cpu_count()
             default_cores = max(1, max_cores - 1)
-            cores = configure_cores(input("Number of cores to use for engine threads (default %d, max %d): " % (default_cores, max_cores)))
+            cores = validate_cores(input("Number of cores to use for engine threads (default %d, max %d): " % (default_cores, max_cores)))
             break
         except ConfigError as error:
             print(error)
@@ -821,7 +825,7 @@ def configure(args):
     while True:
         try:
             default_threads = min(DEFAULT_THREADS, cores)
-            threads = configure_threads(input("Number of threads to use per engine process (default %d, max %d): "  % (default_threads, cores)), cores)
+            threads = validate_threads(input("Number of threads to use per engine process (default %d, max %d): "  % (default_threads, cores)), cores)
             break
         except ConfigError as error:
             print(error)
@@ -832,14 +836,14 @@ def configure(args):
             min_memory = HASH_MIN * processes
             default_memory = HASH_DEFAULT * processes
             max_memory = HASH_MAX * processes
-            memory = configure_memory(input("Memory in MB to use for engine hashtables (default %d, min %d, max %d): " % (default_memory, min_memory, max_memory)), cores, threads)
+            memory = validate_memory(input("Memory in MB to use for engine hashtables (default %d, min %d, max %d): " % (default_memory, min_memory, max_memory)), cores, threads)
             break
         except ConfigError as error:
             print(error)
 
     while True:
         try:
-            advanced = configure_bool(input("Configure advanced options? (default: no): "))
+            advanced = parse_bool(input("Configure advanced options? (default: no): "))
             break
         except ConfigError as error:
             print(error)
@@ -850,14 +854,14 @@ def configure(args):
     if advanced:
         while True:
             try:
-                endoint = configure_endpoint(input("Fishnet API endpoint (default: %s): " % (endpoint, )))
+                endoint = validate_endpoint(input("Fishnet API endpoint (default: %s): " % (endpoint, )))
                 break
             except ConfigError as error:
                 print(error)
 
         while True:
             try:
-                fixed_backoff = configure_bool(input("Fixed backoff? (for move servers, default: no): "))
+                fixed_backoff = parse_bool(input("Fixed backoff? (for move servers, default: no): "))
                 break
             except ConfigError as error:
                 print(error)
@@ -866,7 +870,7 @@ def configure(args):
     if conf.has_option("Fishnet", "Key"):
         while True:
             try:
-                change_key = configure_bool(input("Change fishnet key? (default: no) "))
+                change_key = parse_bool(input("Change fishnet key? (default: no) "))
                 if not change_key:
                     key = conf.get("Fishnet", "Key")
                 break
@@ -875,14 +879,23 @@ def configure(args):
 
     while True:
         try:
-            key = configure_key(key or input("Personal fishnet key: "), endpoint)
+            key = validate_key(key or input("Personal fishnet key: "), endpoint)
             break
         except ConfigError as error:
             print(error)
             key = None
 
+    print()
+    while True:
+        try:
+            if parse_bool(input("Done. Write configuration to ~/.fishnet.ini now? (default: yes): "), True):
+                break
+        except ConfigError as error:
+            print(error)
+
     # Write configuration
     conf.set("Fishnet", "EngineDir", engine_dir)
+    conf.set("Fishnet", "EngineCommand", engine_command or "")
     conf.set("Fishnet", "Cores", str(cores))
     conf.set("Fishnet", "Threads", str(threads))
     conf.set("Fishnet", "Memory", str(memory))
@@ -891,10 +904,13 @@ def configure(args):
     conf.set("Fishnet", "Key", key)
     with open(config_file, "w") as f:
         conf.write(f)
+
+    print("Configuration saved.")
+
     return conf
 
 
-def configure_engine_dir(engine_dir):
+def validate_engine_dir(engine_dir):
     if not engine_dir or not engine_dir.strip():
         return os.path.abspath(".")
 
@@ -906,7 +922,7 @@ def configure_engine_dir(engine_dir):
     return engine_dir
 
 
-def configure_engine_command(engine_command, engine_dir):
+def validate_engine_command(engine_command, engine_dir):
     if not engine_command or not engine_command.strip():
         return None
 
@@ -953,7 +969,7 @@ def configure_engine_command(engine_command, engine_dir):
     return engine_command
 
 
-def configure_bool(inp, default=False):
+def parse_bool(inp, default=False):
     inp = inp.strip().lower()
     if not inp:
         return default
@@ -966,7 +982,7 @@ def configure_bool(inp, default=False):
         raise ConfigError("Not a boolean value: %s", inp)
 
 
-def configure_cores(cores):
+def validate_cores(cores):
     if not cores or cores.strip().lower() == "auto":
         return max(1, multiprocessing.cpu_count() - 1)
 
@@ -987,7 +1003,7 @@ def configure_cores(cores):
     return cores
 
 
-def configure_threads(threads, cores):
+def validate_threads(threads, cores):
     if not threads or threads.strip().lower() == "auto":
         return min(DEFAULT_THREADS, cores)
 
@@ -1005,7 +1021,7 @@ def configure_threads(threads, cores):
     return threads
 
 
-def configure_memory(memory, cores, threads):
+def validate_memory(memory, cores, threads):
     processes = math.ceil(cores / threads)
 
     if not memory or memory.strip().lower() == "auto":
@@ -1025,7 +1041,7 @@ def configure_memory(memory, cores, threads):
     return memory
 
 
-def configure_endpoint(endpoint):
+def validate_endpoint(endpoint):
     if not endpoint or not endpoint.strip():
         return DEFAULT_ENDPOINT
 
@@ -1035,7 +1051,7 @@ def configure_endpoint(endpoint):
     return endpoint
 
 
-def configure_key(key, endpoint):
+def validate_key(key, endpoint):
     if not key or not key.strip():
         raise ConfigError("Fishnet key required")
 
