@@ -708,7 +708,7 @@ def load_conf(args):
     if hasattr(args, "memory") and args.memory is not None:
         conf.set("Fishnet", "Memory", args.memory)
     if hasattr(args, "threads") and args.threads is not None:
-        conf.set("Fishnet", "Threads", args.threads)
+        conf.set("Fishnet", "Threads", str(args.threads))
     if hasattr(args, "endpoint") and args.endpoint is not None:
         conf.set("Fishnet", "Endpoint", args.endpoint)
     if hasattr(args, "fixed_backoff") and args.fixed_backoff is not None:
@@ -967,7 +967,7 @@ def validate_cores(cores):
 def validate_threads(threads, conf):
     cores = validate_cores(conf_get(conf, "Cores"))
 
-    if not threads or threads.strip().lower() == "auto":
+    if not threads or str(threads).strip().lower() == "auto":
         return min(DEFAULT_THREADS, cores)
 
     try:
