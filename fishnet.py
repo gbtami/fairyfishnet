@@ -87,6 +87,12 @@ except NameError:
     pass
 
 
+DEFAULT_THREADS = 4
+HASH_MIN = 32
+HASH_DEFAULT = 256
+HASH_MAX = 512
+
+
 class LogFormatter(logging.Formatter):
     def format(self, record):
         msg = super(LogFormatter, self).format(record)
@@ -759,6 +765,82 @@ def ensure_apikey(conf):
     return conf.get("Fishnet", "Apikey")
 
 
+def configure(args):
+    while True:
+        try:
+            max_cores = multiprocessing.cpu_count()
+            default_cores = min(1, max_cores - 1)
+            cores = configure_cores(input("Number of cores to use for engine threads (default %d, max %d): " % (default_cores, max_cores)))
+            break
+        except ConfigError as error:
+            print(error)
+
+    while True:
+        try:
+            default_threads = min(DEFAULT_THREADS, cores)
+            threads = configure_threads(input("Number of threads to use per engine process (default %d, max %d): "  % (default_threads, cores, )), cores)
+            break
+        except ConfigError as error:
+            print(error)
+
+    processes = math.ceil(cores / threads)
+
+    while True:
+        try:
+            key = configure_key(input("Personal fishnet key: "))
+            break
+        except ConfigError as error:
+            print(error)
+
+
+def configure_cores(cores):
+    if not cores or cores.strip().lower() == "auto":
+        return max(1, multiprocessing.cpu_count() - 1)
+
+    if cores.strip().lower() == "all":
+        return multiprocessing.cpu_count()
+
+    try:
+        cores = int(cores.strip())
+    except ValueError:
+        raise ConfigError("Number of cores must be an integer")
+
+    if cores < 1:
+        raise ConfigError("Need at least one core")
+
+    if cores > multiprocessing.cpu_count():
+        raise ConfigError("At most %d cores available on your machine " % multiprocessing.cpu_count())
+
+    return cores
+
+
+def configure_threads(threads, cores):
+    if not threads or threads.strip().lower() == "auto":
+        return min(DEFAULT_THREADS, cores)
+
+    try:
+        threads = int(threads.strip())
+    except ValueError:
+        raise ConfigError("Number of threads must be an integer")
+
+    if threads < 1:
+        raise ConfigError("Need at least one thread per engine process")
+
+    if threads > cores:
+        raise ConfigError("%d cores is not enough to run %d threads" % (cores, threads))
+
+    return threads
+
+
+def configure_key(key):
+    if not key or not key.strip():
+        raise ConfigError("Fishnet key required")
+
+    if not key.isalnum():
+        raise ConfigError("Fishnet key is expected to be alphanumeric")
+
+
+
 def main(args):
     # Setup logging
     logger = logging.getLogger()
@@ -766,6 +848,9 @@ def main(args):
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
+
+    if args.conf:
+        return configure(args);
 
     # Parse configuration
     conf = default_config()
@@ -820,7 +905,7 @@ def main(args):
         threads_per_process = max(conf.getint("Engine", "Threads"), 1)
         conf.remove_option("Engine", "Threads")
     else:
-        threads_per_process = 4
+        threads_per_process = DEFAULT_THREADS
 
     # Determine memory to use per process
     if conf.has_option("Engine", "Hash"):
@@ -890,6 +975,7 @@ if __name__ == "__main__":
     parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
     parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--verbose", "-v", action="store_true", help="enable verbose log output")
+    parser.add_argument("--conf")
 
     # Run
     try:
