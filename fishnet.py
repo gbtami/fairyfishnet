@@ -775,7 +775,7 @@ def configure(args):
             min_memory = HASH_MIN * processes
             default_memory = HASH_DEFAULT * processes
             max_memory = HASH_MAX * processes
-            memory = validate_memory(config_input("Memory in MB to use for engine hashtables (default %d, min %d, max %d): " % (default_memory, min_memory, max_memory)), cores, threads)
+            memory = validate_memory(config_input("Memory in MB to use for engine hashtables (default %d, min %d, max %d): " % (default_memory, min_memory, max_memory)), conf)
             break
         except ConfigError as error:
             print(error, file=sys.stderr)
@@ -843,8 +843,6 @@ def configure(args):
         conf.write(f)
 
     print("Configuration saved.", file=sys.stderr)
-    print(file=sys.stderr)
-
     return conf
 
 
