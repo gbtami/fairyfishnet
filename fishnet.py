@@ -769,7 +769,7 @@ def configure(args):
     while True:
         try:
             max_cores = multiprocessing.cpu_count()
-            default_cores = min(1, max_cores - 1)
+            default_cores = max(1, max_cores - 1)
             cores = configure_cores(input("Number of cores to use for engine threads (default %d, max %d): " % (default_cores, max_cores)))
             break
         except ConfigError as error:
@@ -778,12 +778,21 @@ def configure(args):
     while True:
         try:
             default_threads = min(DEFAULT_THREADS, cores)
-            threads = configure_threads(input("Number of threads to use per engine process (default %d, max %d): "  % (default_threads, cores, )), cores)
+            threads = configure_threads(input("Number of threads to use per engine process (default %d, max %d): "  % (default_threads, cores)), cores)
             break
         except ConfigError as error:
             print(error)
 
-    processes = math.ceil(cores / threads)
+    while True:
+        try:
+            processes = math.ceil(cores / threads)
+            min_memory = HASH_MIN * processes
+            default_memory = HASH_DEFAULT * processes
+            max_memory = HASH_MAX * processes
+            memory = configure_memory(input("Memory in MB to use for engine hashtables (default %d, min %d, max %d): " % (default_memory, min_memory, max_memory)), cores, threads)
+            break
+        except ConfigError as error:
+            print(error)
 
     while True:
         try:
@@ -830,6 +839,26 @@ def configure_threads(threads, cores):
         raise ConfigError("%d cores is not enough to run %d threads" % (cores, threads))
 
     return threads
+
+
+def configure_memory(memory, cores, threads):
+    processes = math.ceil(cores / threads)
+
+    if not memory or memory.strip().lower() == "auto":
+        return processes * HASH_DEFAULT
+
+    try:
+        memory = int(memory.strip())
+    except ValueError:
+        raise ConfigError("Memory must be an integer")
+
+    if memory < processes * HASH_MIN:
+        raise ConfigError("Not enough memory for a minimum of %d x %d MB in hash tables" % (processes, HASH_MIN))
+
+    if memory > processes * HASH_MAX:
+        raise ConfigError("Can not reasonably use more than %d x %d MB = %d MB for hash tables" % (processes, HASH_MAX, processes * HASH_MAX))
+
+    return memory
 
 
 def configure_key(key):
