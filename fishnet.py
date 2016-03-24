@@ -382,7 +382,7 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
                         logging.info("Ignoring superfluous info: %s", arg)
                     elif command == "bestmove":
                         if not "(none)" in arg:
-                            logging.info("Ignoring bestmove: %s", arg)
+                            logging.warning("Ignoring bestmove: %s", arg)
 
                         isready(p)
                         return info
