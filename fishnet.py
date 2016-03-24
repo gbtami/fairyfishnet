@@ -657,11 +657,25 @@ def load_conf(args):
         return configure(args)
 
     config_file = args.conf or DEFAULT_CONFIG
+    logging.debug("Using config file: %s", config_file)
 
     if not conf.read(config_file):
         raise ConfigError("Could not read config file: %s" % config_file)
 
-    logging.info("Using config file: %s" % config_file)
+    if hasattr(args, "engine_dir") and args.engine_dir is not None:
+        conf.set("Fishnet", "EngineDir", args.engine_dir)
+    if hasattr(args, "engine_command") and args.engine_command is not None:
+        conf.set("Fishnet", "EngineCommand", args.engine_command)
+    if hasattr(args, "key") and args.key is not None:
+        conf.set("Fishnet", "Key", args.key)
+    if hasattr(args, "cores") and args.cores is not None:
+        conf.set("Fishnet", "Cores", args.cores)
+    if hasattr(args, "memory") and args.memory is not None:
+        conf.set("Fishnet", "Memory", args.memory)
+    if hasattr(args, "threads") and args.threads is not None:
+        conf.set("Fishnet", "Threads", args.threads)
+    if hasattr(args, "endpoint") and args.endpoint is not None:
+        conf.set("Fishnet", "Endpoint", args.endpoint)
 
     return conf
 
@@ -1152,19 +1166,22 @@ def cmd_systemd(args):
 def main(argv):
     # Parse command line arguments
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--key", "--apikey", "-k", help="fishnet api key")
-    parser.add_argument("--engine-command", "-e", help="engine command (default: download precompiled Stockfish)")
-    parser.add_argument("--engine-dir", help="engine working directory")
-    parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
-    parser.add_argument("--memory", help="total number of memory (MB) to use for engine hashtables")
-    parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
-    parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--verbose", "-v", action="store_true", help="enable verbose log output")
     parser.add_argument("--version", action="version", version="fishnet v{0}".format(__version__))
     parser.add_argument("--conf", help="configuration file")
-    parser.set_defaults(func=cmd_main, intro=True, stdlog=sys.stdout)
+    parser.set_defaults(func=cmd_main, intro=True, stdlog=sys.stdout, key=None, engine_command=None, engine_dir=None, cores=None, memory=None, threads=None, endpoint=None)
 
     subparsers = parser.add_subparsers()
+
+    run_parser = subparsers.add_parser("run", help="run distributed analysis for lichess.org")
+    run_parser.set_defaults(func=cmd_main, intro=True, stdlog=sys.stdout)
+    run_parser.add_argument("--key", "--apikey", "-k", help="fishnet api key")
+    run_parser.add_argument("--engine-command", "-e", help="engine command (default: download precompiled Stockfish)")
+    run_parser.add_argument("--engine-dir", help="engine working directory")
+    run_parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
+    run_parser.add_argument("--memory", help="total number of memory (MB) to use for engine hashtables")
+    run_parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
+    run_parser.add_argument("--endpoint", help="lichess http endpoint")
 
     configure_parser = subparsers.add_parser("configure", help="interactive configuration")
     configure_parser.set_defaults(func=cmd_configure, intro=True, stdlog=sys.stdout)
@@ -1174,8 +1191,9 @@ def main(argv):
 
     stockfish_parser = subparsers.add_parser("stockfish", help="start a stockfish instance for testing")
     stockfish_parser.set_defaults(func=cmd_stockfish, intro=True, stdlog=sys.stdout)
+    stockfish_parser.add_argument("--engine-command", "-e", help="engine command (default: download precompiled Stockfish)")
+    stockfish_parser.add_argument("--engine-dir", help="engine working directory")
     stockfish_parser.add_argument("args", nargs="*")
-
 
     args = parser.parse_args(argv[1:])
 
