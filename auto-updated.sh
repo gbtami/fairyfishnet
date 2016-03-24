@@ -5,6 +5,7 @@ while [ true ]; do
     ret=$?
     if [ $ret -eq 70 ]; then
         for try in 1 2 3; do
+            pip download fishnet
             pip install --upgrade fishnet
             success=$?
             if [ $success -eq 0 ]; then
