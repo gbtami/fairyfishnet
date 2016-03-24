@@ -478,8 +478,9 @@ class Worker(threading.Thread):
 
         # Prepare UCI options
         self.engine_info["options"] = {}
-        for name, value in self.conf.items("Engine"):
-            self.engine_info["options"][name] = value
+        if self.conf.has_section("Engine"):
+            for name, value in self.conf.items("Engine"):
+                self.engine_info["options"][name] = value
 
         self.engine_info["options"]["threads"] = str(self.threads)
 

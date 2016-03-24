@@ -23,8 +23,9 @@ STARTPOS = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 class FishnetTest(unittest.TestCase):
 
     def setUp(self):
-        conf = fishnet.default_config()
-        fishnet.ensure_stockfish(conf)
+        conf = configparser.ConfigParser()
+        conf.add_section("Fishnet")
+        conf.set("Fishnet", "Key", "testkey")
 
         self.worker = fishnet.Worker(conf, threads=1)
         self.worker.start_engine()
