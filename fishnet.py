@@ -1140,7 +1140,37 @@ def cmd_systemd(args):
 
     config_file = os.path.abspath(args.conf or DEFAULT_CONFIG)
 
-    start = " ".join([shell_quote(os.path.abspath(sys.argv[0])), "--conf", shell_quote(config_file)])
+    # Prepare command line arguments
+    builder = [shell_quote(os.path.abspath(sys.argv[0]))]
+
+    if not args.no_conf:
+        builder.append("--conf")
+        builder.append(shell_quote(os.path.abspath(args.conf or DEFAULT_CONFIG)))
+    else:
+        builder.append("--no-conf")
+        if args.key is not None:
+            builder.append("--key")
+            builder.append(shell_quote(validate_key(args.key)))
+        if args.engine_dir is not None:
+            builder.append("--engine-dir")
+            builder.append(shell_quote(validate_engine_dir(args.engine_dir)))
+        if args.engine_command is not None:
+            builder.append("--engine-command")
+            builder.append(shell_quote(validate_engine_command(args.engine_command)))
+        if args.cores is not None:
+            builder.append("--cores")
+            builder.append(shell_quote(str(validate_cores(args.cores))))
+        if args.memory is not None:
+            builder.append("--memory")
+            builder.append(shell_quote(str(validate_memory(args.memory))))
+        if args.threads is not None:
+            builder.append("--threads")
+            builder.append(shell_quote(str(validate_threads(args.threads))))
+        if args.endpoint is not None:
+            builder.append("--endpoint")
+            builder.append(shell_quote(validate_endpoint(args.endpoint)))
+
+    start = " ".join(builder)
 
     # Virtualenv support
     if hasattr(sys, "real_prefix"):
@@ -1174,19 +1204,23 @@ def main(argv):
     parser.add_argument("--version", action="version", version="fishnet v{0}".format(__version__))
     parser.add_argument("--conf", help="configuration file")
     parser.add_argument("--no-conf", action="store_true", help="do not use a configuration file")
+
+    parser.add_argument("--key", "--apikey", "-k", help="fishnet api key")
+
+    parser.add_argument("--engine-dir", help="engine working directory")
+    parser.add_argument("--engine-command", "-e", help="engine command (default: download precompiled Stockfish)")
+
+    parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
+    parser.add_argument("--memory", help="total number of memory (MB) to use for engine hashtables")
+    parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
+    parser.add_argument("--endpoint", help="lichess http endpoint")
+
     parser.set_defaults(func=cmd_main, intro=True, stdlog=sys.stdout, key=None, engine_command=None, engine_dir=None, cores=None, memory=None, threads=None, endpoint=None)
 
     subparsers = parser.add_subparsers()
 
     run_parser = subparsers.add_parser("run", help="run distributed analysis for lichess.org")
     run_parser.set_defaults(func=cmd_main, intro=True, stdlog=sys.stdout)
-    run_parser.add_argument("--key", "--apikey", "-k", help="fishnet api key")
-    run_parser.add_argument("--engine-command", "-e", help="engine command (default: download precompiled Stockfish)")
-    run_parser.add_argument("--engine-dir", help="engine working directory")
-    run_parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
-    run_parser.add_argument("--memory", help="total number of memory (MB) to use for engine hashtables")
-    run_parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
-    run_parser.add_argument("--endpoint", help="lichess http endpoint")
 
     configure_parser = subparsers.add_parser("configure", help="interactive configuration")
     configure_parser.set_defaults(func=cmd_configure, intro=True, stdlog=sys.stdout)
@@ -1196,8 +1230,6 @@ def main(argv):
 
     stockfish_parser = subparsers.add_parser("stockfish", help="start a stockfish instance for testing")
     stockfish_parser.set_defaults(func=cmd_stockfish, intro=True, stdlog=sys.stdout)
-    stockfish_parser.add_argument("--engine-command", "-e", help="engine command (default: download precompiled Stockfish)")
-    stockfish_parser.add_argument("--engine-dir", help="engine working directory")
     stockfish_parser.add_argument("args", nargs="*")
 
     args = parser.parse_args(argv[1:])
