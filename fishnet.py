@@ -450,6 +450,7 @@ class Worker(threading.Thread):
         self.threads = threads
 
         self.alive = True
+        self.fatal_error = None
         self.finished = threading.Event()
         self.sleep = threading.Event()
         self.status_lock = threading.Lock()
@@ -472,67 +473,80 @@ class Worker(threading.Thread):
             return self.alive
 
     def run(self):
-        while self.is_alive():
-            try:
-                # Check if engine is still alive
-                if self.process:
-                    self.process.poll()
+        try:
+            while self.is_alive():
+                self.run_inner()
+        except UpdateRequired as error:
+            self.fatal_error = error
+        except Exception as error:
+            self.fatal_error = error
+            logging.exception("Fatal error in worker")
+        finally:
+            self.finished.set()
 
-                # Restart the engine
-                if not self.process or self.process.returncode is not None:
-                    self.start_engine()
+    def run_inner(self):
+        try:
+            # Check if engine is still alive
+            if self.process:
+                self.process.poll()
 
-                # Do the next work unit
-                path, request = self.work()
+            # Restart the engine
+            if not self.process or self.process.returncode is not None:
+                self.start_engine()
 
-                # Report result and fetch next job
-                with http("POST", get_endpoint(self.conf, path), json.dumps(request)) as response:
-                    if response.status == 204:
-                        self.job = None
-                        t = next(self.backoff)
-                        logging.debug("No job found. Backing off %0.1fs", t)
-                        self.sleep.wait(t)
-                    else:
-                        data = response.read().decode("utf-8")
-                        logging.debug("Got job: %s", data)
+            # Do the next work unit
+            path, request = self.work()
 
-                        self.job = json.loads(data)
-                        self.backoff = start_backoff(self.conf)
-            except HttpServerError as err:
-                self.job = None
-                t = next(self.backoff)
-                logging.error("Server error: HTTP %d %s. Backing off %0.1fs", err.status, err.reason, t)
-                self.sleep.wait(t)
-            except HttpClientError as err:
-                self.job = None
-                t = next(self.backoff)
-                try:
-                    logging.debug("Client error: HTTP %d %s: %s", err.status, err.reason, err.body.decode("utf-8"))
-                    logging.error(json.loads(err.body.decode("utf-8"))["error"])
-                except:
-                    logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s", err.status, err.reason, t, json.dumps(request))
-                self.sleep.wait(t)
-            except EOFError:
-                if not self.is_alive():
-                    # Abort
-                    if self.job:
-                        logging.debug("Aborting %s", self.job["work"]["id"])
-                        with http("POST", get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]), json.dumps(self.make_request())) as response:
-                            logging.info("Aborted %s", self.job["work"]["id"])
+            # Report result and fetch next job
+            with http("POST", get_endpoint(self.conf, path), json.dumps(request)) as response:
+                if response.status == 204:
+                    self.job = None
+                    t = next(self.backoff)
+                    logging.debug("No job found. Backing off %0.1fs", t)
+                    self.sleep.wait(t)
                 else:
-                    logging.exception("Engine process has died")
-                    self.process.kill()
-            except:
-                self.job = None
-                t = next(self.backoff)
-                logging.exception("Backing off %0.1fs after exception in worker", t)
-                self.sleep.wait(t)
+                    data = response.read().decode("utf-8")
+                    logging.debug("Got job: %s", data)
 
-                # If in doubt, restart engine
+                    self.job = json.loads(data)
+                    self.backoff = start_backoff(self.conf)
+        except HttpServerError as err:
+            self.job = None
+            t = next(self.backoff)
+            logging.error("Server error: HTTP %d %s. Backing off %0.1fs", err.status, err.reason, t)
+            self.sleep.wait(t)
+        except HttpClientError as err:
+            self.job = None
+            t = next(self.backoff)
+            try:
+                logging.debug("Client error: HTTP %d %s: %s", err.status, err.reason, err.body.decode("utf-8"))
+                error = json.loads(err.body.decode("utf-8"))["error"]
+                logging.error(error)
+
+                if "Please restart fishnet to upgrade." in error:
+                    logging.error("Stopping worker for update.")
+                    raise UpdateRequired()
+            except (KeyError, ValueError):
+                logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s", err.status, err.reason, t, json.dumps(request))
+            self.sleep.wait(t)
+        except EOFError:
+            if not self.is_alive():
+                # Abort
+                if self.job:
+                    logging.debug("Aborting %s", self.job["work"]["id"])
+                    with http("POST", get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]), json.dumps(self.make_request())) as response:
+                        logging.info("Aborted %s", self.job["work"]["id"])
+            else:
+                logging.exception("Engine process has died")
                 self.process.kill()
+        except Exception:
+            self.job = None
+            t = next(self.backoff)
+            logging.exception("Backing off %0.1fs after exception in worker", t)
+            self.sleep.wait(t)
 
-        # Set finished flag
-        self.finished.set()
+            # If in doubt, restart engine
+            self.process.kill()
 
     def start_engine(self):
         # Start process
@@ -1174,7 +1188,13 @@ def cmd_main(args):
         worker.start()
     try:
         while True:
-            time.sleep(60)
+            # Check worker status
+            for worker in workers:
+                worker.finished.wait(60 / len(workers))
+                if worker.fatal_error:
+                    raise worker.fatal_error
+
+            # Log stats
             logging.info("[fishnet v%s] Analyzed %d positions, crunched %d million nodes",
                          __version__,
                          sum(worker.positions for worker in workers),
