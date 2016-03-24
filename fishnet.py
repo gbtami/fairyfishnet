@@ -887,6 +887,7 @@ def configure(args):
         conf.write(f)
 
     print("Configuration saved.")
+    print()
 
     return conf
 
@@ -1186,16 +1187,16 @@ def main(args):
 
 def cmd_stockfish(args):
     conf = load_conf(args)
+
+    print("Stockfish")
+    print("=========")
     os.chdir(get_engine_dir(conf))
-    return subprocess.call(get_engine_command(conf), shell=True)
+    return subprocess.call(get_engine_command(conf) + " " + " ".join(args.args), shell=True)
 
 
 def main(argv):
     # Parse command line arguments
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(dest="polyglot", metavar="polyglot.ini",
-                        type=argparse.FileType("r"), nargs="?",
-                        help="polylgot.ini engine configuration file")
     parser.add_argument("--apikey", "-k", help="fishnet api key")
     parser.add_argument("--engine-command", "-e", help="engine command (default: download precompiled Stockfish)")
     parser.add_argument("--engine-dir", help="engine working directory")
@@ -1211,8 +1212,9 @@ def main(argv):
     subparsers = parser.add_subparsers()
     stockfish_parser = subparsers.add_parser("stockfish")
     stockfish_parser.set_defaults(func=cmd_stockfish)
+    stockfish_parser.add_argument("args", nargs="*")
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(argv[1:])
 
     # Setup logging
     logger = logging.getLogger()
