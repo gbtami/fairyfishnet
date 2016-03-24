@@ -857,7 +857,7 @@ def configure(args):
 
     while True:
         try:
-            advanced = parse_bool(config_input("Configure advanced options? (default: no): "))
+            advanced = parse_bool(config_input("Configure advanced options? (default: no) "))
             break
         except ConfigError as error:
             print(error, file=sys.stderr)
@@ -878,7 +878,7 @@ def configure(args):
 
         while True:
             try:
-                fixed_backoff = parse_bool(config_input("Fixed backoff? (for move servers, default: no): "))
+                fixed_backoff = parse_bool(config_input("Fixed backoff? (for move servers, default: no) "))
                 break
             except ConfigError as error:
                 print(error, file=sys.stderr)
@@ -907,7 +907,7 @@ def configure(args):
     print(file=sys.stderr)
     while True:
         try:
-            if parse_bool(config_input("Done. Write configuration to %s now? (default: yes): " % (config_file, )), True):
+            if parse_bool(config_input("Done. Write configuration to %s now? (default: yes) " % (config_file, )), True):
                 break
         except ConfigError as error:
             print(error, file=sys.stderr)
