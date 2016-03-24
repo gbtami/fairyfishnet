@@ -1,5 +1,5 @@
 venv
-polyglot.ini
+fishnet.ini
 *.py[cd]
 stockfish-*
 Stockfish
