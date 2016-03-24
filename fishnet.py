@@ -1284,9 +1284,8 @@ def cmd_systemd(args):
         if args.endpoint is not None:
             builder.append("--endpoint")
             builder.append(shell_quote(validate_endpoint(args.endpoint)))
-        if args.fixed_backoff is not None:
+        if args.fixed_backoff:
             builder.append("--fixed-backoff")
-            builder.append(str(parse_bool(args.fixed_backoff)))
     builder.append("run")
 
     start = " ".join(builder)
