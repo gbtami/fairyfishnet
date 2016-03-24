@@ -1073,6 +1073,8 @@ def validate_key(key, endpoint):
 
 
 def main(args):
+    intro()
+
     # Setup logging
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
@@ -1191,8 +1193,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-    intro()
-
     # Parse command line arguments
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(dest="polyglot", metavar="polyglot.ini",
@@ -1206,6 +1206,7 @@ if __name__ == "__main__":
     parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
     parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--verbose", "-v", action="store_true", help="enable verbose log output")
+    parser.add_argument("--version", action="version", version="fishnet v{0}".format(__version__))
     parser.add_argument("--conf")
 
     # Run
