@@ -705,6 +705,8 @@ def load_conf(args):
         conf.set("Fishnet", "Threads", args.threads)
     if hasattr(args, "endpoint") and args.endpoint is not None:
         conf.set("Fishnet", "Endpoint", args.endpoint)
+    if hasattr(args, "fixed_backoff") and args.fixed_backoff is not None:
+        conf.set("Fishnet", "FixedBackoff", str(args.fixed_backoff))
 
     return conf
 
@@ -1221,6 +1223,9 @@ def cmd_systemd(args):
         if args.endpoint is not None:
             builder.append("--endpoint")
             builder.append(shell_quote(validate_endpoint(args.endpoint)))
+        if args.fixed_backoff is not None:
+            builder.append("--fixed-backoff")
+            builder.append(str(parse_bool(args.fixed_backoff)))
 
     start = " ".join(builder)
 
@@ -1266,6 +1271,7 @@ def main(argv):
     parser.add_argument("--memory", help="total number of memory (MB) to use for engine hashtables")
     parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
     parser.add_argument("--endpoint", help="lichess http endpoint")
+    parser.add_argument("--fixed-backoff", action="store_true", help="fixed backoff (only recommended for move servers)")
 
     parser.set_defaults(func=cmd_main, intro=True, stdlog=sys.stdout, key=None, engine_command=None, engine_dir=None, cores=None, memory=None, threads=None, endpoint=None)
 
