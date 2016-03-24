@@ -419,6 +419,7 @@ class Worker(threading.Thread):
         self.alive = True
         self.finished = threading.Event()
         self.sleep = threading.Event()
+        self.status_lock = threading.Lock()
 
         self.nodes = 0
         self.positions = 0
@@ -429,11 +430,16 @@ class Worker(threading.Thread):
         self.backoff = start_backoff(self.conf)
 
     def prepare_stop(self):
-        self.alive = False
-        self.sleep.set()
+        with self.status_lock:
+            self.alive = False
+            self.sleep.set()
+
+    def is_alive(self):
+        with self.status_lock:
+            return self.alive
 
     def run(self):
-        while self.alive:
+        while self.is_alive():
             try:
                 # Check if engine is still alive
                 if self.process:
@@ -474,7 +480,7 @@ class Worker(threading.Thread):
                     logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s", err.status, err.reason, t, json.dumps(request))
                 self.sleep.wait(t)
             except EOFError:
-                if not self.alive:
+                if not self.is_alive():
                     # Abort
                     if self.job:
                         logging.debug("Aborting %s", self.job["work"]["id"])
