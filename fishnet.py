@@ -633,13 +633,13 @@ def update_stockfish(conf, filename):
     # Download
     logging.info("Downloading %s ...", filename)
     def reporthook(a, b, c):
-        sys.stdout.write("\rDownloading %s: %d/%d (%d%%)" % (filename, a * b, c, round(min(a * b, c) * 100 / c)))
-        sys.stdout.flush()
+        sys.stderr.write("\rDownloading %s: %d/%d (%d%%)" % (filename, a * b, c, round(min(a * b, c) * 100 / c)))
+        sys.stderr.flush()
 
     urllib.urlretrieve(asset["browser_download_url"], path, reporthook)
 
-    sys.stdout.write("\n")
-    sys.stdout.flush()
+    sys.stderr.write("\n")
+    sys.stderr.flush()
 
     # Make executable
     logging.info("chmod +x %s", filename)
@@ -666,11 +666,19 @@ def load_conf(args):
     return conf
 
 
+def config_input(prompt=None):
+    if prompt:
+        sys.stderr.write(prompt)
+        sys.stderr.flush()
+
+    return input()
+
+
 def configure(args):
-    print()
-    print("Configuration")
-    print("=============")
-    print()
+    print(file=sys.stderr)
+    print("Configuration", file=sys.stderr)
+    print("=============", file=sys.stderr)
+    print(file=sys.stderr)
 
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
@@ -690,24 +698,24 @@ def configure(args):
     # Stockfish working directory
     while True:
         try:
-            engine_dir = validate_engine_dir(input("Stockfish working directory (default: %s): " % os.path.abspath(".")))
+            engine_dir = validate_engine_dir(config_input("Stockfish working directory (default: %s): " % os.path.abspath(".")))
             break
         except ConfigError as error:
-            print(error)
+            print(error, file=sys.stderr)
     conf.set("Fishnet", "EngineDir", engine_dir)
 
     # Stockfish command
-    print()
-    print("Fishnet uses a custom Stockfish build with variant support.")
-    print("Stockfish is licensed under the GNU General Public License v3.")
-    print("You can find the source at: https://github.com/ddugovic/Stockfish")
-    print()
-    print("You can build lichess.org custom Stockfish yourself and provide")
-    print("the path or automatically download a precompiled binary.")
-    print()
+    print(file=sys.stderr)
+    print("Fishnet uses a custom Stockfish build with variant support.", file=sys.stderr)
+    print("Stockfish is licensed under the GNU General Public License v3.", file=sys.stderr)
+    print("You can find the source at: https://github.com/ddugovic/Stockfish", file=sys.stderr)
+    print(file=sys.stderr)
+    print("You can build lichess.org custom Stockfish yourself and provide", file=sys.stderr)
+    print("the path or automatically download a precompiled binary.", file=sys.stderr)
+    print(file=sys.stderr)
     while True:
         try:
-            engine_command = validate_engine_command(input("Path or command (default: download): "), conf)
+            engine_command = validate_engine_command(config_input("Path or command (default: download): "), conf)
             conf.set("Fishnet", "EngineCommand", engine_command or "")
 
             # Download Stockfish if nescessary
@@ -715,27 +723,27 @@ def configure(args):
 
             break
         except ConfigError as error:
-            print(error)
-    print()
+            print(error, file=sys.stderr)
+    print(file=sys.stderr)
 
     # Interactive configuration
     while True:
         try:
             max_cores = multiprocessing.cpu_count()
             default_cores = max(1, max_cores - 1)
-            cores = validate_cores(input("Number of cores to use for engine threads (default %d, max %d): " % (default_cores, max_cores)))
+            cores = validate_cores(config_input("Number of cores to use for engine threads (default %d, max %d): " % (default_cores, max_cores)))
             break
         except ConfigError as error:
-            print(error)
+            print(error, file=sys.stderr)
     conf.set("Fishnet", "Cores", str(cores))
 
     while True:
         try:
             default_threads = min(DEFAULT_THREADS, cores)
-            threads = validate_threads(input("Number of threads to use per engine process (default %d, max %d): "  % (default_threads, cores)), conf)
+            threads = validate_threads(config_input("Number of threads to use per engine process (default %d, max %d): "  % (default_threads, cores)), conf)
             break
         except ConfigError as error:
-            print(error)
+            print(error, file=sys.stderr)
     conf.set("Fishnet", "Threads", str(threads))
 
     while True:
@@ -744,18 +752,18 @@ def configure(args):
             min_memory = HASH_MIN * processes
             default_memory = HASH_DEFAULT * processes
             max_memory = HASH_MAX * processes
-            memory = validate_memory(input("Memory in MB to use for engine hashtables (default %d, min %d, max %d): " % (default_memory, min_memory, max_memory)), cores, threads)
+            memory = validate_memory(config_input("Memory in MB to use for engine hashtables (default %d, min %d, max %d): " % (default_memory, min_memory, max_memory)), cores, threads)
             break
         except ConfigError as error:
-            print(error)
+            print(error, file=sys.stderr)
     conf.set("Fishnet", "Memory", str(memory))
 
     while True:
         try:
-            advanced = parse_bool(input("Configure advanced options? (default: no): "))
+            advanced = parse_bool(config_input("Configure advanced options? (default: no): "))
             break
         except ConfigError as error:
-            print(error)
+            print(error, file=sys.stderr)
 
     endpoint = DEFAULT_ENDPOINT
     fixed_backoff = False
@@ -765,54 +773,54 @@ def configure(args):
     if advanced:
         while True:
             try:
-                endoint = validate_endpoint(input("Fishnet API endpoint (default: %s): " % (endpoint, )))
+                endoint = validate_endpoint(config_input("Fishnet API endpoint (default: %s): " % (endpoint, )))
                 break
             except ConfigError as error:
-                print(error)
+                print(error, file=sys.stderr)
         conf.set("Fishnet", "Endpoint", endpoint)
 
         while True:
             try:
-                fixed_backoff = parse_bool(input("Fixed backoff? (for move servers, default: no): "))
+                fixed_backoff = parse_bool(config_input("Fixed backoff? (for move servers, default: no): "))
                 break
             except ConfigError as error:
-                print(error)
+                print(error, file=sys.stderr)
         conf.set("Fishnet", "FixedBackoff", endpoint)
 
     key = None
     if conf.has_option("Fishnet", "Key"):
         while True:
             try:
-                change_key = parse_bool(input("Change fishnet key? (default: no) "))
+                change_key = parse_bool(config_input("Change fishnet key? (default: no) "))
                 if not change_key:
                     key = conf.get("Fishnet", "Key")
                 break
             except ConfigError as error:
-                print(error)
+                print(error, file=sys.stderr)
 
     while True:
         try:
-            key = validate_key(key or input("Personal fishnet key: "), conf, network=True)
+            key = validate_key(key or config_input("Personal fishnet key: "), conf, network=True)
             break
         except ConfigError as error:
-            print(error)
+            print(error, file=sys.stderr)
             key = None
     conf.set("Fishnet", "Key", key)
 
-    print()
+    print(file=sys.stderr)
     while True:
         try:
-            if parse_bool(input("Done. Write configuration to %s now? (default: yes): " % (config_file, )), True):
+            if parse_bool(config_input("Done. Write configuration to %s now? (default: yes): " % (config_file, )), True):
                 break
         except ConfigError as error:
-            print(error)
+            print(error, file=sys.stderr)
 
     # Write configuration
     with open(config_file, "w") as f:
         conf.write(f)
 
-    print("Configuration saved.")
-    print()
+    print("Configuration saved.", file=sys.stderr)
+    print(file=sys.stderr)
 
     return conf
 
@@ -1094,6 +1102,8 @@ def cmd_configure(args):
 
 
 def cmd_systemd(args):
+    load_conf(args)
+
     template = textwrap.dedent("""\
         [Unit]
         Description=Fishnet instance
@@ -1123,18 +1133,14 @@ def cmd_systemd(args):
 
     print(file=sys.stderr)
 
-    if not os.path.isfile(config_file):
-        print("# WARNING: Config file %s does not exist" % config_file, file=sys.stderr)
-        print(file=sys.stderr)
-
     if os.geteuid() == 0:
         print("# WARNING: Running as root is not recommended!", file=sys.stderr)
         print(file=sys.stderr)
 
     print("# Example usage:", file=sys.stderr)
     print("# python -m fishnet systemd | sudo tee /etc/systemd/system/fishnet.service", file=sys.stderr)
-    print("# sudo systemctl enable fishnet.service")
-    print("# sudo systemctl start fishnet.service")
+    print("# sudo systemctl enable fishnet.service", file=sys.stderr)
+    print("# sudo systemctl start fishnet.service", file=sys.stderr)
 
 
 def main(argv):
@@ -1150,25 +1156,25 @@ def main(argv):
     parser.add_argument("--verbose", "-v", action="store_true", help="enable verbose log output")
     parser.add_argument("--version", action="version", version="fishnet v{0}".format(__version__))
     parser.add_argument("--conf", help="configuration file")
-    parser.set_defaults(func=cmd_main, intro=True)
+    parser.set_defaults(func=cmd_main, intro=True, stdlog=sys.stdout)
 
     subparsers = parser.add_subparsers()
     stockfish_parser = subparsers.add_parser("stockfish")
-    stockfish_parser.set_defaults(func=cmd_stockfish, intro=True)
+    stockfish_parser.set_defaults(func=cmd_stockfish, intro=True, stdlog=sys.stdout)
     stockfish_parser.add_argument("args", nargs="*")
 
     configure_parser = subparsers.add_parser("configure", aliases=["config", "conf"])
-    configure_parser.set_defaults(func=cmd_configure, intro=True)
+    configure_parser.set_defaults(func=cmd_configure, intro=True, stdlog=sys.stdout)
 
     systemd_parser = subparsers.add_parser("systemd")
-    systemd_parser.set_defaults(func=cmd_systemd, intro=False)
+    systemd_parser.set_defaults(func=cmd_systemd, intro=False, stdlog=sys.stderr)
 
     args = parser.parse_args(argv[1:])
 
     # Setup logging
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(args.stdlog)
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
 
