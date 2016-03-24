@@ -46,7 +46,7 @@ def tag_and_push():
         sys.exit(1)
 
     system("git tag {0}".format(tagname))
-    system("git push origin master {0}".format(tagname))
+    system("git push --atomic origin master {0}".format(tagname))
 
 
 def pypi():
