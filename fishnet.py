@@ -143,6 +143,33 @@ class LogFormatter(logging.Formatter):
             return "%s: %s" % (record.threadName, with_level)
 
 
+PROGRESS = 15
+logging.addLevelName(PROGRESS, "PROGRESS")
+
+
+class LogHandler(logging.StreamHandler):
+    def __init__(self, stream=None):
+        super(LogHandler, self).__init__(stream)
+        self.last_level = logging.INFO
+
+    def emit(self, record):
+        try:
+            if self.last_level == PROGRESS:
+                if record.levelno == PROGRESS:
+                    self.stream.write("\r")
+                else:
+                    self.stream.write("\n")
+
+            self.stream.write(self.format(record))
+            if record.levelno != PROGRESS:
+                self.stream.write("\n")
+
+            self.last_level = record.levelno
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+
 def base_url(url):
     url_info = urlparse.urlparse(url)
     return "%s://%s/" % (url_info.scheme, url_info.hostname)
@@ -557,9 +584,9 @@ class Worker(threading.Thread):
 
         movetime = int(round(4000.0 / (self.threads * 0.9 ** (self.threads - 1)) / 10.0 * lvl / 8.0))
 
-        logging.info("Playing %s%s with level %d and movetime %d ms",
-                     base_url(get_endpoint(self.conf)), job["game_id"],
-                     lvl, movetime)
+        logging.log(PROGRESS, "Playing %s%s with level %d and movetime %d ms",
+                    base_url(get_endpoint(self.conf)), job["game_id"],
+                    lvl, movetime)
 
         part = go(self.process, job["position"], moves,
                   movetime=movetime, depth=depth(lvl))
@@ -585,8 +612,8 @@ class Worker(threading.Thread):
         start = time.time()
 
         for ply in range(len(moves), -1, -1):
-            logging.info("Analysing %s%s#%d",
-                         base_url(get_endpoint(self.conf)), job["game_id"], ply)
+            logging.log(PROGRESS, "Analysing %s%s#%d",
+                        base_url(get_endpoint(self.conf)), job["game_id"], ply)
 
             part = go(self.process, job["position"], moves[0:ply],
                       nodes=3000000, movetime=4000)
@@ -1301,7 +1328,7 @@ def main(argv):
     # Setup logging
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
-    handler = logging.StreamHandler(args.stdlog)
+    handler = LogHandler(args.stdlog)
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
 
