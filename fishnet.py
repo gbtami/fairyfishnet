@@ -1288,6 +1288,7 @@ def cmd_systemd(args):
         if args.fixed_backoff is not None:
             builder.append("--fixed-backoff")
             builder.append(str(parse_bool(args.fixed_backoff)))
+    builder.append("run")
 
     start = " ".join(builder)
 
