@@ -111,7 +111,7 @@ DEFAULT_CONFIG = "fishnet.ini"
 
 
 def intro():
-    print(r"""
+    return r"""
     _________         .    .
    (..       \_    ,  |\  /|
     \       O  \  /|  \ \/ /
@@ -122,7 +122,7 @@ def intro():
          / /\_   \ /      |     |_|   |_|___/_| |_|_| \_|\___|\__| %s
          |/   \_  \|      /
                 \________/      Distributed Stockfish analysis for lichess.org
-""" % __version__)
+""" % __version__
 
 
 class LogFormatter(logging.Formatter):
@@ -699,8 +699,7 @@ def config_input(prompt=None):
 
 def configure(args):
     print(file=sys.stderr)
-    print("Configuration", file=sys.stderr)
-    print("=============", file=sys.stderr)
+    print("### Configuration", file=sys.stderr)
     print(file=sys.stderr)
 
     conf = configparser.ConfigParser()
@@ -1063,13 +1062,12 @@ def cmd_main(args):
     engine_command = validate_engine_command(conf_get(conf, "EngineCommand"), conf)
     if not engine_command:
         print()
-        print("Updating Stockfish")
-        print("==================")
+        print("### Updating Stockfish ...")
+        print()
         engine_command = get_engine_command(conf)
 
     print()
-    print("Checking configuration")
-    print("======================")
+    print("### Checking configuration")
     print()
     print("EngineDir:     %s" % get_engine_dir(conf))
     print("EngineCommand: %s" % engine_command)
@@ -1091,8 +1089,7 @@ def cmd_main(args):
             print(" * %s = %s" % (name, value))
         print()
 
-    print("Starting workers ...")
-    print("====================")
+    print("### Starting workers ...")
 
     # Let spare cores exclusively run engine processes
     workers = []
@@ -1133,8 +1130,7 @@ def cmd_stockfish(args):
     conf = load_conf(args)
 
     print()
-    print("Stockfish")
-    print("=========")
+    print("### Stockfish")
     os.chdir(get_engine_dir(conf))
     return subprocess.call(get_engine_command(conf) + " " + " ".join(args.args), shell=True)
 
@@ -1269,7 +1265,7 @@ def main(argv):
 
     # Show intro
     if args.intro:
-        intro()
+        print(intro())
 
     # Run
     try:
