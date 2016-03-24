@@ -424,10 +424,6 @@ class Worker(threading.Thread):
         self.engine_info = None
         self.backoff = start_backoff(self.conf)
 
-    def set_engine_options(self):
-        for name, value in self.engine_info["options"].items():
-            setoption(self.process, name, value)
-
     def run(self):
         while True:
             try:
@@ -479,6 +475,7 @@ class Worker(threading.Thread):
                 self.process.kill()
 
     def start_engine(self):
+        # Start process
         self.process = popen_engine(get_engine_command(self.conf, False), get_engine_dir(self.conf))
         self.engine_info = uci(self.process)
         logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
@@ -493,7 +490,8 @@ class Worker(threading.Thread):
         self.engine_info["options"]["threads"] = str(self.threads)
 
         # Set UCI options
-        self.set_engine_options()
+        for name, value in self.engine_info["options"].items():
+            setoption(self.process, name, value)
 
         isready(self.process)
 
