@@ -1254,7 +1254,7 @@ def cmd_systemd(args):
     config_file = os.path.abspath(args.conf or DEFAULT_CONFIG)
 
     # Prepare command line arguments
-    builder = [shell_quote(os.path.abspath(sys.argv[0]))]
+    builder = [shell_quote(sys.executable), shell_quote(os.path.abspath(sys.argv[0]))]
 
     if not args.no_conf:
         builder.append("--conf")
