@@ -32,7 +32,7 @@ from __future__ import print_function
 from __future__ import division
 
 
-__version__ = "1.2.5"
+__version__ = "1.3.0"
 
 __author__ = "Niklas Fiekas"
 __email__ = "niklas.fiekas@backscattering.de"
