@@ -1091,6 +1091,7 @@ def cmd_main(args):
         print()
 
     print("### Starting workers ...")
+    print()
 
     # Let spare cores exclusively run engine processes
     workers = []
@@ -1114,7 +1115,8 @@ def cmd_main(args):
     try:
         while True:
             time.sleep(60)
-            logging.info("Analyzed %d positions, crunched %d million nodes",
+            logging.info("[fishnet v%s] Analyzed %d positions, crunched %d million nodes",
+                         __version__,
                          sum(worker.positions for worker in workers),
                          int(sum(worker.nodes for worker in workers) / 1000 / 1000))
     except KeyboardInterrupt:
