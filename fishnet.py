@@ -98,6 +98,22 @@ HASH_MAX = 512
 DEFAULT_CONFIG = "fishnet.ini"
 
 
+def intro():
+    print(r"""
+    _________         .    .
+   (..       \_    ,  |\  /|
+    \       O  \  /|  \ \/ /
+     \______    \/ |   \  /      _____ _     _     _   _      _
+        vvvv\    \ |   /  |     |  ___(_)___| |__ | \ | | ___| |_
+        \^^^^  ==   \_/   |     | |_  | / __| '_ \|  \| |/ _ \ __|
+         `\_   ===    \.  |     |  _| | \__ \ | | | |\  |  __/ |_
+         / /\_   \ /      |     |_|   |_|___/_| |_|_| \_|\___|\__| %s
+         |/   \_  \|      /
+                \________/      Distributed Stockfish analysis for lichess.org
+""" % __version__)
+
+
+# TODO: Improve logging
 class LogFormatter(logging.Formatter):
     def format(self, record):
         msg = super(LogFormatter, self).format(record)
@@ -364,8 +380,8 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
             logging.warning("Unexpected engine output: %s %s", command, arg)
 
 
-def set_variant_options(p, job):
-    variant = job.get("variant", "standard").lower()
+def set_variant_options(p, variant):
+    variant = variant.lower()
     setoption(p, "UCI_Chess960", variant == "chess960")
     setoption(p, "UCI_Atomic", variant == "atomic")
     setoption(p, "UCI_Horde", variant == "horde")
@@ -487,7 +503,7 @@ class Worker(threading.Thread):
 
     def bestmove(self, job):
         lvl = job["work"]["level"]
-        set_variant_options(self.process, job)
+        set_variant_options(self.process, job.get("variant", "standard"))
         setoption(self.process, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
         isready(self.process)
 
@@ -510,7 +526,7 @@ class Worker(threading.Thread):
         }
 
     def analysis(self, job):
-        set_variant_options(self.process, job)
+        set_variant_options(self.process, job.get("variant", "standard"))
         setoption(self.process, "Skill Level", 20)
         isready(self.process)
 
@@ -547,67 +563,6 @@ class Worker(threading.Thread):
                      end - start, (end - start) / (len(moves) + 1))
 
         return result
-
-
-def number_to_fishes(number):
-    swarm = []
-
-    number = min(200000, number)
-
-    while number >= 100000:
-        swarm.append("><XXXX'> °")
-        number -= 100000
-
-    while number >= 10000:
-        swarm.append("<?))>{{")
-        number -= 10000
-
-    while number >= 1000:
-        swarm.append("><(('>")
-        number -= 1000
-
-    while number >= 100:
-        swarm.append("<'))><")
-        number -= 100
-
-    while number >= 10:
-        swarm.append("><('>")
-        number -= 10
-
-    while number >= 1:
-        swarm.append("<><")
-        number -= 1
-
-    random.shuffle(swarm)
-    return "  ".join(swarm)
-
-
-def intro():
-    print(r"""
-    _________         .    .
-   (..       \_    ,  |\  /|
-    \       O  \  /|  \ \/ /
-     \______    \/ |   \  /      _____ _     _     _   _      _
-        vvvv\    \ |   /  |     |  ___(_)___| |__ | \ | | ___| |_
-        \^^^^  ==   \_/   |     | |_  | / __| '_ \|  \| |/ _ \ __|
-         `\_   ===    \.  |     |  _| | \__ \ | | | |\  |  __/ |_
-         / /\_   \ /      |     |_|   |_|___/_| |_|_| \_|\___|\__| %s
-         |/   \_  \|      /
-                \________/      Distributed Stockfish analysis for lichess.org
-""" % __version__)
-
-
-def default_config():
-    conf = configparser.SafeConfigParser()
-
-    conf.add_section("Fishnet")
-    conf.set("Fishnet", "EngineDir", os.path.abspath("."))
-    conf.set("Fishnet", "Endpoint", "http://en.lichess.org/fishnet/")
-    conf.set("Fishnet", "Cores", "auto")
-
-    conf.add_section("Engine")
-
-    return conf
 
 
 def stockfish_filename():
@@ -1098,10 +1053,9 @@ def cmd_main(args):
     try:
         while True:
             time.sleep(60)
-            logging.info("Analyzed %d positions, crunched %d million nodes  %s",
+            logging.info("Analyzed %d positions, crunched %d million nodes",
                          sum(worker.positions for worker in workers),
-                         int(sum(worker.nodes for worker in workers) / 1000 / 1000),
-                         number_to_fishes(sum(worker.positions for worker in workers)))
+                         int(sum(worker.nodes for worker in workers) / 1000 / 1000))
     except KeyboardInterrupt:
         logging.info("Good bye. Aborting pending jobs ...")
         for worker in workers:
