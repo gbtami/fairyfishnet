@@ -926,7 +926,7 @@ def validate_engine_dir(engine_dir):
 
 
 def validate_engine_command(engine_command, conf):
-    if not engine_command or not engine_command.strip():
+    if not engine_command or not engine_command.strip() or engine_command.strip().lower() == "download":
         return None
 
     engine_command = engine_command.strip()
