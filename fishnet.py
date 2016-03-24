@@ -478,7 +478,7 @@ class Worker(threading.Thread):
                     # Abort
                     if self.job:
                         logging.debug("Aborting %s", self.job["work"]["id"])
-                        with http("POST", get_endpoint(conf, "abort/%s" % self.job["work"]["id"]), json.dumps(self.make_request())) as response:
+                        with http("POST", get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]), json.dumps(self.make_request())) as response:
                             logging.info("Aborted %s", self.job["work"]["id"])
                 else:
                     logging.exception("Engine process has died")
