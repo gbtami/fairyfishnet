@@ -537,7 +537,9 @@ class Worker(threading.Thread):
                         response.read()
                         logging.info("Aborted %s", self.job["work"]["id"])
             else:
-                logging.exception("Engine process has died")
+                t = next(self.backoff)
+                logging.exception("Engine process has died. Backing off %0.1fs", t)
+                self.sleep.wait(t)
                 self.process.kill()
         except Exception:
             self.job = None
