@@ -118,6 +118,12 @@ def intro():
 """ % __version__
 
 
+PROGRESS = 15
+ENGINE = 5
+logging.addLevelName(PROGRESS, "PROGRESS")
+logging.addLevelName(ENGINE, "ENGINE")
+
+
 class LogFormatter(logging.Formatter):
     def format(self, record):
         # Format message
@@ -134,12 +140,6 @@ class LogFormatter(logging.Formatter):
             return with_level
         else:
             return "%s: %s" % (record.threadName, with_level)
-
-
-PROGRESS = 15
-ENGINE = 5
-logging.addLevelName(PROGRESS, "PROGRESS")
-logging.addLevelName(ENGINE, "ENGINE")
 
 
 class LogHandler(logging.StreamHandler):
