@@ -101,6 +101,8 @@ HASH_MIN = 32
 HASH_DEFAULT = 256
 HASH_MAX = 512
 DEFAULT_CONFIG = "fishnet.ini"
+MAX_BACKOFF = 30.0
+MAX_FIXED_BACKOFF = 3.0
 
 
 def intro():
@@ -1125,12 +1127,12 @@ def get_key(conf):
 def start_backoff(conf):
     if parse_bool(conf_get(conf, "FixedBackoff")):
         while True:
-            yield random.random() * 3.0
+            yield random.random() * MAX_FIXED_BACKOFF
     else:
         backoff = 1
         while True:
             yield 0.5 * backoff + 0.5 * backoff * random.random()
-            backoff = min(backoff + 1, 60)
+            backoff = min(backoff + 1, MAX_BACKOFF)
 
 
 def cmd_main(args):
