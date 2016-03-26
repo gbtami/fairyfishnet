@@ -9,9 +9,9 @@ while [ true ]; do
             pip install --upgrade fishnet
             success=$?
             if [ $success -eq 0 ]; then
-              break
+                break
             else
-              sleep 10
+                sleep 10
             fi
         done
 
