@@ -655,7 +655,7 @@ class Worker(threading.Thread):
             result.insert(0, part)
 
         end = time.time()
-        logging.info("Time taken for %s%s was %0.1fs (%0.1fs per position)",
+        logging.info("%s%s took %0.1fs (%0.2fs per position)",
                      base_url(get_endpoint(self.conf)), job["game_id"],
                      end - start, (end - start) / (len(moves) + 1))
 
