@@ -1230,7 +1230,7 @@ def cmd_stockfish(args):
     print()
     print("### Stockfish")
     os.chdir(get_engine_dir(conf))
-    return subprocess.call(get_engine_command(conf) + " " + " ".join(args.args), shell=True)
+    return subprocess.call(get_engine_command(conf), shell=True)
 
 
 def cmd_configure(args):
@@ -1344,24 +1344,16 @@ def main(argv):
     parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--fixed-backoff", action="store_true", help="fixed backoff (only recommended for move servers)")
 
-    parser.set_defaults(func=cmd_run, intro=True, stdlog=sys.stdout, key=None, engine_command=None, engine_dir=None, cores=None, memory=None, threads=None, endpoint=None)
+    parser.add_argument("command", default="run", nargs="?", choices=["run", "configure", "systemd", "stockfish"])
 
-    subparsers = parser.add_subparsers()
+    commands = {
+        "run": cmd_run,
+        "configure": cmd_configure,
+        "systemd": cmd_systemd,
+        "stockfish": cmd_stockfish,
+    }
 
-    run_parser = subparsers.add_parser("run", help="run distributed analysis for lichess.org")
-    run_parser.set_defaults(func=cmd_run, intro=True, stdlog=sys.stdout)
-
-    configure_parser = subparsers.add_parser("configure", help="interactive configuration")
-    configure_parser.set_defaults(func=cmd_configure, intro=True, stdlog=sys.stdout)
-
-    systemd_parser = subparsers.add_parser("systemd", help="helps to create a systemd service file")
-    systemd_parser.set_defaults(func=cmd_systemd, intro=False, stdlog=sys.stderr)
-
-    stockfish_parser = subparsers.add_parser("stockfish", help="start a stockfish instance for testing")
-    stockfish_parser.set_defaults(func=cmd_stockfish, intro=True, stdlog=sys.stdout)
-    stockfish_parser.add_argument("args", nargs="*")
-
-    args = parser.parse_args(argv[1:] or ["run"])
+    args = parser.parse_args(argv[1:])
 
     # Setup logging
     logger = logging.getLogger()
@@ -1378,17 +1370,17 @@ def main(argv):
             logger.setLevel(PROGRESS)
         else:
             logger.setLevel(logging.INFO)
-    handler = LogHandler(collapse_progress, args.stdlog)
+    handler = LogHandler(collapse_progress, sys.stderr if args.command == "systemd" else sys.stdout)
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
 
     # Show intro
-    if args.intro:
+    if args.command != "systemd":
         print(intro())
 
     # Run
     try:
-        sys.exit(args.func(args))
+        sys.exit(commands[args.command](args))
     except UpdateRequired:
         logging.error("Update required. Exiting (status 70)")
         return 70
