@@ -1135,7 +1135,7 @@ def start_backoff(conf):
             backoff = min(backoff + 1, MAX_BACKOFF)
 
 
-def cmd_main(args):
+def cmd_run(args):
     conf = load_conf(args)
 
     engine_command = validate_engine_command(conf_get(conf, "EngineCommand"), conf)
@@ -1344,12 +1344,12 @@ def main(argv):
     parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--fixed-backoff", action="store_true", help="fixed backoff (only recommended for move servers)")
 
-    parser.set_defaults(func=cmd_main, intro=True, stdlog=sys.stdout, key=None, engine_command=None, engine_dir=None, cores=None, memory=None, threads=None, endpoint=None)
+    parser.set_defaults(func=cmd_run, intro=True, stdlog=sys.stdout, key=None, engine_command=None, engine_dir=None, cores=None, memory=None, threads=None, endpoint=None)
 
     subparsers = parser.add_subparsers()
 
     run_parser = subparsers.add_parser("run", help="run distributed analysis for lichess.org")
-    run_parser.set_defaults(func=cmd_main, intro=True, stdlog=sys.stdout)
+    run_parser.set_defaults(func=cmd_run, intro=True, stdlog=sys.stdout)
 
     configure_parser = subparsers.add_parser("configure", help="interactive configuration")
     configure_parser.set_defaults(func=cmd_configure, intro=True, stdlog=sys.stdout)
