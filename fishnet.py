@@ -1022,7 +1022,7 @@ def validate_threads(threads, conf):
         return min(DEFAULT_THREADS, cores)
 
     try:
-        threads = int(threads.strip())
+        threads = int(str(threads).strip())
     except ValueError:
         raise ConfigError("Number of threads must be an integer")
 
