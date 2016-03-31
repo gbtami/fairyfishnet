@@ -1174,17 +1174,12 @@ def cmd_run(args):
     # Let spare cores exclusively run engine processes
     workers = []
     while spare_threads > threads_per_process:
-        worker = Worker(conf, threads_per_process)
-        worker.daemon = True
-        workers.append(worker)
-
+        workers.append(Worker(conf, threads_per_process))
         spare_threads -= threads_per_process
 
     # Use the rest of the cores
     if spare_threads > 0:
-        worker = Worker(conf, spare_threads)
-        worker.daemon = True
-        workers.append(worker)
+        workers.append(Worker(conf, spare_threads))
 
     # Start all threads and wait forever
     for i, worker in enumerate(workers):
