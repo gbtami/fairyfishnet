@@ -55,6 +55,7 @@ import platform
 import re
 import textwrap
 import getpass
+import signal
 
 if os.name == "posix" and sys.version_info[0] < 3:
     try:
@@ -241,15 +242,26 @@ def http(method, url, body=None, headers=None):
 
 
 def popen_engine(engine_command, engine_dir, _popen_lock=threading.Lock()):
+    kwargs = {
+        "shell": True,
+        "cwd": engine_dir,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.STDOUT,
+        "stdin": subprocess.PIPE,
+        "bufsize": 1,  # Line buffered
+        "universal_newlines": True,
+    }
+
+    # Prevent signal progration from parent process
+    try:
+        # Windows
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    except AttributeError:
+        # Unix
+        kwargs["preexec_fn"] = os.setpgrp
+
     with _popen_lock:  # Work around Python 2 Popen race condition
-        return subprocess.Popen(engine_command,
-                                shell=True,
-                                cwd=engine_dir,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT,
-                                stdin=subprocess.PIPE,
-                                bufsize=1,  # Line buffered
-                                universal_newlines=True)
+        return subprocess.Popen(engine_command, **kwargs)
 
 
 def send(p, line):
@@ -1199,18 +1211,23 @@ def cmd_run(args):
                          sum(worker.positions for worker in workers),
                          int(sum(worker.nodes for worker in workers) / 1000 / 1000))
     except KeyboardInterrupt:
+        # Ignore additional keyboard interrupts
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
         logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
 
         # Prepare to stop workers
         for worker in workers:
             worker.prepare_stop()
 
-        # Grace period
-        time.sleep(0.5)
-
         # Kill engine processes
         for worker in workers:
-            worker.process.kill()
+            try:
+                # Windows
+                worker.process.send_signal(signal.CTRL_BREAK_EVENT)
+            except AttributeError:
+                # Unix
+                worker.process.kill()
 
         # Wait
         for worker in workers:
