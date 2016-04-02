@@ -1351,7 +1351,7 @@ def main(argv):
     parser.add_argument("--engine-command", "-e", help="engine command (default: download precompiled Stockfish)")
 
     parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
-    parser.add_argument("--memory", help="total number of memory (MB) to use for engine hashtables")
+    parser.add_argument("--memory", help="total memory (MB) to use for engine hashtables")
     parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
     parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--fixed-backoff", action="store_true", help="fixed backoff (only recommended for move servers)")
