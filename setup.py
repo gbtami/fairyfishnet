@@ -11,7 +11,8 @@ import os.path
 
 
 def read_description():
-    description = open(os.path.join(os.path.dirname(__file__), "README.rst")).read()
+    with open(os.path.join(os.path.dirname(__file__), "README.rst")) as readme:
+        description = readme.read()
 
     # Show the Travis CI build status of the concrete version
     description = description.replace(
