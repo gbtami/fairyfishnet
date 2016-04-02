@@ -104,6 +104,7 @@ HASH_MAX = 512
 DEFAULT_CONFIG = "fishnet.ini"
 MAX_BACKOFF = 30.0
 MAX_FIXED_BACKOFF = 3.0
+HTTP_TIMEOUT = 10.0
 
 
 def intro():
@@ -218,9 +219,11 @@ def http(method, url, body=None, headers=None):
 
     url_info = urlparse.urlparse(url)
     if url_info.scheme == "https":
-        con = httplib.HTTPSConnection(url_info.hostname, url_info.port or 443)
+        con = httplib.HTTPSConnection(url_info.hostname, url_info.port or 443,
+                                      timeout=HTTP_TIMEOUT)
     else:
-        con = httplib.HTTPConnection(url_info.hostname, url_info.port or 80)
+        con = httplib.HTTPConnection(url_info.hostname, url_info.port or 80,
+                                     timeout=HTTP_TIMEOUT)
 
     headers_with_useragent = {"User-Agent": "fishnet %s" % __version__}
     if headers:
