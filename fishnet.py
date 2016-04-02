@@ -1150,8 +1150,23 @@ def start_backoff(conf):
             backoff = min(backoff + 1, MAX_BACKOFF)
 
 
+def lookup_latest_version():
+    with http("GET", "https://pypi.python.org/pypi/fishnet/json") as response:
+        result = json.loads(response.read().decode("utf-8"))
+
+    return result["info"]["version"]
+
+
 def cmd_run(args):
     conf = load_conf(args)
+
+    try:
+        latest_version = lookup_latest_version()
+        if latest_version != __version__:
+            logging.warning("Update available on PyPI: %s (current: %s)",
+                            latest_version, __version__)
+    except Exception:
+        logging.exception("Failed to check for latest version on PyPI")
 
     engine_command = validate_engine_command(conf_get(conf, "EngineCommand"), conf)
     if not engine_command:
