@@ -6,3 +6,4 @@ Stockfish
 build/
 dist/
 fishnet.egg-info/
+.tox/
