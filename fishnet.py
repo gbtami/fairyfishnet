@@ -415,7 +415,7 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
                     if command == "info":
                         logging.info("Ignoring superfluous info: %s", arg)
                     elif command == "bestmove":
-                        if not "(none)" in arg:
+                        if "(none)" not in arg:
                             logging.warning("Ignoring bestmove: %s", arg)
 
                         isready(p)
@@ -729,6 +729,7 @@ def update_stockfish(conf, filename):
 
     # Download
     logging.info("Downloading %s ...", filename)
+
     def reporthook(a, b, c):
         sys.stderr.write("\rDownloading %s: %d/%d (%d%%)" % (filename, a * b, c, round(min(a * b, c) * 100 / c)))
         sys.stderr.flush()
@@ -853,7 +854,7 @@ def configure(args):
     while True:
         try:
             default_threads = min(DEFAULT_THREADS, cores)
-            threads = validate_threads(config_input("Number of threads to use per engine process (default %d, max %d): "  % (default_threads, cores)), conf)
+            threads = validate_threads(config_input("Number of threads to use per engine process (default %d, max %d): " % (default_threads, cores)), conf)
             break
         except ConfigError as error:
             print(error, file=sys.stderr)
@@ -1094,7 +1095,7 @@ def validate_key(key, conf, network=False):
     if network:
         try:
             with http("GET", get_endpoint(conf, "key/%s" % key)) as response:
-                pass
+                response.read()
         except HttpClientError as error:
             if error.status == 404:
                 raise ConfigError("Invalid or inactive fishnet key")
@@ -1270,14 +1271,13 @@ def cmd_systemd(args):
         [Install]
         WantedBy=multi-user.target""")
 
-    config_file = os.path.abspath(args.conf or DEFAULT_CONFIG)
-
     # Prepare command line arguments
     builder = [shell_quote(sys.executable), shell_quote(os.path.abspath(sys.argv[0]))]
 
     if not args.no_conf:
+        config_file = os.path.abspath(args.conf or DEFAULT_CONFIG)
         builder.append("--conf")
-        builder.append(shell_quote(os.path.abspath(args.conf or DEFAULT_CONFIG)))
+        builder.append(shell_quote(config_file))
     else:
         builder.append("--no-conf")
         if args.key is not None:
