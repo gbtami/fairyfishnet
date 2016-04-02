@@ -252,7 +252,7 @@ def popen_engine(engine_command, engine_dir, _popen_lock=threading.Lock()):
         "universal_newlines": True,
     }
 
-    # Prevent signal progration from parent process
+    # Prevent signal propagation from parent process
     try:
         # Windows
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
