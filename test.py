@@ -9,7 +9,6 @@ import fishnet
 import unittest
 import logging
 import sys
-import os.path
 
 try:
     import configparser
