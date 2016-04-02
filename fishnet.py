@@ -887,7 +887,7 @@ def configure(args):
     if advanced:
         while True:
             try:
-                endoint = validate_endpoint(config_input("Fishnet API endpoint (default: %s): " % (endpoint, )))
+                endpoint = validate_endpoint(config_input("Fishnet API endpoint (default: %s): " % (endpoint, )))
                 break
             except ConfigError as error:
                 print(error, file=sys.stderr)
