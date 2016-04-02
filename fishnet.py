@@ -606,7 +606,7 @@ class Worker(threading.Thread):
             return "move" + "/" + self.job["work"]["id"], result
         else:
             if self.job:
-                logging.error("Invalid job type: %s", job)
+                logging.error("Invalid job type: %s", self.job["work"]["type"])
 
             return "acquire", result
 
