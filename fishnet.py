@@ -1309,7 +1309,19 @@ def cmd_systemd(args):
 
     # Virtualenv support
     if hasattr(sys, "real_prefix"):
-        start = "while [ true ]; do %s; ret=$?; if [ $ret -eq 70 ]; then pip download fishnet || sleep 10; pip install --upgrade fishnet || sleep 10; else exit $ret; fi; sleep 5; done" % start
+        start = " ".join(textwrap.dedent("""\
+            while [ true ]; do
+                {0};
+                ret=$?;
+                if [ $ret -eq 70 ]; then
+                    pip download fishnet || sleep 10;
+                    pip install --upgrade fishnet || sleep 10;
+                else
+                    exit $ret;
+                fi;
+                sleep 5;
+            done""").split()).format(start)
+
         shell_cmd = "source %s; %s" % (shell_quote(os.path.abspath(os.path.join(sys.prefix, "bin", "activate"))), start)
         start = "/bin/bash -c %s" % shell_quote(shell_cmd)
 
