@@ -1081,6 +1081,10 @@ def validate_endpoint(endpoint):
     if not endpoint.endswith("/"):
         endpoint += "/"
 
+    url_info = urlparse.urlparse(endpoint)
+    if url_info.scheme not in ["http", "https"]:
+        raise ConfigError("Endpoint does not have http:// or https:// URL scheme")
+
     return endpoint
 
 
