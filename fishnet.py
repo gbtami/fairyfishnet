@@ -540,7 +540,8 @@ class Worker(threading.Thread):
                     logging.error("Stopping worker for update.")
                     raise UpdateRequired()
             except (KeyError, ValueError):
-                logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s", err.status, err.reason, t, json.dumps(request))
+                logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s",
+                              err.status, err.reason, t, json.dumps(request))
             self.sleep.wait(t)
         except EOFError:
             if not self.is_alive():
