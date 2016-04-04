@@ -263,18 +263,29 @@ class UpdateRequired(Exception):
     pass
 
 
-class TerminateHandler(object):
+class Shutdown(Exception):
+    pass
+
+
+class SignalHandler(object):
     def __init__(self):
-        self.once = False
+        self.ignore = False
 
     def install(self):
-        signal.signal(signal.SIGTERM, self.handler)
-        signal.signal(signal.SIGINT, self.handler)
+        signal.signal(signal.SIGTERM, self.handle_term)
+        signal.signal(signal.SIGINT, self.handle_term)
 
-    def handler(self, signum, frame):
-        if not self.once:
-            self.once = True
-            raise KeyboardInterrupt()
+        signal.signal(signal.SIGUSR1, self.handle_usr1)
+
+    def handle_term(self, signum, frame):
+        if not self.ignore:
+            self.ignore = True
+            raise Shutdown()
+
+    def handle_usr1(self, signum, frame):
+        if not self.ignore:
+            self.ignore = True
+            raise UpdateRequired()
 
 
 def popen_engine(engine_command, engine_dir, _popen_lock=threading.Lock()):
@@ -1227,12 +1238,12 @@ def cmd_run(args):
         worker.setDaemon(True)
         worker.start()
 
-    # Let SIGTERM and SIGINT gracefully terminate the program
-    handler = TerminateHandler()
-    handler.install()
-
     # Wait while the workers are running
     try:
+        # Let SIGTERM and SIGINT gracefully terminate the program
+        handler = SignalHandler()
+        handler.install()
+
         while True:
             # Check worker status
             for worker in workers:
@@ -1249,18 +1260,22 @@ def cmd_run(args):
             # Check for update
             if random.random() <= CHECK_PYPI_CHANCE and update_available() and args.latest_version_only:
                 raise UpdateRequired()
-    except (KeyboardInterrupt, UpdateRequired):
+    except Shutdown:
         logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
+    except UpdateRequired:
+        logging.info("\n\n### Update required! Aborting pending jobs ...\n")
+    finally:
+        handler.ignore = True
 
-        # Stop workers
-        for worker in workers:
-            worker.stop()
+    # Stop workers
+    for worker in workers:
+        worker.stop()
 
-        # Wait
-        for worker in workers:
-            worker.finished.wait()
+    # Wait
+    for worker in workers:
+        worker.finished.wait()
 
-        return 0
+    return 0
 
 
 def cmd_stockfish(args):
