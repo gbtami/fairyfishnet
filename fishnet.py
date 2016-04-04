@@ -841,12 +841,18 @@ def load_conf(args):
     return conf
 
 
-def config_input(prompt=None):
-    if prompt:
-        sys.stderr.write(prompt)
-        sys.stderr.flush()
+def config_input(prompt=None, validator=lambda v: v):
+    while True:
+        if prompt:
+            sys.stderr.write(prompt)
+            sys.stderr.flush()
 
-    return input()
+        inp = input()
+
+        try:
+            return validator(inp)
+        except ConfigError as error:
+            print(error, file=sys.stderr)
 
 
 def configure(args):
@@ -870,12 +876,8 @@ def configure(args):
         os.remove(config_file)
 
     # Stockfish working directory
-    while True:
-        try:
-            engine_dir = validate_engine_dir(config_input("Stockfish working directory (default: %s): " % os.path.abspath(".")))
-            break
-        except ConfigError as error:
-            print(error, file=sys.stderr)
+    engine_dir = config_input("Stockfish working directory (default: %s): " % os.path.abspath("."),
+                              validate_engine_dir)
     conf.set("Fishnet", "EngineDir", engine_dir)
 
     # Stockfish command
@@ -887,107 +889,59 @@ def configure(args):
     print("You can build lichess.org custom Stockfish yourself and provide", file=sys.stderr)
     print("the path or automatically download a precompiled binary.", file=sys.stderr)
     print(file=sys.stderr)
-    while True:
-        try:
-            engine_command = validate_engine_command(config_input("Path or command (default: download): "), conf)
-            conf.set("Fishnet", "EngineCommand", engine_command or "")
-
-            # Download Stockfish if nescessary
-            get_engine_command(conf)
-
-            break
-        except ConfigError as error:
-            print(error, file=sys.stderr)
+    engine_command = config_input("Path or command (default: download): ",
+                                  lambda v: validate_engine_command(v, conf))
     print(file=sys.stderr)
 
-    # Interactive configuration
-    while True:
-        try:
-            max_cores = multiprocessing.cpu_count()
-            default_cores = max(1, max_cores - 1)
-            cores = validate_cores(config_input("Number of cores to use for engine threads (default %d, max %d): " % (default_cores, max_cores)))
-            break
-        except ConfigError as error:
-            print(error, file=sys.stderr)
+    # Cores
+    max_cores = multiprocessing.cpu_count()
+    default_cores = max(1, max_cores - 1)
+    cores = config_input("Number of cores to use for engine threads (default %d, max %d): " % (default_cores, max_cores),
+                         validate_cores)
     conf.set("Fishnet", "Cores", str(cores))
 
-    while True:
-        try:
-            default_threads = min(DEFAULT_THREADS, cores)
-            threads = validate_threads(config_input("Number of threads to use per engine process (default %d, max %d): " % (default_threads, cores)), conf)
-            break
-        except ConfigError as error:
-            print(error, file=sys.stderr)
+    # Threads
+    default_threads = min(DEFAULT_THREADS, cores)
+    threads = config_input("Number of threads to use per engine process (default %d, max %d): " % (default_threads, cores),
+                           lambda v: validate_threads(v, conf))
     conf.set("Fishnet", "Threads", str(threads))
 
-    while True:
-        try:
-            processes = math.ceil(cores / threads)
-            min_memory = HASH_MIN * processes
-            default_memory = HASH_DEFAULT * processes
-            max_memory = HASH_MAX * processes
-            memory = validate_memory(config_input("Memory in MB to use for engine hashtables (default %d, min %d, max %d): " % (default_memory, min_memory, max_memory)), conf)
-            break
-        except ConfigError as error:
-            print(error, file=sys.stderr)
+    # Memory
+    processes = math.ceil(cores / threads)
+    min_memory = HASH_MIN * processes
+    default_memory = HASH_DEFAULT * processes
+    max_memory = HASH_MAX * processes
+    memory = config_input("Memory in MB to use for engine hashtables (default %d, min %d, max %d): " % (default_memory, min_memory, max_memory),
+                          lambda v: validate_memory(v, conf))
     conf.set("Fishnet", "Memory", str(memory))
 
-    while True:
-        try:
-            advanced = parse_bool(config_input("Configure advanced options? (default: no) "))
-            break
-        except ConfigError as error:
-            print(error, file=sys.stderr)
-
+    # Advanced options
     endpoint = DEFAULT_ENDPOINT
     fixed_backoff = False
+    if config_input("Configure advanced options? (default: no) ", parse_bool):
+        endpoint = config_input("Fishnet API endpoint (default: %s): " % (endpoint, ), validate_endpoint)
+        fixed_backoff = config_input("Fixed backoff? (for move servers, default: no) ", parse_bool)
+
     conf.set("Fishnet", "Endpoint", endpoint)
     conf.set("Fishnet", "FixedBackoff", str(fixed_backoff))
 
-    if advanced:
-        while True:
-            try:
-                endpoint = validate_endpoint(config_input("Fishnet API endpoint (default: %s): " % (endpoint, )))
-                break
-            except ConfigError as error:
-                print(error, file=sys.stderr)
-        conf.set("Fishnet", "Endpoint", endpoint)
-
-        while True:
-            try:
-                fixed_backoff = parse_bool(config_input("Fixed backoff? (for move servers, default: no) "))
-                break
-            except ConfigError as error:
-                print(error, file=sys.stderr)
-        conf.set("Fishnet", "FixedBackoff", str(fixed_backoff))
-
+    # Change key?
     key = None
     if conf.has_option("Fishnet", "Key"):
-        while True:
-            try:
-                change_key = parse_bool(config_input("Change fishnet key? (default: no) "))
-                if not change_key:
-                    key = conf.get("Fishnet", "Key")
-                break
-            except ConfigError as error:
-                print(error, file=sys.stderr)
+        if not config_input("Change fishnet key? (default: no) ", parse_bool):
+            key = conf.get("Fishnet", "Key")
 
-    while True:
-        try:
-            key = validate_key(key or config_input("Personal fishnet key (append ! to force): "), conf, network=True)
-            break
-        except ConfigError as error:
-            print(error, file=sys.stderr)
-            key = None
+    # Key
+    if key is None:
+        key = config_input("Personal fishnet key (append ! to force): ",
+                           lambda v: validate_key(v, conf, network=True))
     conf.set("Fishnet", "Key", key)
 
+    # Confirm
     print(file=sys.stderr)
-    while True:
-        try:
-            if parse_bool(config_input("Done. Write configuration to %s now? (default: yes) " % (config_file, )), True):
-                break
-        except ConfigError as error:
-            print(error, file=sys.stderr)
+    while not config_input("Done. Write configuration to %s now? (default: yes) " % (config_file, ),
+                           lambda v: parse_bool(v, True)):
+        pass
 
     # Write configuration
     with open(config_file, "w") as f:
