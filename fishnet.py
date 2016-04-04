@@ -142,17 +142,13 @@ class LogFormatter(logging.Formatter):
             return "%s: %s" % (record.threadName, with_level)
 
 
-class LogHandler(logging.StreamHandler):
-    def __init__(self, collapse_progress=True, stream=sys.stdout):
-        super(LogHandler, self).__init__(stream)
+class CollapsingLogHandler(logging.StreamHandler):
+    def __init__(self, stream=sys.stdout):
+        super(CollapsingLogHandler, self).__init__(stream)
         self.last_level = logging.INFO
         self.last_len = 0
-        self.collapse_progress = collapse_progress
 
     def emit(self, record):
-        if not self.collapse_progress:
-            return super(LogHandler, self).emit(record)
-
         try:
             if self.last_level == PROGRESS:
                 if record.levelno == PROGRESS:
@@ -173,6 +169,28 @@ class LogHandler(logging.StreamHandler):
             self.flush()
         except Exception:
             self.handleError(record)
+
+
+def setup_logging(verbosity, stream=sys.stdout):
+    logger = logging.getLogger()
+
+    handler = logging.StreamHandler(stream)
+
+    if verbosity >= 3:
+        logger.setLevel(ENGINE)
+    elif verbosity >= 2:
+        logger.setLevel(logging.DEBUG)
+    elif verbosity >= 1:
+        logger.setLevel(PROGRESS)
+    else:
+        if stream.isatty():
+            handler = CollapsingLogHandler(stream)
+            logger.setLevel(PROGRESS)
+        else:
+            logger.setLevel(logging.INFO)
+
+    handler.setFormatter(LogFormatter())
+    logger.addHandler(handler)
 
 
 def base_url(url):
@@ -1400,23 +1418,8 @@ def main(argv):
     args = parser.parse_args(argv[1:])
 
     # Setup logging
-    logger = logging.getLogger()
-    collapse_progress = False
-    if args.verbose >= 3:
-        logger.setLevel(ENGINE)
-    elif args.verbose >= 2:
-        logger.setLevel(logging.DEBUG)
-    elif args.verbose >= 1:
-        logger.setLevel(PROGRESS)
-    else:
-        if sys.stdout.isatty():
-            collapse_progress = True
-            logger.setLevel(PROGRESS)
-        else:
-            logger.setLevel(logging.INFO)
-    handler = LogHandler(collapse_progress, sys.stderr if args.command == "systemd" else sys.stdout)
-    handler.setFormatter(LogFormatter())
-    logger.addHandler(handler)
+    setup_logging(args.verbose,
+                  sys.stderr if args.command == "systemd" else sys.stdout)
 
     # Show intro
     if args.command != "systemd":

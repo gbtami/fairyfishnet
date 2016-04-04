@@ -6,6 +6,7 @@
 # See LICENSE.txt for licensing information.
 
 import fishnet
+import argparse
 import unittest
 import logging
 import sys
@@ -71,13 +72,9 @@ class FishnetTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    logger = logging.getLogger()
     if "-v" in sys.argv or "--verbose" in sys.argv:
-        logger.setLevel(logging.DEBUG)
+        fishnet.setup_logging(2)
     else:
-        logger.setLevel(fishnet.PROGRESS)
-    handler = fishnet.LogHandler(collapse_progress=False, stream=sys.stdout)
-    handler.setFormatter(fishnet.LogFormatter())
-    logger.addHandler(handler)
+        fishnet.setup_logging(0)
 
     unittest.main()
