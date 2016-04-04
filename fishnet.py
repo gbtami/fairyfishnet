@@ -208,7 +208,8 @@ class HttpError(Exception):
         return "HTTP %d %s\n\n%s" % (self.status, self.reason, self.body)
 
     def __repr__(self):
-        return "%s(%d, %r, %r)" % (type(self).__name__, self.status, self.reason, self.body)
+        return "%s(%d, %r, %r)" % (type(self).__name__, self.status,
+                                   self.reason, self.body)
 
 
 class HttpServerError(HttpError):
@@ -216,14 +217,6 @@ class HttpServerError(HttpError):
 
 
 class HttpClientError(HttpError):
-    pass
-
-
-class ConfigError(Exception):
-    pass
-
-
-class UpdateRequired(Exception):
     pass
 
 
@@ -249,13 +242,23 @@ def http(method, url, body=None, headers=None):
 
     try:
         if 400 <= response.status < 500:
-            raise HttpClientError(response.status, response.reason, response.read())
+            raise HttpClientError(response.status, response.reason,
+                                  response.read())
         elif 500 <= response.status < 600:
-            raise HttpServerError(response.status, response.reason, response.read())
+            raise HttpServerError(response.status, response.reason,
+                                  response.read())
         else:
             yield response
     finally:
         con.close()
+
+
+class ConfigError(Exception):
+    pass
+
+
+class UpdateRequired(Exception):
+    pass
 
 
 class TerminateHandler(object):
