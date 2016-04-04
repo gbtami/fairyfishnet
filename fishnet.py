@@ -737,6 +737,8 @@ def stockfish_filename():
 
     if os.name == "posix":
         base = "stockfish-%s" % machine
+
+        # Detect CPU capabilities
         with open("/proc/cpuinfo") as cpu_info:
             for line in cpu_info:
                 if line.startswith("flags") and "bmi2" in line and "popcnt" in line:
@@ -1021,14 +1023,14 @@ def validate_engine_command(engine_command, conf):
 
     logging.debug("Supported options: %s", ", ".join(options))
 
-    required_options = ["UCI_Chess960", "UCI_Atomic", "UCI_Horde", "UCI_House",
-                        "UCI_KingOfTheHill", "UCI_Race", "UCI_3Check",
-                        "Threads", "Hash"]
+    required_options = set(["UCI_Chess960", "UCI_Atomic", "UCI_Horde",
+                            "UCI_House", "UCI_KingOfTheHill", "UCI_Race",
+                            "UCI_3Check", "Threads", "Hash"])
 
-    for required_option in required_options:
-        if required_option not in options:
-            raise ConfigError("Unsupported engine option %s. "
-                              "Ensure you are using lichess custom Stockfish" % required_option)
+    missing_options = required_options.difference(options)
+    if missing_options:
+        raise ConfigError("Ensure you are using lichess custom Stockfish. "
+                          "Unsupported engine options: %s" % ", ".join(missing_options))
 
     return engine_command
 
