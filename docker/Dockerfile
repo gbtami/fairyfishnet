@@ -9,4 +9,4 @@ RUN pip install --upgrade fishnet
 USER fishnet:fishnet
 WORKDIR /home/fishnet/
 
-CMD python -m fishnet --no-conf --cores "${CORES:-auto}" --memory "${MEMORY:-auto}" --key "$API_KEY" run
+ENTRYPOINT ["python", "-m", "fishnet", "--no-conf"]

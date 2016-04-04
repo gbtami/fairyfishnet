@@ -12,4 +12,4 @@ Running fishnet (API key needed)
 
 ::
 
-    docker run -e API_KEY=REPLACE_ME fishnet
+    docker run fishnet --key MY_APIKEY
