@@ -1157,16 +1157,24 @@ def lookup_latest_version():
     return result["info"]["version"]
 
 
-def cmd_run(args):
-    conf = load_conf(args)
-
+def update_available():
     try:
         latest_version = lookup_latest_version()
-        if latest_version != __version__:
-            logging.warning("Update available on PyPI: %s (current: %s)",
-                            latest_version, __version__)
     except Exception:
-        logging.exception("Failed to check for latest version on PyPI")
+        logging.exception("Failed to check for update on PyPI")
+        return False
+
+    if latest_version == __version__:
+        logging.info("[fishnet v%s] Client is up to date", __version__)
+        return False
+    else:
+        logging.warning("[fishnet v%s] Update available on PyPI: %s",
+                        __version__, latest_version)
+        return True
+
+
+def cmd_run(args):
+    conf = load_conf(args)
 
     engine_command = validate_engine_command(conf_get(conf, "EngineCommand"), conf)
     if not engine_command:
@@ -1234,6 +1242,10 @@ def cmd_run(args):
                          __version__,
                          sum(worker.positions for worker in workers),
                          int(sum(worker.nodes for worker in workers) / 1000 / 1000))
+
+            # Check for update
+            if random.random() > 0 and update_available() and args.latest_version_only:
+                raise UpdateRequired()
     except KeyboardInterrupt:
         logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
 
@@ -1313,6 +1325,8 @@ def cmd_systemd(args):
             builder.append(shell_quote(validate_endpoint(args.endpoint)))
         if args.fixed_backoff:
             builder.append("--fixed-backoff")
+    if args.latest_version_only:
+        builder.append("--latest-version-only")
     builder.append("run")
 
     start = " ".join(builder)
@@ -1377,6 +1391,7 @@ def main(argv):
     parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
     parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--fixed-backoff", action="store_true", help="fixed backoff (only recommended for move servers)")
+    parser.add_argument("--latest-version-only", action="store_true", help="shut down if client update is available")
 
     parser.add_argument("command", default="run", nargs="?", choices=["run", "configure", "systemd", "stockfish"])
 
