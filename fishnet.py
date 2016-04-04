@@ -298,6 +298,15 @@ def popen_engine(engine_command, engine_dir, _popen_lock=threading.Lock()):
         return subprocess.Popen(engine_command, **kwargs)
 
 
+def kill_engine(p):
+    try:
+        # Windows
+        p.send_signal(signal.CTRL_BREAK_EVENT)
+    except AttributeError:
+        # Unix
+        p.kill()
+
+
 def send(p, line):
     logging.log(ENGINE, "%s << %s", p.pid, line)
     p.stdin.write(line)
@@ -595,7 +604,7 @@ class Worker(threading.Thread):
                 t = next(self.backoff)
                 logging.exception("Engine process has died. Backing off %0.1fs", t)
                 self.sleep.wait(t)
-                self.process.kill()
+                kill_engine(self.process)
         except Exception:
             self.job = None
             t = next(self.backoff)
@@ -603,7 +612,7 @@ class Worker(threading.Thread):
             self.sleep.wait(t)
 
             # If in doubt, restart engine
-            self.process.kill()
+            kill_engine(self.process)
 
     def start_engine(self):
         # Start process
@@ -1000,7 +1009,7 @@ def validate_engine_command(engine_command, conf):
     # Ensure the required options are supported
     process = popen_engine(engine_command, engine_dir)
     _, options = uci(process)
-    process.kill()
+    kill_engine(process)
 
     logging.debug("Supported options: %s", ", ".join(options))
 
@@ -1255,12 +1264,7 @@ def cmd_run(args):
 
         # Kill engine processes
         for worker in workers:
-            try:
-                # Windows
-                worker.process.send_signal(signal.CTRL_BREAK_EVENT)
-            except AttributeError:
-                # Unix
-                worker.process.kill()
+            kill_engine(worker.process)
 
         # Wait
         for worker in workers:
