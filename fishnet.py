@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# pylint: disable=wrong-import-order
 
 # This file is part of the lichess.org fishnet client.
 # Copyright (C) 2016 Niklas Fiekas <niklas.fiekas@backscattering.de>
@@ -27,17 +26,8 @@
 
 """Distributed analysis for lichess.org"""
 
-
 from __future__ import print_function
 from __future__ import division
-
-
-__version__ = "1.3.7"
-
-__author__ = "Niklas Fiekas"
-__email__ = "niklas.fiekas@backscattering.de"
-__license__ = "MIT"
-
 
 import argparse
 import logging
@@ -95,6 +85,12 @@ try:
 except NameError:
     pass
 
+
+__version__ = "1.3.7"
+
+__author__ = "Niklas Fiekas"
+__email__ = "niklas.fiekas@backscattering.de"
+__license__ = "MIT"
 
 DEFAULT_ENDPOINT = "http://en.lichess.org/fishnet/"
 DEFAULT_THREADS = 4
