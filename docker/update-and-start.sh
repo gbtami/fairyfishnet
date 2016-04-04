@@ -2,4 +2,4 @@
 
 pip install --user --upgrade fishnet
 
-python -m fishnet --no-conf $@
+exec python -m fishnet --no-conf $@
