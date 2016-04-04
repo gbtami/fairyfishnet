@@ -830,7 +830,7 @@ def update_self():
     if __package__ is None:
         argv += sys.argv
     else:
-        logging.debug("Package: %s, name: %s, loader: %s",
+        logging.debug("Package: \"%s\", name: %s, loader: %s",
                       __package__, __name__, __loader__)
         argv += [__file__]
         argv += sys.argv[1:]
