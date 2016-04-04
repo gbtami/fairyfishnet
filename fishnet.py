@@ -620,10 +620,14 @@ class Worker(threading.Thread):
 
     def start_engine(self):
         # Start process
-        self.process = popen_engine(get_engine_command(self.conf, False), get_engine_dir(self.conf))
+        self.process = popen_engine(get_engine_command(self.conf, False),
+                                    get_engine_dir(self.conf))
+
         self.engine_info, _ = uci(self.process)
-        logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
-                     self.process.pid, self.threads, self.engine_info.get("name", "<none>"))
+        logging.info("Started engine process, pid: %d, "
+                     "threads: %d, identification: %s",
+                     self.process.pid, self.threads,
+                     self.engine_info.get("name", "<none>"))
 
         # Prepare UCI options
         self.engine_info["options"] = {}
