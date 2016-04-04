@@ -819,6 +819,19 @@ def update_stockfish(conf, filename):
     return filename
 
 
+def update_self():
+    logging.info("Updating ...")
+
+    t = random.random() * 10.0
+    logging.info("Waiting %0.1fs before respawn ...", t)
+    time.sleep(t)
+
+    logging.debug("Restarting with executable: %s, argv: %s",
+                  sys.executable, " ".join(sys.argv))
+
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+
 def load_conf(args):
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
@@ -1264,16 +1277,17 @@ def cmd_run(args):
         logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
     except UpdateRequired:
         logging.info("\n\n### Update required! Aborting pending jobs ...\n")
+        raise
     finally:
         handler.ignore = True
 
-    # Stop workers
-    for worker in workers:
-        worker.stop()
+        # Stop workers
+        for worker in workers:
+            worker.stop()
 
-    # Wait
-    for worker in workers:
-        worker.finished.wait()
+        # Wait
+        for worker in workers:
+            worker.finished.wait()
 
     return 0
 
@@ -1410,6 +1424,7 @@ def main(argv):
     parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--fixed-backoff", action="store_true", help="fixed backoff (only recommended for move servers)")
     parser.add_argument("--latest-version-only", action="store_true", help="shut down if client update is available")
+    parser.add_argument("--auto-update", action="store_true", help="automatically install available updates")
 
     parser.add_argument("command", default="run", nargs="?", choices=["run", "configure", "systemd", "stockfish"])
 
@@ -1436,6 +1451,9 @@ def main(argv):
     except KeyboardInterrupt:
         return 0
     except UpdateRequired:
+        if args.auto_update:
+            update_self()
+
         logging.error("Update required. Exiting (status 70)")
         return 70
     except ConfigError:
