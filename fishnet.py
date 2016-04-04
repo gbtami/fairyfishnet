@@ -525,9 +525,13 @@ class Worker(threading.Thread):
         self.engine_info = None
         self.backoff = start_backoff(self.conf)
 
-    def prepare_stop(self):
+    def stop(self):
         with self.status_lock:
             self.alive = False
+
+            if self.process:
+                kill_engine(self.process)
+
             self.sleep.set()
 
     def is_alive(self):
@@ -1258,13 +1262,9 @@ def cmd_run(args):
     except KeyboardInterrupt:
         logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
 
-        # Prepare to stop workers
+        # Stop workers
         for worker in workers:
-            worker.prepare_stop()
-
-        # Kill engine processes
-        for worker in workers:
-            kill_engine(worker.process)
+            worker.stop()
 
         # Wait
         for worker in workers:
