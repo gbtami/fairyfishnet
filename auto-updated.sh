@@ -1,7 +1,7 @@
 #!/bin/sh
 
 while [ true ]; do
-    ./fishnet.py "$@"
+    python -m fishnet "$@"
     ret=$?
     if [ $ret -eq 70 ]; then
         for try in 1 2 3; do
