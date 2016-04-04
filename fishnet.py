@@ -244,6 +244,20 @@ def http(method, url, body=None, headers=None):
         con.close()
 
 
+class TerminateHandler(object):
+    def __init__(self):
+        self.once = False
+
+    def install(self):
+        signal.signal(signal.SIGTERM, self.handler)
+        signal.signal(signal.SIGINT, self.handler)
+
+    def handler(self, signum, frame):
+        if not self.once:
+            self.once = True
+            raise KeyboardInterrupt()
+
+
 def popen_engine(engine_command, engine_dir, _popen_lock=threading.Lock()):
     kwargs = {
         "shell": True,
@@ -1202,10 +1216,16 @@ def cmd_run(args):
     if spare_threads > 0:
         workers.append(Worker(conf, spare_threads))
 
-    # Start all threads and wait forever
+    # Start all threads
     for i, worker in enumerate(workers):
         worker.name = "><> %d" % (i + 1)
         worker.start()
+
+    # Let SIGTERM and SIGINT gracefully terminate the program
+    handler = TerminateHandler()
+    handler.install()
+
+    # Wait while the workers are running
     try:
         while True:
             # Check worker status
@@ -1220,9 +1240,6 @@ def cmd_run(args):
                          sum(worker.positions for worker in workers),
                          int(sum(worker.nodes for worker in workers) / 1000 / 1000))
     except KeyboardInterrupt:
-        # Ignore additional keyboard interrupts
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-
         logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
 
         # Prepare to stop workers
@@ -1273,7 +1290,6 @@ def cmd_systemd(args):
         WorkingDirectory={cwd}
         Environment=PATH={path}
         ExecStart={start}
-        KillSignal=SIGINT
         Restart=always
 
         [Install]
