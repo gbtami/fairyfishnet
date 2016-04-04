@@ -2,13 +2,11 @@ FROM debian:8.3
 
 MAINTAINER Sylvain Ageneau <ageneau@gmail.com>
 
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends python python-pip
+RUN apt-get update && apt-get install -y --no-install-recommends python python-pip
+RUN useradd --create-home --user-group fishnet
 RUN pip install --upgrade fishnet
 
-COPY fishnet.ini /root/
-COPY run_fishnet /usr/local/bin/
+USER fishnet:fishnet
+WORKDIR /home/fishnet/
 
-WORKDIR /root
-
-CMD ["run_fishnet"]
+CMD python -m fishnet --no-conf --cores "${CORES:-auto}" --memory "${MEMORY:-auto}" --key "$API_KEY" run
