@@ -826,10 +826,19 @@ def update_self():
     logging.info("Waiting %0.1fs before respawn ...", t)
     time.sleep(t)
 
-    logging.debug("Restarting with executable: %s, argv: %s",
-                  sys.executable, " ".join(sys.argv))
+    argv = [sys.executable]
+    if __package__ is None:
+        argv += sys.argv
+    else:
+        logging.debug("Package: %s, name: %s, loader: %s",
+                      __package__, __name__, __loader__)
+        argv += [__file__]
+        argv += sys.argv[1:]
 
-    os.execv(sys.executable, [sys.executable] + sys.argv)
+    logging.debug("Restarting with executable: %s, argv: %s",
+                  sys.executable, " ".join(argv))
+
+    os.execv(sys.executable, argv)
 
 
 def load_conf(args):
