@@ -325,18 +325,24 @@ def uci(p):
     send(p, "uci")
 
     engine_info = {}
+    options = set()
 
     while True:
         command, arg = recv(p)
 
         if command == "uciok":
-            return engine_info
+            return engine_info, options
         elif command == "id":
             name_and_value = arg.split(None, 1)
             if len(name_and_value) == 2:
                 engine_info[name_and_value[0]] = name_and_value[1]
         elif command == "option":
-            pass
+            name = []
+            for token in arg.split(" ")[1:]:
+                if name and token == "type":
+                    break
+                name.append(token)
+            options.add(" ".join(name))
         elif command == "Stockfish" and " by " in arg:
             # Ignore identification line
             pass
@@ -602,7 +608,7 @@ class Worker(threading.Thread):
     def start_engine(self):
         # Start process
         self.process = popen_engine(get_engine_command(self.conf, False), get_engine_dir(self.conf))
-        self.engine_info = uci(self.process)
+        self.engine_info, _ = uci(self.process)
         logging.info("Started engine process, pid: %d, threads: %d, identification: %s",
                      self.process.pid, self.threads, self.engine_info.get("name", "<none>"))
 
@@ -993,24 +999,7 @@ def validate_engine_command(engine_command, conf):
 
     # Ensure the required options are supported
     process = popen_engine(engine_command, engine_dir)
-    options = []
-    send(process, "uci")
-    while True:
-        command, arg = recv(process)
-
-        if command == "uciok":
-            break
-        elif command in ["id", "Stockfish"]:
-            pass
-        elif command == "option":
-            name = []
-            for token in arg.split(" ")[1:]:
-                if name and token == "type":
-                    break
-                name.append(token)
-            options.append(" ".join(name))
-        else:
-            logging.warning("Unexpected engine output: %s %s", command, arg)
+    _, options = uci(process)
     process.kill()
 
     logging.debug("Supported options: %s", ", ".join(options))
@@ -1021,7 +1010,8 @@ def validate_engine_command(engine_command, conf):
 
     for required_option in required_options:
         if required_option not in options:
-            raise ConfigError("Unsupported engine option %s. Ensure you are using lichess custom Stockfish" % required_option)
+            raise ConfigError("Unsupported engine option %s. "
+                              "Ensure you are using lichess custom Stockfish" % required_option)
 
     return engine_command
 
