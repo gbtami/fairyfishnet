@@ -337,7 +337,7 @@ def uci(p):
                 engine_info[name_and_value[0]] = name_and_value[1]
         elif command == "option":
             pass
-        elif command == "Stockfish":
+        elif command == "Stockfish" and " by " in arg:
             # Ignore identification line
             pass
         else:
