@@ -7,7 +7,7 @@ RUN useradd --create-home --user-group fishnet
 
 USER fishnet:fishnet
 WORKDIR /home/fishnet/
-RUN pip install --user --upgrade fishnet==1.3.5
+RUN pip install --user --upgrade fishnet
 
 COPY update-and-start.sh /home/fishnet/update-and-start.sh
 
