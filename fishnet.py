@@ -101,6 +101,8 @@ DEFAULT_CONFIG = "fishnet.ini"
 MAX_BACKOFF = 30.0
 MAX_FIXED_BACKOFF = 3.0
 HTTP_TIMEOUT = 15.0
+STAT_INTERVAL = 60.0
+CHECK_PYPI_CHANCE = 0.05
 
 
 def intro():
@@ -1168,8 +1170,8 @@ def update_available():
         logging.info("[fishnet v%s] Client is up to date", __version__)
         return False
     else:
-        logging.warning("[fishnet v%s] Update available on PyPI: %s",
-                        __version__, latest_version)
+        logging.info("[fishnet v%s] Update available on PyPI: %s",
+                     __version__, latest_version)
         return True
 
 
@@ -1222,6 +1224,7 @@ def cmd_run(args):
     # Start all threads
     for i, worker in enumerate(workers):
         worker.name = "><> %d" % (i + 1)
+        worker.setDaemon(True)
         worker.start()
 
     # Let SIGTERM and SIGINT gracefully terminate the program
@@ -1233,7 +1236,7 @@ def cmd_run(args):
         while True:
             # Check worker status
             for worker in workers:
-                worker.finished.wait(60 / len(workers))
+                worker.finished.wait(STAT_INTERVAL / len(workers))
                 if worker.fatal_error:
                     raise worker.fatal_error
 
@@ -1244,9 +1247,9 @@ def cmd_run(args):
                          int(sum(worker.nodes for worker in workers) / 1000 / 1000))
 
             # Check for update
-            if random.random() > 0 and update_available() and args.latest_version_only:
+            if random.random() <= CHECK_PYPI_CHANCE and update_available() and args.latest_version_only:
                 raise UpdateRequired()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, UpdateRequired):
         logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
 
         # Stop workers
@@ -1415,6 +1418,8 @@ def main(argv):
     # Run
     try:
         sys.exit(commands[args.command](args))
+    except KeyboardInterrupt:
+        return 0
     except UpdateRequired:
         logging.error("Update required. Exiting (status 70)")
         return 70
