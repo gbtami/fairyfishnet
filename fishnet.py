@@ -1271,7 +1271,7 @@ def cmd_run(args):
         engine_command = get_engine_command(conf)
 
     print()
-    print("### Checking configuration")
+    print("### Checking configuration ...")
     print()
     print("EngineDir:     %s" % get_engine_dir(conf))
     print("EngineCommand: %s" % engine_command)
