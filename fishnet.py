@@ -884,8 +884,15 @@ def update_self(force=False):
 
         print()
 
+    # Check for root privileges
+    try:
+        is_root = os.geteuid() == 0
+    except AttributeError:
+        # No os.geteuid() on Windows
+        is_root = False
+
     # Update
-    if hasattr(sys, "real_prefix") or os.geteuid() == 0 or os.name == "nt":
+    if hasattr(sys, "real_prefix") or is_root or os.name == "nt":
         logging.info("$ pip install --upgrade fishnet")
         ret = pip.main(["install", "--upgrade", "fishnet"])
     else:
@@ -1477,9 +1484,13 @@ def cmd_systemd(args):
 
     print(file=sys.stderr)
 
-    if os.geteuid() == 0:
-        print("# WARNING: Running as root is not recommended!", file=sys.stderr)
-        print(file=sys.stderr)
+    try:
+        if os.geteuid() == 0:
+            print("# WARNING: Running as root is not recommended!", file=sys.stderr)
+            print(file=sys.stderr)
+    except AttributeError:
+        # No os.getuid() on Windows
+        pass
 
     print("# Example usage:", file=sys.stderr)
     print("# python -m fishnet systemd | sudo tee /etc/systemd/system/fishnet.service", file=sys.stderr)
