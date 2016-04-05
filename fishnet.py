@@ -828,7 +828,7 @@ def update_stockfish(conf, filename):
 def update_self(force=False):
     # Ensure current instance is installed as a package
     if __package__ is None:
-        raise ConfigError("Not installed as a package. Can not update using pip")
+        raise ConfigError("Not started as a package (python -m). Can not update using pip")
 
     logging.debug("Package: \"%s\", name: %s, loader: %s",
                   __package__, __name__, __loader__)
