@@ -1513,6 +1513,7 @@ def main(argv):
         return 0
     except UpdateRequired:
         if args.auto_update:
+            logging.info("\n### Updating ...\n")
             update_self(force=True)
 
         logging.error("Update required. Exiting (status 70)")
