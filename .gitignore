@@ -6,4 +6,5 @@ Stockfish
 build/
 dist/
 fishnet.egg-info/
+fishnet-*.tar.gz
 .tox/
