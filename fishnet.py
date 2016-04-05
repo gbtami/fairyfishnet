@@ -838,7 +838,6 @@ def update_self(force=False):
             return 0
         else:
             logging.info("Updating anyway")
-        return 0
 
     # Wait
     t = random.random() * 15.0
