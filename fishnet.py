@@ -878,6 +878,7 @@ def update_self(force=False):
     # Respawn
     argv = []
     argv.append(sys.executable)
+    argv.append("-m")
     argv.append(os.path.splitext(os.path.basename(__file__))[0])
     argv += sys.argv[1:]
 
