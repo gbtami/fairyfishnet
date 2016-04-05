@@ -833,7 +833,11 @@ def update_self(force=False):
     except ImportError:
         raise ConfigError("Auto update enabled but pip not installed")
 
-    if not update_available() and not force:
+    if not update_available():
+        if not force:
+            return 0
+        else:
+            logging.info("Updating anyway")
         return 0
 
     # Wait
@@ -841,24 +845,30 @@ def update_self(force=False):
     logging.info("Waiting %0.1fs before update ...", t)
     time.sleep(t)
 
+    print()
+
     # Force download
     if force:
-        logging.info("pip download fishnet")
+        logging.info("$ pip download fishnet")
         ret = pip.main(["download", "fishnet"])
         if ret != 0:
             logging.warning("Unexpected exit code for pip download: %d", ret)
             return ret
 
+        print()
+
     # Update
     if hasattr(sys, "real_prefix") or os.geteuid() == 0 or os.name == "nt":
-        logging.info("pip install --upgrade fishnet")
+        logging.info("$ pip install --upgrade fishnet")
         ret = pip.main(["install", "--upgrade", "fishnet"])
     else:
-        logging.info("pip install --user --upgrade fishnet")
+        logging.info("$ pip install --user --upgrade fishnet")
         ret = pip.main(["install", "--user", "--upgrade", "fishnet"])
     if ret != 0:
         logging.warning("Unexpected exit code for pip install: %d", ret)
         return ret
+
+    print()
 
     # Wait
     t = random.random() * 15.0
