@@ -833,7 +833,7 @@ def update_self(force=False):
     try:
         import pip
     except ImportError:
-        raise ConfigError("Auto update enabled but pip not installed")
+        raise ConfigError("Auto update enabled, but pip not installed")
 
     # Check pip is up to date
     pip_up_to_date = LooseVersion(pip.__version__) >= LooseVersion("8.0.0")
@@ -841,6 +841,15 @@ def update_self(force=False):
         logging.debug("pip is up to date: %s", pip.__version__)
     else:
         logging.warning("pip is outdated: %s", pip.__version__)
+
+    # Ensure module file is going to be writable
+    try:
+        with open(__file__, "r+"):
+            pass
+    except IOError:
+        raise ConfigError("Auto update enabled, but no write permissions "
+                          "to module file. Use virtualenv or "
+                          "pip install --user")
 
     # Check for updates
     if not update_available():
