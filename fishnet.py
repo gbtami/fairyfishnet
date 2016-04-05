@@ -47,6 +47,8 @@ import textwrap
 import getpass
 import signal
 
+from distutils.version import LooseVersion
+
 if os.name == "posix" and sys.version_info[0] < 3:
     try:
         import subprocess32 as subprocess
@@ -833,6 +835,14 @@ def update_self(force=False):
     except ImportError:
         raise ConfigError("Auto update enabled but pip not installed")
 
+    # Check pip is up to date
+    pip_up_to_date = LooseVersion(pip.__version__) >= LooseVersion("8.0.0")
+    if pip_up_to_date:
+        logging.debug("pip is up to date: %s", pip.__version__)
+    else:
+        logging.warning("pip is outdated: %s", pip.__version__)
+
+    # Check for updates
     if not update_available():
         if not force:
             return 0
@@ -848,8 +858,13 @@ def update_self(force=False):
 
     # Force download
     if force:
-        logging.info("$ pip download fishnet")
-        ret = pip.main(["download", "fishnet"])
+        if pip_up_to_date:
+            logging.info("$ pip download fishnet")
+            ret = pip.main(["download", "fishnet"])
+        else:
+            logging.info("$ pip install --download fishnet")
+            ret = pip.main(["install", "--download", "fishnet"])
+
         if ret != 0:
             logging.warning("Unexpected exit code for pip download: %d", ret)
             return ret
