@@ -7,8 +7,8 @@ fishnet: distributed Stockfish analysis for lichess.org
 .. image:: https://badge.fury.io/py/fishnet.svg
     :target: https://pypi.python.org/pypi/fishnet
 
-Installing
-----------
+Usage
+-----
 
 To install or upgrade to the latest version do:
 
@@ -16,12 +16,22 @@ To install or upgrade to the latest version do:
 
     pip install --upgrade fishnet
 
-Running fishnet
----------------
+Then run using:
 
 ::
 
-    python -m fishnet run
+    python -m fishnet
+
+Using Docker
+------------
+
+There is a `Docker container <https://hub.docker.com/r/ageneau/fishnet/>`_
+courtesy of `@ageneau <https://github.com/ageneau>`_. For example you can
+simply do:
+
+::
+
+    docker run ageneau/fishnet --key THE_API_KEY --auto-update
 
 lichess.org custom Stockfish
 ----------------------------
