@@ -277,7 +277,11 @@ class SignalHandler(object):
         signal.signal(signal.SIGTERM, self.handle_term)
         signal.signal(signal.SIGINT, self.handle_term)
 
-        signal.signal(signal.SIGUSR1, self.handle_usr1)
+        try:
+            signal.signal(signal.SIGUSR1, self.handle_usr1)
+        except AttributeError:
+            # No SIGUSR1 on Windows
+            pass
 
     def handle_term(self, signum, frame):
         if not self.ignore:
