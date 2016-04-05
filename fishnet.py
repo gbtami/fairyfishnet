@@ -819,23 +819,59 @@ def update_stockfish(conf, filename):
     return filename
 
 
-def update_self():
-    logging.info("Updating ...")
+def update_self(force=False):
+    # Ensure current instance is installed as a package
+    if __package__ is None:
+        raise ConfigError("Not installed as a package. Can not update using pip")
 
-    t = random.random() * 10.0
+    logging.debug("Package: \"%s\", name: %s, loader: %s",
+                  __package__, __name__, __loader__)
+
+    # Ensure pip is available
+    try:
+        import pip
+    except ImportError:
+        raise ConfigError("Auto update enabled but pip not installed")
+
+    if not update_available() and not force:
+        return 0
+
+    # Wait
+    t = random.random() * 15.0
+    logging.info("Waiting %0.1fs before update ...", t)
+    time.sleep(t)
+
+    # Force download
+    if force:
+        logging.info("pip download fishnet")
+        ret = pip.main(["download", "fishnet"])
+        if ret != 0:
+            logging.warning("Unexpected exit code for pip download: %d", ret)
+            return ret
+
+    # Update
+    if hasattr(sys, "real_prefix") or os.geteuid() == 0 or os.name == "nt":
+        logging.info("pip install --upgrade fishnet")
+        ret = pip.main(["install", "--upgrade", "fishnet"])
+    else:
+        logging.info("pip install --user --upgrade fishnet")
+        ret = pip.main(["install", "--user", "--upgrade", "fishnet"])
+    if ret != 0:
+        logging.warning("Unexpected exit code for pip install: %d", ret)
+        return ret
+
+    # Wait
+    t = random.random() * 15.0
     logging.info("Waiting %0.1fs before respawn ...", t)
     time.sleep(t)
 
-    argv = [sys.executable]
-    if __package__ is None:
-        argv += sys.argv
-    else:
-        logging.debug("Package: \"%s\", name: %s, loader: %s",
-                      __package__, __name__, __loader__)
-        argv += [__file__]
-        argv += sys.argv[1:]
+    # Respawn
+    argv = []
+    argv.append(sys.executable)
+    argv.append(os.path.splitext(os.path.basename(__file__))[0])
+    argv += sys.argv[1:]
 
-    logging.debug("Restarting with executable: %s, argv: %s",
+    logging.debug("Restarting with execv: %s, argv: %s",
                   sys.executable, " ".join(argv))
 
     os.execv(sys.executable, argv)
@@ -1211,6 +1247,12 @@ def update_available():
 def cmd_run(args):
     conf = load_conf(args)
 
+    if args.auto_update:
+        print()
+        print("### Updating ...")
+        print()
+        update_self()
+
     engine_command = validate_engine_command(conf_get(conf, "EngineCommand"), conf)
     if not engine_command:
         print()
@@ -1461,7 +1503,7 @@ def main(argv):
         return 0
     except UpdateRequired:
         if args.auto_update:
-            update_self()
+            update_self(force=True)
 
         logging.error("Update required. Exiting (status 70)")
         return 70
