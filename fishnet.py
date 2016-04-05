@@ -1387,58 +1387,55 @@ def cmd_systemd(args):
         WantedBy=multi-user.target""")
 
     # Prepare command line arguments
-    builder = [shell_quote(sys.executable), shell_quote(os.path.abspath(sys.argv[0]))]
+    builder = [shell_quote(sys.executable)]
 
-    if not args.no_conf:
+    if __package__ is None:
+        builder.append(shell_quote(os.path.abspath(sys.argv[0])))
+    else:
+        builder.append("-m")
+        builder.append(shell_quote(os.path.splitext(os.path.basename(__file__))[0]))
+
+    if args.no_conf:
+        builder.append("--no-conf")
+    else:
         config_file = os.path.abspath(args.conf or DEFAULT_CONFIG)
         builder.append("--conf")
         builder.append(shell_quote(config_file))
-    else:
-        builder.append("--no-conf")
-        if args.key is not None:
-            builder.append("--key")
-            builder.append(shell_quote(validate_key(args.key, conf)))
-        if args.engine_dir is not None:
-            builder.append("--engine-dir")
-            builder.append(shell_quote(validate_engine_dir(args.engine_dir)))
-        if args.engine_command is not None:
-            builder.append("--engine-command")
-            builder.append(shell_quote(validate_engine_command(args.engine_command, conf)))
-        if args.cores is not None:
-            builder.append("--cores")
-            builder.append(shell_quote(str(validate_cores(args.cores))))
-        if args.memory is not None:
-            builder.append("--memory")
-            builder.append(shell_quote(str(validate_memory(args.memory, conf))))
-        if args.threads is not None:
-            builder.append("--threads")
-            builder.append(shell_quote(str(validate_threads(args.threads, conf))))
-        if args.endpoint is not None:
-            builder.append("--endpoint")
-            builder.append(shell_quote(validate_endpoint(args.endpoint)))
-        if args.fixed_backoff:
-            builder.append("--fixed-backoff")
+
+    if args.key is not None:
+        builder.append("--key")
+        builder.append(shell_quote(validate_key(args.key, conf)))
+    if args.engine_dir is not None:
+        builder.append("--engine-dir")
+        builder.append(shell_quote(validate_engine_dir(args.engine_dir)))
+    if args.engine_command is not None:
+        builder.append("--engine-command")
+        builder.append(shell_quote(validate_engine_command(args.engine_command, conf)))
+    if args.cores is not None:
+        builder.append("--cores")
+        builder.append(shell_quote(str(validate_cores(args.cores))))
+    if args.memory is not None:
+        builder.append("--memory")
+        builder.append(shell_quote(str(validate_memory(args.memory, conf))))
+    if args.threads is not None:
+        builder.append("--threads")
+        builder.append(shell_quote(str(validate_threads(args.threads, conf))))
+    if args.endpoint is not None:
+        builder.append("--endpoint")
+        builder.append(shell_quote(validate_endpoint(args.endpoint)))
+    if args.fixed_backoff:
+        builder.append("--fixed-backoff")
     if args.latest_version_only:
         builder.append("--latest-version-only")
+    if args.auto_update:
+        builder.append("--auto-update")
+
     builder.append("run")
 
     start = " ".join(builder)
 
     # Virtualenv support
     if hasattr(sys, "real_prefix"):
-        start = " ".join(textwrap.dedent("""\
-            while [ true ]; do
-                {0};
-                ret=$?;
-                if [ $ret -eq 70 ]; then
-                    pip download fishnet || sleep 10;
-                    pip install --upgrade fishnet || sleep 10;
-                else
-                    exit $ret;
-                fi;
-                sleep 5;
-            done""").split()).format(start)
-
         shell_cmd = "source %s; %s" % (shell_quote(os.path.abspath(os.path.join(sys.prefix, "bin", "activate"))), start)
         start = "/bin/bash -c %s" % shell_quote(shell_cmd)
 
@@ -1454,10 +1451,6 @@ def cmd_systemd(args):
 
     if os.geteuid() == 0:
         print("# WARNING: Running as root is not recommended!", file=sys.stderr)
-        print(file=sys.stderr)
-
-    if not hasattr(sys, "real_prefix"):
-        print("# WARNING: Using a virtualenv (to enable auto update) is recommended!", file=sys.stderr)
         print(file=sys.stderr)
 
     print("# Example usage:", file=sys.stderr)
@@ -1509,8 +1502,6 @@ def main(argv):
     # Run
     try:
         sys.exit(commands[args.command](args))
-    except KeyboardInterrupt:
-        return 0
     except UpdateRequired:
         if args.auto_update:
             logging.info("\n### Updating ...\n")
@@ -1521,6 +1512,8 @@ def main(argv):
     except ConfigError:
         logging.exception("Configuration error")
         return 78
+    except (KeyboardInterrupt, Shutdown):
+        return 0
 
 
 if __name__ == "__main__":
