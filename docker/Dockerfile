@@ -8,6 +8,7 @@ RUN useradd --create-home --user-group fishnet
 USER fishnet:fishnet
 WORKDIR /home/fishnet/
 
+RUN pip install --user --upgrade pip
 RUN pip install --user fishnet
 
 ENTRYPOINT ["python", "-m", "fishnet", "--no-conf"]
