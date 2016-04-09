@@ -47,6 +47,7 @@ import textwrap
 import getpass
 import signal
 import ctypes
+import string
 
 from distutils.version import LooseVersion
 
@@ -752,6 +753,49 @@ class Worker(threading.Thread):
                      end - start, (end - start) / (len(moves) + 1))
 
         return result
+
+
+def detect_cpu_capabilities(*XXX):
+    # Detects support for popcnt and pext instructions
+    modern, bmi2 = False, False
+
+    # Run cpuid in subprocess for robustness in case of segfaults
+    cmd = []
+    cmd.append(sys.executable)
+    if __package__ is not None:
+        cmd.append("-m")
+        cmd.append(os.path.splitext(os.path.basename(__file__))[0])
+    else:
+        cmd.append(__file__)
+    cmd.append("cpuid")
+
+    process = open_process(cmd, shell=False)
+
+    # Parse output
+    while True:
+        line = process.stdout.readline()
+        if not line:
+            break
+
+        line = line.rstrip()
+        logging.debug("cpuid >> %s", line)
+        if not line:
+            continue
+
+        columns = line.split()
+        if columns[0] == "CPUID":
+            pass
+        elif len(columns) == 5 and all(all(c in string.hexdigits for c in col) for col in columns):
+            eax, a, b, c, d = [int(col, 16) for col in columns]
+
+            if eax == 1 and c & (1 << 23):
+                modern = True
+        else:
+            logging.warning("Unexpected cpuid output: %s", line)
+
+    # Done
+    kill_process(process)
+    return modern, bmi2
 
 
 def stockfish_filename():
