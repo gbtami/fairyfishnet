@@ -1462,6 +1462,7 @@ def cmd_stockfish(args):
 
     print()
     print("### Stockfish")
+    print()
     os.chdir(get_engine_dir(conf))
     return subprocess.call(get_engine_command(conf), shell=True)
 
