@@ -295,16 +295,18 @@ class SignalHandler(object):
             raise UpdateRequired()
 
 
-def popen_engine(engine_command, engine_dir, _popen_lock=threading.Lock()):
+def open_process(command, cwd=None, shell=True, _popen_lock=threading.Lock()):
     kwargs = {
-        "shell": True,
-        "cwd": engine_dir,
+        "shell": shell,
         "stdout": subprocess.PIPE,
         "stderr": subprocess.STDOUT,
         "stdin": subprocess.PIPE,
         "bufsize": 1,  # Line buffered
         "universal_newlines": True,
     }
+
+    if cwd:
+        kwargs["cwd"] = cwd
 
     # Prevent signal propagation from parent process
     try:
@@ -315,10 +317,10 @@ def popen_engine(engine_command, engine_dir, _popen_lock=threading.Lock()):
         kwargs["preexec_fn"] = os.setpgrp
 
     with _popen_lock:  # Work around Python 2 Popen race condition
-        return subprocess.Popen(engine_command, **kwargs)
+        return subprocess.Popen(command, **kwargs)
 
 
-def kill_engine(p):
+def kill_process(p):
     try:
         # Windows
         p.send_signal(signal.CTRL_BREAK_EVENT)
@@ -550,7 +552,7 @@ class Worker(threading.Thread):
             self.alive = False
 
             if self.process:
-                kill_engine(self.process)
+                kill_process(self.process)
 
             self.sleep.set()
 
@@ -628,7 +630,7 @@ class Worker(threading.Thread):
                 t = next(self.backoff)
                 logging.exception("Engine process has died. Backing off %0.1fs", t)
                 self.sleep.wait(t)
-                kill_engine(self.process)
+                kill_process(self.process)
         except Exception:
             self.job = None
             t = next(self.backoff)
@@ -636,11 +638,11 @@ class Worker(threading.Thread):
             self.sleep.wait(t)
 
             # If in doubt, restart engine
-            kill_engine(self.process)
+            kill_process(self.process)
 
     def start_engine(self):
         # Start process
-        self.process = popen_engine(get_engine_command(self.conf, False),
+        self.process = open_process(get_engine_command(self.conf, False),
                                     get_engine_dir(self.conf))
 
         self.engine_info, _ = uci(self.process)
@@ -1088,9 +1090,9 @@ def validate_engine_command(engine_command, conf):
     engine_dir = get_engine_dir(conf)
 
     # Ensure the required options are supported
-    process = popen_engine(engine_command, engine_dir)
+    process = open_process(engine_command, engine_dir)
     _, options = uci(process)
-    kill_engine(process)
+    kill_process(process)
 
     logging.debug("Supported options: %s", ", ".join(options))
 
