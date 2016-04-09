@@ -306,7 +306,7 @@ def open_process(command, cwd=None, shell=True, _popen_lock=threading.Lock()):
         "universal_newlines": True,
     }
 
-    if cwd:
+    if cwd is not None:
         kwargs["cwd"] = cwd
 
     # Prevent signal propagation from parent process
