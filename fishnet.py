@@ -790,6 +790,10 @@ def detect_cpu_capabilities():
 
             if eax == 1 and c & (1 << 23):
                 modern = True
+
+            # TODO: Detection probably broken
+            if eax == 7 and b & (1 << 8):
+                bmi2 = True
         else:
             logging.warning("Unexpected cpuid output: %s", line)
 
