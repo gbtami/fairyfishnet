@@ -799,7 +799,10 @@ def detect_cpu_capabilities():
             logging.warning("Unexpected cpuid output: %s", line)
 
     # Done
-    kill_process(process)
+    process.wait()
+    if process.returncode != 0:
+        logging.error("cpuid exited with status code %d", process.returncode)
+
     return modern, bmi2
 
 
