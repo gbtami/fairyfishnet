@@ -46,6 +46,7 @@ import re
 import textwrap
 import getpass
 import signal
+import ctypes
 
 from distutils.version import LooseVersion
 
@@ -1498,6 +1499,143 @@ def cmd_systemd(args):
     print("# sudo systemctl start fishnet.service", file=sys.stderr)
 
 
+@contextlib.contextmanager
+def make_cpuid():
+    # Loosely based on cpuid.py by Anders Høst, licensed MIT:
+    # https://github.com/flababah/cpuid.py
+
+    # Prepare system information
+    is_windows = os.name == "nt"
+    is_64bit = ctypes.sizeof(ctypes.c_void_p) == 8
+    if platform.machine().lower() not in ["amd64", "x86_64", "x86", "i686"]:
+        raise OSError("Got no CPUID opcodes for %s" % platform.machine())
+
+    # Struct for return value
+    class CPUID_struct(ctypes.Structure):
+        _fields_ = [("eax", ctypes.c_uint32),
+                    ("ebx", ctypes.c_uint32),
+                    ("ecx", ctypes.c_uint32),
+                    ("edx", ctypes.c_uint32)]
+
+    # Select kernel32 or libc
+    if is_windows:
+        if is_64bit:
+            libc = ctypes.CDLL("kernel32.dll")
+        else:
+            libc = ctypes.windll.kernel32
+    else:
+        libc = ctypes.pythonapi
+
+    # Select opcodes
+    if is_64bit:
+        if is_windows:
+            # Windows x86_64
+            # Two first call registers : RCX, RDX
+            # Volatile registers       : RAX, RCX, RDX, R8-11
+            opc = [
+                0x53,                    # push   %rbx
+                0x48, 0x89, 0xd0,        # mov    %rdx,%rax
+                0x49, 0x89, 0xc8,        # mov    %rcx, %r8
+                0x0f, 0xa2,              # cpuid
+                0x41, 0x89, 0x00,        # mov    %eax,(%r8)
+                0x41, 0x89, 0x58, 0x04,  # mov    %ebx,0x4(%r8)
+                0x41, 0x89, 0x48, 0x08,  # mov    %ecx,0x8(%r8)
+                0x41, 0x89, 0x50, 0x0c,  # mov    %edx,0xc(%r8)
+                0x5b,                    # pop    %rbx
+                0xc3                     # retq
+            ]
+        else:
+            # Posix x86_64
+            # Two first call registers : RDI, RSI
+            # Volatile registers       : RAX, RCX, RDX, RSI, RDI, R8-11
+            opc = [
+                0x53,                    # push   %rbx
+                0x48, 0x89, 0xf0,        # mov    %rsi,%rax
+                0x0f, 0xa2,              # cpuid
+                0x89, 0x07,              # mov    %eax,(%rdi)
+                0x89, 0x5f, 0x04,        # mov    %ebx,0x4(%rdi)
+                0x89, 0x4f, 0x08,        # mov    %ecx,0x8(%rdi)
+                0x89, 0x57, 0x0c,        # mov    %edx,0xc(%rdi)
+                0x5b,                    # pop    %rbx
+                0xc3                     # retq
+            ]
+    else:
+        # CDECL 32 bit
+        # Two first call registers : Stack (%esp)
+        # Volatile registers       : EAX, ECX, EDX
+        opc = [
+            0x53,                    # push   %ebx
+            0x57,                    # push   %edi
+            0x8b, 0x7c, 0x24, 0x0c,  # mov    0xc(%esp),%edi
+            0x8b, 0x44, 0x24, 0x10,  # mov    0x10(%esp),%eax
+            0x0f, 0xa2,              # cpuid
+            0x89, 0x07,              # mov    %eax,(%edi)
+            0x89, 0x5f, 0x04,        # mov    %ebx,0x4(%edi)
+            0x89, 0x4f, 0x08,        # mov    %ecx,0x8(%edi)
+            0x89, 0x57, 0x0c,        # mov    %edx,0xc(%edi)
+            0x5f,                    # pop    %edi
+            0x5b,                    # pop    %ebx
+            0xc3                     # ret
+        ]
+
+    code_size = len(opc)
+    code = (ctypes.c_ubyte * code_size)(*opc)
+
+    if is_windows:
+        # Allocate executable memory
+        addr = libc.VirtualAlloc(None, code_size, 0x1000, 0x40)
+        if not addr:
+            raise MemoryError("Could not VirtualAlloc RWX memory")
+    else:
+        # Allocate memory
+        libc.valloc.restype = ctypes.c_void_p
+        libc.valloc.argtypes = [ctypes.c_size_t]
+        addr = libc.valloc(code_size)
+        if not addr:
+            raise MemoryError("Could not valloc memory")
+
+        # Make executable
+        libc.mprotect.restype = ctypes.c_int
+        libc.mprotect.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int]
+        if 0 != libc.mprotect(addr, code_size, 1 | 2 | 4):
+            raise OSError("Failed to set RWX using mprotect")
+
+    # Copy code to allocated executable memory. No need to flush instruction
+    # cache for CPUID.
+    ctypes.memmove(addr, code, code_size)
+
+    # Create and yield callable
+    result = CPUID_struct()
+    func_type = ctypes.CFUNCTYPE(None, ctypes.POINTER(CPUID_struct), ctypes.c_uint32)
+    func_ptr = func_type(addr)
+
+    def cpuid(eax):
+        func_ptr(result, eax)
+        return result.eax, result.ebx, result.ecx, result.edx
+
+    yield cpuid
+
+    # Free
+    if is_windows:
+        libc.VirtualFree(addr, 0, 0x8000)
+    else:
+        libc.free.restype = None
+        libc.free.argtypes = [ctypes.c_void_p]
+        libc.free(addr)
+
+
+def cmd_cpuid(argv):
+    with make_cpuid() as cpuid:
+        headers = ["CPUID", "EAX", "EBX", "ECX", "EDX"]
+        print(" ".join(header.ljust(8) for header in headers).rstrip())
+
+        for eax in [0x0, 0x80000000]:
+            highest, _, _, _ = cpuid(eax)
+            for eax in range(eax, highest + 1):
+                a, b, c, d = cpuid(eax)
+                print("%08x %08x %08x %08x %08x" % (eax, a, b, c, d))
+
+
 def main(argv):
     # Parse command line arguments
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1519,14 +1657,15 @@ def main(argv):
     parser.add_argument("--latest-version-only", action="store_true", help="shut down if client update is available")
     parser.add_argument("--auto-update", action="store_true", help="automatically install available updates")
 
-    parser.add_argument("command", default="run", nargs="?", choices=["run", "configure", "systemd", "stockfish"])
-
     commands = {
         "run": cmd_run,
         "configure": cmd_configure,
         "systemd": cmd_systemd,
         "stockfish": cmd_stockfish,
+        "cpuid": cmd_cpuid,
     }
+
+    parser.add_argument("command", default="run", nargs="?", choices=commands.keys())
 
     args = parser.parse_args(argv[1:])
 
@@ -1535,7 +1674,7 @@ def main(argv):
                   sys.stderr if args.command == "systemd" else sys.stdout)
 
     # Show intro
-    if args.command != "systemd":
+    if args.command not in ["systemd", "cpuid"]:
         print(intro())
 
     # Run
