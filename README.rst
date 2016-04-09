@@ -31,7 +31,7 @@ simply do:
 
 ::
 
-    docker run ageneau/fishnet --key THE_API_KEY --auto-update
+    docker run ageneau/fishnet --key MY_APIKEY --auto-update
 
 lichess.org custom Stockfish
 ----------------------------

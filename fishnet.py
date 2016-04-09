@@ -1102,7 +1102,8 @@ def configure(args):
 
     # Key
     if key is None:
-        key = config_input("Personal fishnet key (append ! to force): ",
+        status = "required" if is_production_endpoint(conf) else "probably not required"
+        key = config_input("Personal fishnet key (append ! to force, %s): " % status,
                            lambda v: validate_key(v, conf, network=True))
     conf.set("Fishnet", "Key", key)
 
@@ -1253,7 +1254,10 @@ def validate_endpoint(endpoint):
 
 def validate_key(key, conf, network=False):
     if not key or not key.strip():
-        raise ConfigError("Fishnet key required")
+        if is_production_endpoint(conf):
+            raise ConfigError("Fishnet key required")
+        else:
+            return ""
 
     key = key.strip()
 
@@ -1302,6 +1306,12 @@ def get_engine_command(conf, update=True):
 
 def get_endpoint(conf, sub=""):
     return urlparse.urljoin(validate_endpoint(conf_get(conf, "Endpoint")), sub)
+
+
+def is_production_endpoint(conf):
+    endpoint = validate_endpoint(conf_get(conf, "Endpoint"))
+    hostname = urlparse.urlparse(endpoint).hostname
+    return hostname == "lichess.org" or hostname.endswith(".lichess.org")
 
 
 def get_key(conf):
@@ -1363,7 +1373,7 @@ def cmd_run(args):
     print()
     print("EngineDir:     %s" % get_engine_dir(conf))
     print("EngineCommand: %s" % engine_command)
-    print("Key:           %s" % ("*" * len(get_key(conf))))
+    print("Key:           %s" % (("*" * len(get_key(conf))) or "(none)"))
 
     spare_threads = validate_cores(conf_get(conf, "Cores"))
     print("Cores:         %d" % spare_threads)
