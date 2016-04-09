@@ -755,7 +755,7 @@ class Worker(threading.Thread):
         return result
 
 
-def detect_cpu_capabilities(*XXX):
+def detect_cpu_capabilities():
     # Detects support for popcnt and pext instructions
     modern, bmi2 = False, False
 
@@ -801,21 +801,20 @@ def detect_cpu_capabilities(*XXX):
 def stockfish_filename():
     machine = platform.machine().lower()
 
-    if os.name == "posix":
-        base = "stockfish-%s" % machine
+    modern, bmi2 = detect_cpu_capabilities()
+    if modern and bmi2:
+        suffix = "-bmi2"
+    elif modern:
+        suffix = "-modern"
+    else:
+        suffix = ""
 
-        # Detect CPU capabilities
-        with open("/proc/cpuinfo") as cpu_info:
-            for line in cpu_info:
-                if line.startswith("flags") and "bmi2" in line and "popcnt" in line:
-                    return base + "-bmi2"
-                if line.startswith("flags") and "popcnt" in line:
-                    return base + "-modern"
-        return base
+    if os.name == "posix":
+        return "stockfish-%s%s" % (machine, suffix)
+    elif os.name == "nt":
+        return "stockfish-windows-%s%s.exe" % (machine, suffix)
     elif os.name == "os2":
         return "stockfish-osx-%s" % machine
-    elif os.name == "nt":
-        return "stockfish-windows-%s.exe" % machine
 
 
 def update_stockfish(conf, filename):
