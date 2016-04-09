@@ -327,7 +327,7 @@ def kill_process(p):
         p.send_signal(signal.CTRL_BREAK_EVENT)
     except AttributeError:
         # Unix
-        p.kill()
+        os.killpg(p.pid, signal.SIGKILL)
 
 
 def send(p, line):
