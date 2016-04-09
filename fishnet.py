@@ -788,10 +788,11 @@ def detect_cpu_capabilities():
         elif len(columns) == 5 and all(all(c in string.hexdigits for c in col) for col in columns):
             eax, a, b, c, d = [int(col, 16) for col in columns]
 
+            # popcnt
             if eax == 1 and c & (1 << 23):
                 modern = True
 
-            # TODO: Detection probably broken
+            # pext
             if eax == 7 and b & (1 << 8):
                 bmi2 = True
         else:
@@ -1586,7 +1587,8 @@ def make_cpuid():
             opc = [
                 0x53,                    # push   %rbx
                 0x48, 0x89, 0xd0,        # mov    %rdx,%rax
-                0x49, 0x89, 0xc8,        # mov    %rcx, %r8
+                0x49, 0x89, 0xc8,        # mov    %rcx,%r8
+                0x31, 0xc9,              # xor    %ecx,%ecx
                 0x0f, 0xa2,              # cpuid
                 0x41, 0x89, 0x00,        # mov    %eax,(%r8)
                 0x41, 0x89, 0x58, 0x04,  # mov    %ebx,0x4(%r8)
@@ -1602,6 +1604,7 @@ def make_cpuid():
             opc = [
                 0x53,                    # push   %rbx
                 0x48, 0x89, 0xf0,        # mov    %rsi,%rax
+                0x31, 0xc9,              # xor    %ecx,%ecx
                 0x0f, 0xa2,              # cpuid
                 0x89, 0x07,              # mov    %eax,(%rdi)
                 0x89, 0x5f, 0x04,        # mov    %ebx,0x4(%rdi)
@@ -1619,6 +1622,7 @@ def make_cpuid():
             0x57,                    # push   %edi
             0x8b, 0x7c, 0x24, 0x0c,  # mov    0xc(%esp),%edi
             0x8b, 0x44, 0x24, 0x10,  # mov    0x10(%esp),%eax
+            0x31, 0xc9,              # xor    %ecx,%ecx
             0x0f, 0xa2,              # cpuid
             0x89, 0x07,              # mov    %eax,(%edi)
             0x89, 0x5f, 0x04,        # mov    %ebx,0x4(%edi)
