@@ -886,6 +886,9 @@ def update_self(force=False):
     if __package__ is None:
         raise ConfigError("Not started as a package (python -m). Can not update using pip")
 
+    if all(dirname != "site-packages" for dirname in __file__.split(os.sep)):
+        raise ConfigError("Not installed as site package (%s). Can not update using pip" % __file__)
+
     logging.debug("Package: \"%s\", name: %s, loader: %s",
                   __package__, __name__, __loader__)
 
