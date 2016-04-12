@@ -10,6 +10,7 @@ import argparse
 import unittest
 import logging
 import sys
+import multiprocessing
 
 try:
     import configparser
@@ -26,10 +27,11 @@ class WorkerTest(unittest.TestCase):
         conf = configparser.ConfigParser()
         conf.add_section("Fishnet")
         conf.set("Fishnet", "Key", "testkey")
+        conf.set("Fishnet", "Cores", multiprocessing.cpu_count())
 
         fishnet.get_engine_command(conf, update=True)
 
-        self.worker = fishnet.Worker(conf, threads=1)
+        self.worker = fishnet.Worker(conf, threads=multiprocessing.cpu_count())
         self.worker.start_engine()
 
     def tearDown(self):
