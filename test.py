@@ -20,7 +20,7 @@ except ImportError:
 STARTPOS = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 
-class FishnetTest(unittest.TestCase):
+class WorkerTest(unittest.TestCase):
 
     def setUp(self):
         conf = configparser.ConfigParser()
@@ -69,6 +69,15 @@ class FishnetTest(unittest.TestCase):
         self.assertTrue(0 <= result[0]["score"]["cp"] <= 90)
         self.assertEqual(result[3]["score"]["mate"], 1)
         self.assertEqual(result[4]["score"]["mate"], 0)
+
+
+class ValidatorTest(unittest.TestCase):
+
+    def test_parse_bool(self):
+        self.assertEqual(fishnet.parse_bool("yes"), True)
+        self.assertEqual(fishnet.parse_bool("no"), False)
+        self.assertEqual(fishnet.parse_bool(""), False)
+        self.assertEqual(fishnet.parse_bool("", default=True), True)
 
 
 if __name__ == "__main__":
