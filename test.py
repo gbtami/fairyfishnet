@@ -27,7 +27,6 @@ class WorkerTest(unittest.TestCase):
         conf = configparser.ConfigParser()
         conf.add_section("Fishnet")
         conf.set("Fishnet", "Key", "testkey")
-        conf.set("Fishnet", "Cores", multiprocessing.cpu_count())
 
         fishnet.get_engine_command(conf, update=True)
 
