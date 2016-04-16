@@ -430,7 +430,7 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
             bestmove = arg.split()[0]
             if bestmove and bestmove != "(none)":
                 info["bestmove"] = bestmove
-
+            isready(p)
             return info
         elif command == "info":
             arg = arg or ""
@@ -478,22 +478,6 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
                         info[current_parameter] += " " + token
                     else:
                         info[current_parameter] = token
-
-            # Stop immediately in mated positions
-            if info["score"].get("mate") == 0 and info.get("multipv", 1) == 1:
-                send(p, "stop")
-                while True:
-                    command, arg = recv(p)
-                    if command == "info":
-                        logging.info("Ignoring superfluous info: %s", arg)
-                    elif command == "bestmove":
-                        if "(none)" not in arg:
-                            logging.warning("Ignoring bestmove: %s", arg)
-
-                        isready(p)
-                        return info
-                    else:
-                        logging.warning("Unexpected engine output: %s %s", command, arg)
         else:
             logging.warning("Unexpected engine output: %s %s", command, arg)
 
