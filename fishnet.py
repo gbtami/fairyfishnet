@@ -885,9 +885,9 @@ def update_self(force=False):
     # Check pip is up to date
     pip_up_to_date = LooseVersion(pip.__version__) >= LooseVersion("8.0.0")
     if pip_up_to_date:
-        logging.debug("pip is up to date: %s", pip.__version__)
+        logging.debug("using pip %s", pip.__version__)
     else:
-        logging.warning("pip is outdated: %s", pip.__version__)
+        logging.warning("using pip %s < 8.0.0", pip.__version__)
 
     # Ensure module file is going to be writable
     try:
