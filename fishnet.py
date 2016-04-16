@@ -436,8 +436,8 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
             arg = arg or ""
 
             # Parse all other parameters
+            score_kind, score_value, score_bound = None, None, False
             current_parameter = None
-            score_kind = None
             for token in arg.split(" "):
                 if current_parameter == "string":
                     # Everything until the end of line is a string
@@ -461,23 +461,23 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
                     info[current_parameter] = int(token)
                 elif current_parameter == "score":
                     # Score
-                    if "score" not in info:
-                        info["score"] = {}
-
                     if token in ["cp", "mate"]:
                         score_kind = token
-                    elif token == "lowerbound":
-                        info["score"]["lowerbound"] = True
-                    elif token == "upperbound":
-                        info["score"]["upperbound"] = True
-                    elif score_kind:
-                        info["score"][score_kind] = int(token)
+                        score_value = None
+                    elif token in ["lowerbound", "upperbound"]:
+                        score_bound = True
+                    else:
+                        score_value = int(token)
                 elif current_parameter != "pv" or info.get("multipv", 1) == 1:
                     # Strings
                     if current_parameter in info:
                         info[current_parameter] += " " + token
                     else:
                         info[current_parameter] = token
+
+            # Set score if not just a bound
+            if score_kind and score_value is not None and not score_bound:
+                info["score"] = {score_kind: score_value}
         else:
             logging.warning("Unexpected engine output: %s %s", command, arg)
 
