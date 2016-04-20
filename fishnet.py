@@ -848,10 +848,11 @@ def update_stockfish(conf, filename):
     logging.info("Downloading %s ...", filename)
 
     def reporthook(a, b, c):
-        sys.stderr.write("\rDownloading %s: %d/%d (%d%%)" % (
-                             filename, min(a * b, c), c,
-                             round(min(a * b, c) * 100 / c)))
-        sys.stderr.flush()
+        if sys.stderr.isatty():
+            sys.stderr.write("\rDownloading %s: %d/%d (%d%%)" % (
+                                 filename, min(a * b, c), c,
+                                 round(min(a * b, c) * 100 / c)))
+            sys.stderr.flush()
 
     urllib.urlretrieve(asset["browser_download_url"], path, reporthook)
 
