@@ -68,7 +68,10 @@ class WorkerTest(unittest.TestCase):
         result = self.worker.analysis(job)
 
         self.assertTrue(0 <= result[0]["score"]["cp"] <= 90)
+
         self.assertEqual(result[3]["score"]["mate"], 1)
+        self.assertTrue(result[3]["pv"].startswith("d8h4"))
+
         self.assertEqual(result[4]["score"]["mate"], 0)
 
 

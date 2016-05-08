@@ -445,14 +445,18 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
                         info["string"] += " " + token
                     else:
                         info["string"] = token
+                elif token == "score":
+                    current_parameter = "score"
+                elif token == "pv":
+                    current_parameter = "pv"
+                    if info.get("multipv", 1) == 1:
+                        info.pop("pv", None)
                 elif token in ["depth", "seldepth", "time", "nodes", "multipv",
-                               "score", "currmove", "currmovenumber",
+                               "currmove", "currmovenumber",
                                "hashfull", "nps", "tbhits", "cpuload",
-                               "refutation", "currline", "string", "pv"]:
-                    # Next parameter keyword found
+                               "refutation", "currline", "string"]:
                     current_parameter = token
-                    if current_parameter != "pv" or info.get("multipv", 1) == 1:
-                        info.pop(current_parameter, None)
+                    info.pop(current_parameter, None)
                 elif current_parameter in ["depth", "seldepth", "time",
                                            "nodes", "currmovenumber",
                                            "hashfull", "nps", "tbhits",
