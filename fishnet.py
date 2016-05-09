@@ -805,12 +805,12 @@ def stockfish_filename():
     else:
         suffix = ""
 
-    if os.name == "posix":
-        return "stockfish-%s%s" % (machine, suffix)
-    elif os.name == "nt":
+    if os.name == "nt":
         return "stockfish-windows-%s%s.exe" % (machine, suffix)
-    elif os.name == "os2":
+    elif os.name == "os2" or sys.platform == "darwin":
         return "stockfish-osx-%s" % machine
+    elif os.name == "posix":
+        return "stockfish-%s%s" % (machine, suffix)
 
 
 def update_stockfish(conf, filename):
