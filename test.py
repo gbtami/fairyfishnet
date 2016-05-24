@@ -49,7 +49,7 @@ class WorkerTest(unittest.TestCase):
             "moves": "f2f3 e7e6 g2g4",
         }
 
-        result = self.worker.bestmove(job)
+        result = self.worker.bestmove(job)["move"]
 
         self.assertEqual(result["bestmove"], "d8h4")
 
@@ -65,7 +65,8 @@ class WorkerTest(unittest.TestCase):
             "moves": "f2f3 e7e6 g2g4 d8h4",
         }
 
-        result = self.worker.analysis(job)
+        response = self.worker.analysis(job, progress_report_interval=9999.9)
+        result = response["analysis"]
 
         self.assertTrue(0 <= result[0]["score"]["cp"] <= 90)
 

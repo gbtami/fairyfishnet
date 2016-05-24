@@ -668,10 +668,10 @@ class Worker(threading.Thread):
         result = self.make_request()
 
         if self.job and self.job["work"]["type"] == "analysis":
-            result["analysis"] = self.analysis(self.job)
+            result = self.analysis(self.job)
             return "analysis" + "/" + self.job["work"]["id"], result
         elif self.job and self.job["work"]["type"] == "move":
-            result["move"] = self.bestmove(self.job)
+            result = self.bestmove(self.job)
             return "move" + "/" + self.job["work"]["id"], result
         else:
             if self.job:
@@ -699,11 +699,25 @@ class Worker(threading.Thread):
         self.nodes += part.get("nodes", 0)
         self.positions += 1
 
-        return {
+        result = self.make_request()
+        result["move"] = {
             "bestmove": part["bestmove"],
         }
+        return result
 
-    def analysis(self, job):
+    def send_analysis_progress(self, job, result):
+        path = "analysis/%s" % job["work"]["id"]
+
+        try:
+            with http("POST", get_endpoint(self.conf, path), json.dumps(result)) as response:
+                if response.status != 204:
+                    logging.error("Expected status 204 for progress report, got %d", response.status)
+            return True
+        except:
+            logging.exception("Could not send progress report. Continuing.")
+            return False
+
+    def analysis(self, job, progress_report_interval=5.0):
         set_variant_options(self.process, job.get("variant", "standard"))
         setoption(self.process, "Skill Level", 20)
         isready(self.process)
@@ -712,11 +726,16 @@ class Worker(threading.Thread):
         isready(self.process)
 
         moves = job["moves"].split(" ")
-        result = []
 
-        start = time.time()
+        result = self.make_request()
+        result["analysis"] = [None for _ in range(len(moves) + 1)]
+        start = last_progress_report = time.time()
 
         for ply in range(len(moves), -1, -1):
+            if last_progress_report + progress_report_interval < time.time():
+                if self.send_analysis_progress(job, result):
+                    last_progress_report = time.time()
+
             logging.log(PROGRESS, "Analysing %s%s#%d",
                         base_url(get_endpoint(self.conf)), job["game_id"], ply)
 
@@ -733,7 +752,7 @@ class Worker(threading.Thread):
             self.nodes += part.get("nodes", 0)
             self.positions += 1
 
-            result.insert(0, part)
+            result["analysis"][ply] = part
 
         end = time.time()
         logging.info("%s%s took %0.1fs (%0.2fs per position)",
