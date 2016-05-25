@@ -1454,7 +1454,7 @@ def cmd_run(args):
                          int(sum(worker.nodes for worker in workers) / 1000 / 1000))
 
             # Check for update
-            if random.random() <= CHECK_PYPI_CHANCE and update_available() and args.latest_version_only:
+            if random.random() <= CHECK_PYPI_CHANCE and update_available() and args.auto_update:
                 raise UpdateRequired()
     except Shutdown:
         logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
@@ -1548,8 +1548,6 @@ def cmd_systemd(args):
         builder.append(shell_quote(validate_endpoint(args.endpoint)))
     if args.fixed_backoff:
         builder.append("--fixed-backoff")
-    if args.latest_version_only:
-        builder.append("--latest-version-only")
     if args.auto_update:
         builder.append("--auto-update")
 
@@ -1744,7 +1742,6 @@ def main(argv):
     parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
     parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--fixed-backoff", action="store_true", help="fixed backoff (only recommended for move servers)")
-    parser.add_argument("--latest-version-only", action="store_true", help="shut down if client update is available")
     parser.add_argument("--auto-update", action="store_true", help="automatically install available updates")
 
     commands = {
