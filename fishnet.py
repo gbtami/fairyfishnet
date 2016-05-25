@@ -959,12 +959,13 @@ def update_self(force=False):
         is_root = False
 
     # Update
-    if hasattr(sys, "real_prefix") or is_root or os.name == "nt":
-        logging.info("$ pip install --upgrade fishnet")
-        ret = pip.main(["install", "--upgrade", "fishnet"])
-    else:
+    user_site = site.getusersitepackages().rstrip(os.path.sep)
+    if user_site and os.path.abspath(__file__).startswith(user_site + os.path.sep):
         logging.info("$ pip install --user --upgrade fishnet")
         ret = pip.main(["install", "--user", "--upgrade", "fishnet"])
+    else:
+        logging.info("$ pip install --upgrade fishnet")
+        ret = pip.main(["install", "--upgrade", "fishnet"])
     if ret != 0:
         logging.warning("Unexpected exit code for pip install: %d", ret)
         return ret
