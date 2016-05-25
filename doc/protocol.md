@@ -137,3 +137,32 @@ Accepted, with next job:
 
 [...]
 ```
+
+Aborting jobs
+-------------
+
+```
+POST http://lichess.org/fishnet/abort/{work_id}
+
+{
+  "fishnet": {
+    "version": "0.0.1",
+    "python": "2.7.11+",
+    "apikey": "XXX"
+  },
+  "engine": {
+    "name": "Stockfish 7 64",
+    "author": "T. Romstad, M. Costalba, J. Kiiski, G. Linscott"
+    "options": {
+      "hash": "256",
+      "threads": "4"
+    }
+  }
+}
+```
+
+Response:
+
+```
+204 No Content
+```
