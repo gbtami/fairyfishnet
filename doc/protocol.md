@@ -46,7 +46,9 @@ POST http://lichess.org/fishnet/acquire
 }
 ```
 
-Client runs Stockfish and sends the analysis to server:
+Client runs Stockfish and sends the analysis to server.
+The client can optionally report progress to the server, by sending null for
+the pending moves in `analysis`.
 
 ```javascript
 POST http://lichess.org/fishnet/analysis/{work_id}
@@ -140,6 +142,10 @@ Accepted, with next job:
 
 Aborting jobs
 -------------
+
+The client should send a request like the following, when shutting down instead
+of completing an analysis. The server can then immediately give the job to
+another client.
 
 ```
 POST http://lichess.org/fishnet/abort/{work_id}
