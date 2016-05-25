@@ -890,6 +890,15 @@ def update_stockfish(conf, filename):
     return filename
 
 
+def is_user_site_package():
+    try:
+        user_site = site.getusersitepackages()
+    except AttributeError:
+        return False
+
+    return os.path.abspath(__file__).startswith(os.path.join(user_site, ""))
+
+
 def update_self(force=False):
     # Ensure current instance is installed as a package
     if __package__ is None:
@@ -960,8 +969,7 @@ def update_self(force=False):
         is_root = False
 
     # Update
-    user_site = site.getusersitepackages().rstrip(os.path.sep)
-    if user_site and os.path.abspath(__file__).startswith(user_site + os.path.sep):
+    if is_user_site_package():
         logging.info("$ pip install --user --upgrade fishnet")
         ret = pip.main(["install", "--user", "--upgrade", "fishnet"])
     else:
