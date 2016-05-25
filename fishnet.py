@@ -37,6 +37,7 @@ import random
 import contextlib
 import multiprocessing
 import threading
+import site
 import sys
 import os
 import stat
