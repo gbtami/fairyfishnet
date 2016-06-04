@@ -718,7 +718,7 @@ class Worker(threading.Thread):
             logging.exception("Could not send progress report. Continuing.")
             return False
 
-    def analysis(self, job, progress_report_interval=5.0):
+    def analysis(self, job, progress_report_interval=3.0):
         set_variant_options(self.process, job.get("variant", "standard"))
         setoption(self.process, "Skill Level", 20)
         isready(self.process)
