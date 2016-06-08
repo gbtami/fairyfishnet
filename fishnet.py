@@ -1405,7 +1405,9 @@ def cmd_run(args):
     print("Threads:       %d (per engine process)" % threads_per_process)
     memory = validate_memory(conf_get(conf, "Memory"), conf)
     print("Memory:        %d MB" % memory)
-    print("Endpoint:      %s" % get_endpoint(conf))
+    endpoint = get_endpoint(conf)
+    warning = "" if endpoint.startswith("https://") else " (WARNING: not using https)"
+    print("Endpoint:      %s%s" % (endpoint, warning))
     print("FixedBackoff:  %s" % parse_bool(conf_get(conf, "FixedBackoff")))
     print()
 
