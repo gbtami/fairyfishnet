@@ -1509,7 +1509,6 @@ def cmd_systemd(args):
         PrivateDevices=true
         DevicePolicy=closed
         ProtectSystem=full
-        #ProtectHome=full
         NoNewPrivileges=true
         Restart=always
 
