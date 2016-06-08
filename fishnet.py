@@ -612,10 +612,10 @@ class Worker(threading.Thread):
             if not self.is_alive():
                 # Abort
                 if self.job:
-                    logging.debug("Aborting %s", self.job["work"]["id"])
+                    logging.debug("Aborting job %s", self.job["work"]["id"])
                     with http("POST", get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]), json.dumps(self.make_request())) as response:
                         response.read()
-                        logging.info("Aborted %s", self.job["work"]["id"])
+                        logging.info("Aborted job %s", self.job["work"]["id"])
             else:
                 t = next(self.backoff)
                 logging.exception("Engine process has died. Backing off %0.1fs", t)
@@ -1459,9 +1459,15 @@ def cmd_run(args):
             if random.random() <= CHECK_PYPI_CHANCE and update_available() and args.auto_update:
                 raise UpdateRequired()
     except Shutdown:
-        logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
+        if any(worker.job for worker in workers):
+            logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
+        else:
+            logging.info("\n\n### Good bye!")
     except UpdateRequired:
-        logging.info("\n\n### Update required! Aborting pending jobs ...\n")
+        if any(worker.job for worker in workers):
+            logging.info("\n\n### Update required! Aborting pending jobs ...\n")
+        else:
+            logging.info("\n\n### Update required!")
         raise
     finally:
         handler.ignore = True
@@ -1771,7 +1777,7 @@ def main(argv):
         sys.exit(commands[args.command](args))
     except UpdateRequired:
         if args.auto_update:
-            logging.info("\n### Updating ...\n")
+            logging.info("\n\n### Updating ...\n")
             update_self(force=True)
 
         logging.error("Update required. Exiting (status 70)")
