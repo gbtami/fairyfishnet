@@ -24,7 +24,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Distributed analysis for lichess.org"""
+"""Distributed Stockfish analysis for lichess.org"""
 
 from __future__ import print_function
 from __future__ import division
