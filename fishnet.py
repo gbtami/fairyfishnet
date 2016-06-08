@@ -1507,6 +1507,7 @@ def cmd_systemd(args):
         CapabilityBoundingSet=
         PrivateTmp=true
         PrivateDevices=true
+        DevicePolicy=closed
         ProtectSystem=full
         #ProtectHome=full
         NoNewPrivileges=true
