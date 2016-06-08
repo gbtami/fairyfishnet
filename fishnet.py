@@ -34,6 +34,7 @@ import logging
 import json
 import time
 import random
+import collections
 import contextlib
 import multiprocessing
 import threading
@@ -1744,12 +1745,12 @@ def main(argv):
     parser.add_argument("--no-fixed-backoff", dest="fixed_backoff", action="store_false", default=None)
     parser.add_argument("--auto-update", action="store_true", help="automatically install available updates")
 
-    commands = {
-        "run": cmd_run,
-        "configure": cmd_configure,
-        "systemd": cmd_systemd,
-        "cpuid": cmd_cpuid,
-    }
+    commands = collections.OrderedDict([
+        ("run", cmd_run),
+        ("configure", cmd_configure),
+        ("systemd", cmd_systemd),
+        ("cpuid", cmd_cpuid),
+    ])
 
     parser.add_argument("command", default="run", nargs="?", choices=commands.keys())
 
