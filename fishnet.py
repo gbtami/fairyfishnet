@@ -1483,16 +1483,6 @@ def cmd_run(args):
     return 0
 
 
-def cmd_stockfish(args):
-    conf = load_conf(args)
-
-    print()
-    print("### Stockfish")
-    print()
-    os.chdir(get_engine_dir(conf))
-    return subprocess.call(get_engine_command(conf), shell=True)
-
-
 def cmd_configure(args):
     configure(args)
     return 0
@@ -1756,7 +1746,6 @@ def main(argv):
         "run": cmd_run,
         "configure": cmd_configure,
         "systemd": cmd_systemd,
-        "stockfish": cmd_stockfish,
         "cpuid": cmd_cpuid,
     }
 
