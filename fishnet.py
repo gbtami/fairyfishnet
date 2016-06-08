@@ -1502,7 +1502,6 @@ def cmd_systemd(args):
         User={user}
         Group={group}
         WorkingDirectory={cwd}
-        Environment=PATH={path}
         ExecStart={start}
         Restart=always
 
@@ -1546,8 +1545,8 @@ def cmd_systemd(args):
     if args.endpoint is not None:
         builder.append("--endpoint")
         builder.append(shell_quote(validate_endpoint(args.endpoint)))
-    if args.fixed_backoff:
-        builder.append("--fixed-backoff")
+    if args.fixed_backoff is not None:
+        builder.append("--fixed-backoff" if args.fixed_backoff else "--no-fixed-backoff")
     if args.auto_update:
         builder.append("--auto-update")
 
@@ -1555,16 +1554,10 @@ def cmd_systemd(args):
 
     start = " ".join(builder)
 
-    # Virtualenv support
-    if hasattr(sys, "real_prefix"):
-        shell_cmd = "source %s; %s" % (shell_quote(os.path.abspath(os.path.join(sys.prefix, "bin", "activate"))), start)
-        start = "/bin/bash -c %s" % shell_quote(shell_cmd)
-
     print(template.format(
         user=getpass.getuser(),
         group=getpass.getuser(),
         cwd=os.path.abspath("."),
-        path=shell_quote(os.environ.get("PATH", "")),
         start=start
     ))
 
