@@ -1499,10 +1499,17 @@ def cmd_systemd(args):
         After=network.target
 
         [Service]
+        ExecStart={start}
+        WorkingDirectory={cwd}
         User={user}
         Group={group}
-        WorkingDirectory={cwd}
-        ExecStart={start}
+        Nice=5
+        CapabilityBoundingSet=
+        PrivateTmp=true
+        PrivateDevices=true
+        ProtectSystem=full
+        #ProtectHome=full
+        NoNewPrivileges=true
         Restart=always
 
         [Install]
