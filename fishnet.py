@@ -1740,7 +1740,8 @@ def main(argv):
     parser.add_argument("--memory", help="total memory (MB) to use for engine hashtables")
     parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
     parser.add_argument("--endpoint", help="lichess http endpoint")
-    parser.add_argument("--fixed-backoff", action="store_true", help="fixed backoff (only recommended for move servers)")
+    parser.add_argument("--fixed-backoff", action="store_true", default=None, help="fixed backoff (only recommended for move servers)")
+    parser.add_argument("--no-fixed-backoff", dest="fixed_backoff", action="store_false", default=None)
     parser.add_argument("--auto-update", action="store_true", help="automatically install available updates")
 
     commands = {
