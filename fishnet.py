@@ -1569,20 +1569,18 @@ def cmd_systemd(args):
         start=start
     ))
 
-    print(file=sys.stderr)
-
     try:
         if os.geteuid() == 0:
-            print("# WARNING: Running as root is not recommended!", file=sys.stderr)
-            print(file=sys.stderr)
+            print("\n# WARNING: Running as root is not recommended!", file=sys.stderr)
     except AttributeError:
         # No os.getuid() on Windows
         pass
 
-    print("# Example usage:", file=sys.stderr)
-    print("# python -m fishnet systemd | sudo tee /etc/systemd/system/fishnet.service", file=sys.stderr)
-    print("# sudo systemctl enable fishnet.service", file=sys.stderr)
-    print("# sudo systemctl start fishnet.service", file=sys.stderr)
+    if sys.stdout.isatty():
+        print("\n# Example usage:", file=sys.stderr)
+        print("# python -m fishnet systemd | sudo tee /etc/systemd/system/fishnet.service", file=sys.stderr)
+        print("# sudo systemctl enable fishnet.service", file=sys.stderr)
+        print("# sudo systemctl start fishnet.service", file=sys.stderr)
 
 
 @contextlib.contextmanager
