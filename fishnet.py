@@ -102,11 +102,12 @@ DEFAULT_THREADS = 4
 HASH_MIN = 16
 HASH_DEFAULT = 256
 HASH_MAX = 512
-DEFAULT_CONFIG = "fishnet.ini"
 MAX_BACKOFF = 30.0
 MAX_FIXED_BACKOFF = 3.0
 HTTP_TIMEOUT = 15.0
 STAT_INTERVAL = 60.0
+DEFAULT_CONFIG = "fishnet.ini"
+PROGRESS_REPORT_INTERVAL=3.0
 CHECK_PYPI_CHANCE = 0.01
 
 
@@ -718,7 +719,7 @@ class Worker(threading.Thread):
             logging.exception("Could not send progress report. Continuing.")
             return False
 
-    def analysis(self, job, progress_report_interval=3.0):
+    def analysis(self, job, progress_report_interval=PROGRESS_REPORT_INTERVAL):
         set_variant_options(self.process, job.get("variant", "standard"))
         setoption(self.process, "Skill Level", 20)
         isready(self.process)
