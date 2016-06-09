@@ -198,6 +198,31 @@ class TailLogHandler(logging.Handler):
                 self.target_handler.handle(record)
 
 
+class CensorLogFilter(logging.Filter):
+    def __init__(self, keyword):
+        self.keyword = keyword
+
+    def censor(self, msg):
+        try:
+            # Python 2
+            if not isinstance(msg, basestring):
+                return msg
+        except NameError:
+            # Python 3
+            if not isinstance(msg, str):
+                return msg
+
+        if self.keyword:
+            return msg.replace(self.keyword, "*" * len(self.keyword))
+        else:
+            return msg
+
+    def filter(self, record):
+        record.msg = self.censor(record.msg)
+        record.args = tuple(self.censor(arg) for arg in record.args)
+        return True
+
+
 def setup_logging(verbosity, stream=sys.stdout):
     logger = logging.getLogger()
     logger.setLevel(ENGINE)
@@ -1056,6 +1081,8 @@ def load_conf(args):
     if hasattr(args, "fixed_backoff") and args.fixed_backoff is not None:
         conf.set("Fishnet", "FixedBackoff", str(args.fixed_backoff))
 
+    logging.getLogger().addFilter(CensorLogFilter(conf_get(conf, "Key")))
+
     return conf
 
 
@@ -1155,6 +1182,7 @@ def configure(args):
         key = config_input("Personal fishnet key (append ! to force, %s): " % status,
                            lambda v: validate_key(v, conf, network=True))
     conf.set("Fishnet", "Key", key)
+    logging.getLogger().addFilter(CensorLogFilter(key))
 
     # Confirm
     print(file=sys.stderr)
