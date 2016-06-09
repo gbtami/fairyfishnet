@@ -180,23 +180,46 @@ class CollapsingLogHandler(logging.StreamHandler):
             self.handleError(record)
 
 
+class TailLogHandler(logging.Handler):
+    def __init__(self, capacity, max_level, flush_level, target_handler):
+        super(TailLogHandler, self).__init__()
+        self.buffer = collections.deque(maxlen=capacity)
+        self.max_level = max_level
+        self.flush_level = flush_level
+        self.target_handler = target_handler
+
+    def emit(self, record):
+        if record.levelno < self.max_level:
+            self.buffer.append(record)
+
+        if record.levelno >= self.flush_level:
+            while self.buffer:
+                record = self.buffer.popleft()
+                self.target_handler.handle(record)
+
+
 def setup_logging(verbosity, stream=sys.stdout):
     logger = logging.getLogger()
+    logger.setLevel(ENGINE)
 
     handler = logging.StreamHandler(stream)
 
     if verbosity >= 3:
-        logger.setLevel(ENGINE)
+        handler.setLevel(ENGINE)
     elif verbosity >= 2:
-        logger.setLevel(logging.DEBUG)
+        handler.setLevel(logging.DEBUG)
     elif verbosity >= 1:
-        logger.setLevel(PROGRESS)
+        handler.setLevel(PROGRESS)
     else:
         if stream.isatty():
             handler = CollapsingLogHandler(stream)
-            logger.setLevel(PROGRESS)
+            handler.setLevel(PROGRESS)
         else:
-            logger.setLevel(logging.INFO)
+            handler.setLevel(logging.INFO)
+
+    tail_target = logging.StreamHandler(stream)
+    tail_target.setFormatter(LogFormatter())
+    logger.addHandler(TailLogHandler(25, handler.level, logging.ERROR, tail_target))
 
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
