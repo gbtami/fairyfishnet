@@ -98,7 +98,7 @@ __author__ = "Niklas Fiekas"
 __email__ = "niklas.fiekas@backscattering.de"
 __license__ = "MIT"
 
-DEFAULT_ENDPOINT = "http://en.lichess.org/fishnet/"
+DEFAULT_ENDPOINT = "https://en.lichess.org/fishnet/"
 DEFAULT_THREADS = 4
 HASH_MIN = 16
 HASH_DEFAULT = 256
