@@ -1086,24 +1086,33 @@ def load_conf(args):
     return conf
 
 
-def config_input(prompt=None, validator=lambda v: v):
+def config_input(prompt, validator, out):
     while True:
-        if prompt:
-            sys.stderr.write(prompt)
-            sys.stderr.flush()
+        if out == sys.stdout:
+            inp = input(prompt)
+        else:
+            if prompt:
+                out.write(prompt)
+                out.flush()
 
-        inp = input()
+            inp = input()
 
         try:
             return validator(inp)
         except ConfigError as error:
-            print(error, file=sys.stderr)
+            print(error, file=out)
 
 
 def configure(args):
-    print(file=sys.stderr)
-    print("### Configuration", file=sys.stderr)
-    print(file=sys.stderr)
+    if sys.stdout.isatty():
+        out = sys.stdout
+        import readline
+    else:
+        out = sys.stderr
+
+    print(file=out)
+    print("### Configuration", file=out)
+    print(file=out)
 
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
@@ -1122,33 +1131,34 @@ def configure(args):
 
     # Stockfish working directory
     engine_dir = config_input("Stockfish working directory (default: %s): " % os.path.abspath("."),
-                              validate_engine_dir)
+                              validate_engine_dir, out)
     conf.set("Fishnet", "EngineDir", engine_dir)
 
     # Stockfish command
-    print(file=sys.stderr)
-    print("Fishnet uses a custom Stockfish build with variant support.", file=sys.stderr)
-    print("Stockfish is licensed under the GNU General Public License v3.", file=sys.stderr)
-    print("You can find the source at: https://github.com/ddugovic/Stockfish", file=sys.stderr)
-    print(file=sys.stderr)
-    print("You can build lichess.org custom Stockfish yourself and provide", file=sys.stderr)
-    print("the path or automatically download a precompiled binary.", file=sys.stderr)
-    print(file=sys.stderr)
+    print(file=out)
+    print("Fishnet uses a custom Stockfish build with variant support.", file=out)
+    print("Stockfish is licensed under the GNU General Public License v3.", file=out)
+    print("You can find the source at: https://github.com/ddugovic/Stockfish", file=out)
+    print(file=out)
+    print("You can build lichess.org custom Stockfish yourself and provide", file=out)
+    print("the path or automatically download a precompiled binary.", file=out)
+    print(file=out)
     engine_command = config_input("Path or command (default: download): ",
-                                  lambda v: validate_engine_command(v, conf))
-    print(file=sys.stderr)
+                                  lambda v: validate_engine_command(v, conf),
+                                  out)
+    print(file=out)
 
     # Cores
     max_cores = multiprocessing.cpu_count()
     default_cores = max(1, max_cores - 1)
     cores = config_input("Number of cores to use for engine threads (default %d, max %d): " % (default_cores, max_cores),
-                         validate_cores)
+                         validate_cores, out)
     conf.set("Fishnet", "Cores", str(cores))
 
     # Threads
     default_threads = min(DEFAULT_THREADS, cores)
     threads = config_input("Number of threads to use per engine process (default %d, max %d): " % (default_threads, cores),
-                           lambda v: validate_threads(v, conf))
+                           lambda v: validate_threads(v, conf), out)
     conf.set("Fishnet", "Threads", str(threads))
 
     # Memory
@@ -1157,15 +1167,15 @@ def configure(args):
     default_memory = HASH_DEFAULT * processes
     max_memory = HASH_MAX * processes
     memory = config_input("Memory in MB to use for engine hashtables (default %d, min %d, max %d): " % (default_memory, min_memory, max_memory),
-                          lambda v: validate_memory(v, conf))
+                          lambda v: validate_memory(v, conf), out)
     conf.set("Fishnet", "Memory", str(memory))
 
     # Advanced options
     endpoint = DEFAULT_ENDPOINT
     fixed_backoff = False
-    if config_input("Configure advanced options? (default: no) ", parse_bool):
-        endpoint = config_input("Fishnet API endpoint (default: %s): " % (endpoint, ), validate_endpoint)
-        fixed_backoff = config_input("Fixed backoff? (for move servers, default: no) ", parse_bool)
+    if config_input("Configure advanced options? (default: no) ", parse_bool, out):
+        endpoint = config_input("Fishnet API endpoint (default: %s): " % (endpoint, ), validate_endpoint, out)
+        fixed_backoff = config_input("Fixed backoff? (for move servers, default: no) ", parse_bool, out)
 
     conf.set("Fishnet", "Endpoint", endpoint)
     conf.set("Fishnet", "FixedBackoff", str(fixed_backoff))
@@ -1173,28 +1183,28 @@ def configure(args):
     # Change key?
     key = None
     if conf.has_option("Fishnet", "Key"):
-        if not config_input("Change fishnet key? (default: no) ", parse_bool):
+        if not config_input("Change fishnet key? (default: no) ", parse_bool, out):
             key = conf.get("Fishnet", "Key")
 
     # Key
     if key is None:
         status = "required" if is_production_endpoint(conf) else "probably not required"
         key = config_input("Personal fishnet key (append ! to force, %s): " % status,
-                           lambda v: validate_key(v, conf, network=True))
+                           lambda v: validate_key(v, conf, network=True), out)
     conf.set("Fishnet", "Key", key)
     logging.getLogger().addFilter(CensorLogFilter(key))
 
     # Confirm
-    print(file=sys.stderr)
+    print(file=out)
     while not config_input("Done. Write configuration to %s now? (default: yes) " % (config_file, ),
-                           lambda v: parse_bool(v, True)):
+                           lambda v: parse_bool(v, True), out):
         pass
 
     # Write configuration
     with open(config_file, "w") as f:
         conf.write(f)
 
-    print("Configuration saved.", file=sys.stderr)
+    print("Configuration saved.", file=out)
     return conf
 
 
