@@ -1106,7 +1106,12 @@ def config_input(prompt, validator, out):
 def configure(args):
     if sys.stdout.isatty():
         out = sys.stdout
-        import readline
+        try:
+            # Unix
+            import readline
+        except ImportError:
+            # Windows
+            pass
     else:
         out = sys.stderr
 
