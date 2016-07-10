@@ -31,7 +31,8 @@ POST http://lichess.org/fishnet/acquire
 {
   "work": {
     "type": "analysis",
-    "id": "work_id"
+    "id": "work_id",
+    "nodes": 3500000 // optional limit
   },
   // or:
   // "work": {

@@ -776,6 +776,8 @@ class Worker(threading.Thread):
         send(self.process, "ucinewgame")
         isready(self.process)
 
+        nodes = job.get("nodes") or 3500000
+
         moves = job["moves"].split(" ")
 
         result = self.make_request()
@@ -791,7 +793,7 @@ class Worker(threading.Thread):
                         base_url(get_endpoint(self.conf)), job["game_id"], ply)
 
             part = go(self.process, job["position"], moves[0:ply],
-                      nodes=3000000, movetime=4000)
+                      nodes=nodes, movetime=4000)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
                 logging.warning("Very low time reported: %d ms.", part["time"])
