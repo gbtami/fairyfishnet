@@ -111,6 +111,7 @@ DEFAULT_CONFIG = "fishnet.ini"
 PROGRESS_REPORT_INTERVAL=3.0
 CHECK_PYPI_CHANCE = 0.01
 LVL_MOVETIMES = [50, 100, 150, 200, 300, 400, 500, 800]
+LVL_DEPTHS = [1, 1, 2, 3, 5, 8, 13, 21]
 
 
 def intro():
@@ -549,25 +550,6 @@ def set_variant_options(p, variant):
     setoption(p, "UCI_3Check", variant == "threecheck")
 
 
-def depth(level):
-    if level in [1, 2]:
-        return 1
-    elif level == 3:
-        return 2
-    elif level == 4:
-        return 3
-    elif level == 5:
-        return 5
-    elif level == 6:
-        return 8
-    elif level == 7:
-        return 13
-    elif level == 8:
-        return 21
-    else:  # Analysis
-        return 99
-
-
 class Worker(threading.Thread):
     def __init__(self, conf, threads):
         super(Worker, self).__init__()
@@ -741,12 +723,17 @@ class Worker(threading.Thread):
 
         movetime = int(round(LVL_MOVETIMES[lvl - 1] / (self.threads * 0.9 ** (self.threads - 1))))
 
-        logging.log(PROGRESS, "Playing %s%s with level %d and movetime %d ms",
-                    base_url(get_endpoint(self.conf)), job["game_id"],
-                    lvl, movetime)
+        logging.debug("Playing %s%s with level %d",
+                      base_url(get_endpoint(self.conf)), job["game_id"], lvl)
 
+        start = time.time()
         part = go(self.process, job["position"], moves,
-                  movetime=movetime, depth=depth(lvl))
+                  movetime=movetime, depth=LVL_DEPTHS[lvl - 1])
+        end = time.time()
+
+        logging.log(PROGRESS, "Played move in %s%s with lvl %d: %0.3fs elapsed, depth %d",
+                    base_url(get_endpoint(self.conf)), job["game_id"],
+                    lvl, end - start, part.get("depth", 0))
 
         self.nodes += part.get("nodes", 0)
         self.positions += 1
