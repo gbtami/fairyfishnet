@@ -92,7 +92,7 @@ except NameError:
     pass
 
 
-__version__ = "1.6.4"
+__version__ = "1.6.5"
 
 __author__ = "Niklas Fiekas"
 __email__ = "niklas.fiekas@backscattering.de"
@@ -110,6 +110,7 @@ STAT_INTERVAL = 60.0
 DEFAULT_CONFIG = "fishnet.ini"
 PROGRESS_REPORT_INTERVAL=3.0
 CHECK_PYPI_CHANCE = 0.01
+LVL_MOVETIMES = [50, 100, 150, 200, 300, 400, 500, 800]
 
 
 def intro():
@@ -738,7 +739,7 @@ class Worker(threading.Thread):
 
         moves = job["moves"].split(" ")
 
-        movetime = int(round(4000.0 / (self.threads * 0.9 ** (self.threads - 1)) / 10.0 * lvl / 8.0))
+        movetime = int(round(LVL_MOVETIMES[lvl - 1] / (self.threads * 0.9 ** (self.threads - 1))))
 
         logging.log(PROGRESS, "Playing %s%s with level %d and movetime %d ms",
                     base_url(get_endpoint(self.conf)), job["game_id"],
