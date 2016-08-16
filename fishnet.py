@@ -113,6 +113,7 @@ DEFAULT_CONFIG = "fishnet.ini"
 PROGRESS_REPORT_INTERVAL=3.0
 CHECK_PYPI_CHANCE = 0.01
 LVL_MOVETIMES = [50, 100, 150, 200, 300, 400, 500, 800]
+LVL_CRAZY_MOVETIMES = [10, 50, 100, 200, 300, 400, 500, 800]
 LVL_DEPTHS = [1, 1, 2, 3, 5, 8, 13, 22]
 
 
@@ -579,6 +580,34 @@ def xboard(p):
             logging.warning("Unexpected engine output: %s", line)
 
 
+def sunsetter_go(p, position, moves, movetime):
+    send(p, "setboard %s" % position)
+    send(p, "force")
+    send(p, "easy")
+
+    for move in moves:
+        send(p, move)
+
+    send(p, "go")
+
+    time.sleep(movetime / 1000)
+    send(p, "?")
+
+    info = {}
+    info["move"] = None
+
+    while True:
+        line = recv(p)
+        if line.startswith("set fixed depth to "):
+            continue
+        if line.startswith("move "):
+            send(p, "exit")
+            info["move"] = line.split(" ")[1]
+            return info
+        else:
+            logging.warning("Unexpected engine output: %s", line)
+
+
 class Worker(threading.Thread):
     def __init__(self, conf, threads):
         super(Worker, self).__init__()
@@ -738,7 +767,9 @@ class Worker(threading.Thread):
                 "apikey": get_key(self.conf),
             },
             "stockfish": self.stockfish_info,
-            "sunsetter": self.sunsetter_name,
+            "sunsetter": {
+                "name": self.sunsetter_name,
+            },
             "engine": self.stockfish_info  # TODO: Just for backwards compability
         }
 
@@ -758,6 +789,12 @@ class Worker(threading.Thread):
             return "acquire", result
 
     def bestmove(self, job):
+        if job.get("variant", "standard") == "crazyhouse":
+            return self.bestmove_sunsetter(job)
+        else:
+            return self.bestmove_stockfish(job)
+
+    def bestmove_stockfish(self, job):
         lvl = job["work"]["level"]
         set_variant_options(self.stockfish, job.get("variant", "standard"))
         setoption(self.stockfish, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
@@ -785,6 +822,24 @@ class Worker(threading.Thread):
         result = self.make_request()
         result["move"] = {
             "bestmove": part["bestmove"],
+        }
+        return result
+
+    def bestmove_sunsetter(self, job):
+        lvl = job["work"]["level"]
+        moves = job["moves"].split(" ")
+
+        start = time.time()
+        part = sunsetter_go(self.sunsetter, job["position"], moves, LVL_CRAZY_MOVETIMES[lvl - 1])
+        end = time.time()
+
+        logging.log(PROGRESS, "Played crazyhouse move in %s%s with lvl %d: %0.3fs elapsed",
+                    base_url(get_endpoint(self.conf)), job["game_id"],
+                    lvl, end - start)
+
+        result = self.make_request()
+        result["move"] = {
+            "bestmove": part["move"]
         }
         return result
 
