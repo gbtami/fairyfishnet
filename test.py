@@ -33,6 +33,7 @@ class WorkerTest(unittest.TestCase):
 
         self.worker = fishnet.Worker(conf, threads=multiprocessing.cpu_count())
         self.worker.start_stockfish()
+        self.worker.start_sunsetter()
 
     def tearDown(self):
         fishnet.send(self.worker.stockfish, "quit")

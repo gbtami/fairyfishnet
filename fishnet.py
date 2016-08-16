@@ -561,14 +561,18 @@ def set_variant_options(p, variant):
 def xboard(p):
     send(p, "xboard")
 
+    name = None
+
     while True:
         line = recv(p)
+        if line.startswith(" Sunsetter"):
+            name = line.strip()
         if line.startswith(" "):
             continue
         if line.startswith("Created "):
             continue
         if line == "tellics gameend4":
-            return
+            return name
         elif line.startswith("tellics "):
             continue
         else:
@@ -593,6 +597,7 @@ class Worker(threading.Thread):
         self.stockfish = None
         self.stockfish_info = None
         self.sunsetter = None
+        self.sunsetter_name = None
 
         self.job = None
         self.backoff = start_backoff(self.conf)
@@ -634,6 +639,8 @@ class Worker(threading.Thread):
             # Restart the engine
             if not self.stockfish or self.stockfish.returncode is not None:
                 self.start_stockfish()
+            if not self.sunsetter or self.sunsetter.returncode is not None:
+                self.start_sunsetter()
 
             # Do the next work unit
             path, request = self.work()
@@ -684,6 +691,7 @@ class Worker(threading.Thread):
                 logging.exception("Engine process has died. Backing off %0.1fs", t)
                 self.sleep.wait(t)
                 kill_process(self.stockfish)
+                kill_process(self.sunsetter)
         except Exception:
             self.job = None
             t = next(self.backoff)
@@ -692,6 +700,7 @@ class Worker(threading.Thread):
 
             # If in doubt, restart engine
             kill_process(self.stockfish)
+            kill_process(self.sunsetter)
 
     def start_stockfish(self):
         # Start process
@@ -713,6 +722,14 @@ class Worker(threading.Thread):
 
         isready(self.stockfish)
 
+    def start_sunsetter(self):
+        self.sunsetter = open_process(get_sunsetter_command(self.conf, False),
+                                      get_engine_dir(self.conf))
+
+        self.sunsetter_name = xboard(self.sunsetter)
+        logging.info("Started Sunsetter, pid: %d, identification: %s",
+                     self.sunsetter.pid, self.sunsetter_name or "<none>")
+
     def make_request(self):
         return {
             "fishnet": {
@@ -721,6 +738,7 @@ class Worker(threading.Thread):
                 "apikey": get_key(self.conf),
             },
             "stockfish": self.stockfish_info,
+            "sunsetter": self.sunsetter_name,
             "engine": self.stockfish_info  # TODO: Just for backwards compability
         }
 
