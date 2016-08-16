@@ -1504,24 +1504,22 @@ def cmd_run(args):
         update_self()
 
     stockfish_command = validate_stockfish_command(conf_get(conf, "StockfishCommand"), conf)
-    if not stockfish_command:
-        print()
-        print("### Updating Stockfish ...")
-        print()
-        stockfish_command = get_stockfish_command(conf)
-
     sunsetter_command = validate_sunsetter_command(conf_get(conf, "SunsetterCommand"), conf)
-    if not sunsetter_command:
+    if not stockfish_command or not sunsetter_command:
         print()
-        print("### Updating Sunsetter ...")
+        print("### Updating engines ...")
         print()
-        sunsetter_command = get_sunsetter_command(conf)
+        if not stockfish_command:
+            stockfish_command = get_stockfish_command(conf)
+        if not sunsetter_command:
+            sunsetter_command = get_sunsetter_command(conf)
 
     print()
     print("### Checking configuration ...")
     print()
     print("EngineDir:        %s" % get_engine_dir(conf))
     print("StockfishCommand: %s" % stockfish_command)
+    print("SunsetterCommand: %s" % sunsetter_command)
     print("Key:              %s" % (("*" * len(get_key(conf))) or "(none)"))
 
     spare_threads = validate_cores(conf_get(conf, "Cores"))
