@@ -705,10 +705,6 @@ class Worker(threading.Thread):
 
         # Prepare UCI options
         self.stockfish_info["options"] = {}
-        if self.conf.has_section("Engine"):
-            for name, value in self.conf.items("Engine"):
-                self.stockfish_info["options"][name] = value
-
         self.stockfish_info["options"]["threads"] = str(self.threads)
 
         # Set UCI options
@@ -1091,7 +1087,6 @@ def update_self(force=False):
 def load_conf(args):
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
-    conf.add_section("Engine")
 
     if not args.no_conf:
         if not args.conf and not os.path.isfile(DEFAULT_CONFIG):
@@ -1162,7 +1157,6 @@ def configure(args):
 
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
-    conf.add_section("Engine")
 
     # Ensure the config file is going to be writable
     config_file = os.path.abspath(args.conf or DEFAULT_CONFIG)
@@ -1562,12 +1556,6 @@ def cmd_run(args):
     print("Endpoint:         %s%s" % (endpoint, warning))
     print("FixedBackoff:     %s" % parse_bool(conf_get(conf, "FixedBackoff")))
     print()
-
-    if conf.has_section("Engine") and conf.items("Engine"):
-        print("Using custom UCI options is discouraged:")
-        for name, value in conf.items("Engine"):
-            print(" * %s = %s" % (name, value))
-        print()
 
     print("### Starting workers ...")
     print()
