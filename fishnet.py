@@ -596,13 +596,20 @@ def sunsetter_go(p, position, moves, movetime):
     info = {}
     info["move"] = None
 
+    # depth
+    # time
+    # nps
+    # nodes
+    # bestmove
+    # pv?
+
     while True:
         line = recv(p)
         if line.startswith("set fixed depth to "):
             continue
         if line.startswith("move "):
             send(p, "exit")
-            info["move"] = line.split(" ")[1]
+            info["bestmove"] = line.split(" ")[1]
             return info
         else:
             logging.warning("Unexpected engine output: %s", line)
@@ -789,27 +796,30 @@ class Worker(threading.Thread):
             return "acquire", result
 
     def bestmove(self, job):
-        if job.get("variant", "standard") == "crazyhouse":
-            return self.bestmove_sunsetter(job)
-        else:
-            return self.bestmove_stockfish(job)
-
-    def bestmove_stockfish(self, job):
         lvl = job["work"]["level"]
-        set_variant_options(self.stockfish, job.get("variant", "standard"))
-        setoption(self.stockfish, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
-        isready(self.stockfish)
-
+        variant = job.get("variant", "standard")
         moves = job["moves"].split(" ")
-
-        movetime = int(round(LVL_MOVETIMES[lvl - 1] / (self.threads * 0.9 ** (self.threads - 1))))
 
         logging.debug("Playing %s%s with level %d",
                       base_url(get_endpoint(self.conf)), job["game_id"], lvl)
 
+        if variant != "crazyhouse":
+            set_variant_options(self.stockfish, job.get("variant", "standard"))
+            setoption(self.stockfish, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
+            isready(self.stockfish)
+
+
+            movetime = int(round(LVL_MOVETIMES[lvl - 1] / (self.threads * 0.9 ** (self.threads - 1))))
+        else:
+            movetime = LVL_CRAZY_MOVETIMES[lvl - 1]
+
         start = time.time()
-        part = go(self.stockfish, job["position"], moves,
-                  movetime=movetime, depth=LVL_DEPTHS[lvl - 1])
+        if variant != "crazyhouse":
+            part = go(self.stockfish, job["position"], moves,
+                      movetime=movetime, depth=LVL_DEPTHS[lvl - 1])
+        else:
+            part = sunsetter_go(self.sunsetter, job["position"], moves,
+                                movetime)
         end = time.time()
 
         logging.log(PROGRESS, "Played move in %s%s with lvl %d: %0.3fs elapsed, depth %d",
@@ -822,24 +832,6 @@ class Worker(threading.Thread):
         result = self.make_request()
         result["move"] = {
             "bestmove": part["bestmove"],
-        }
-        return result
-
-    def bestmove_sunsetter(self, job):
-        lvl = job["work"]["level"]
-        moves = job["moves"].split(" ")
-
-        start = time.time()
-        part = sunsetter_go(self.sunsetter, job["position"], moves, LVL_CRAZY_MOVETIMES[lvl - 1])
-        end = time.time()
-
-        logging.log(PROGRESS, "Played crazyhouse move in %s%s with lvl %d: %0.3fs elapsed",
-                    base_url(get_endpoint(self.conf)), job["game_id"],
-                    lvl, end - start)
-
-        result = self.make_request()
-        result["move"] = {
-            "bestmove": part["move"]
         }
         return result
 
@@ -856,20 +848,22 @@ class Worker(threading.Thread):
             return False
 
     def analysis(self, job, progress_report_interval=PROGRESS_REPORT_INTERVAL):
-        set_variant_options(self.stockfish, job.get("variant", "standard"))
-        setoption(self.stockfish, "Skill Level", 20)
-        isready(self.stockfish)
-
-        send(self.stockfish, "ucinewgame")
-        isready(self.stockfish)
-
-        nodes = job.get("nodes") or 3500000
-
+        variant = job.get("variant", "standard")
         moves = job["moves"].split(" ")
 
         result = self.make_request()
         result["analysis"] = [None for _ in range(len(moves) + 1)]
         start = last_progress_report = time.time()
+
+        if variant != "crazyhouse":
+            set_variant_options(self.stockfish, variant)
+            setoption(self.stockfish, "Skill Level", 20)
+            isready(self.stockfish)
+
+            send(self.stockfish, "ucinewgame")
+            isready(self.stockfish)
+
+            nodes = job.get("nodes") or 3500000
 
         for ply in range(len(moves), -1, -1):
             if last_progress_report + progress_report_interval < time.time():
@@ -879,8 +873,12 @@ class Worker(threading.Thread):
             logging.log(PROGRESS, "Analysing %s%s#%d",
                         base_url(get_endpoint(self.conf)), job["game_id"], ply)
 
-            part = go(self.stockfish, job["position"], moves[0:ply],
-                      nodes=nodes, movetime=4000)
+            if variant != "crazyhouse":
+                part = go(self.stockfish, job["position"], moves[0:ply],
+                          nodes=nodes, movetime=4000)
+            else:
+                part = sunsetter_go(self.sunsetter, job["position"], moves[0:ply],
+                                    3000)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
                 logging.warning("Very low time reported: %d ms.", part["time"])
