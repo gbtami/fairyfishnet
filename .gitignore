@@ -2,7 +2,9 @@ venv
 fishnet.ini
 *.py[cd]
 stockfish-*
+sunsetter-*
 Stockfish
+Sunsetter
 build/
 dist/
 fishnet.egg-info/

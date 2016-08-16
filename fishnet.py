@@ -99,6 +99,8 @@ __email__ = "niklas.fiekas@backscattering.de"
 __license__ = "MIT"
 
 DEFAULT_ENDPOINT = "https://en.lichess.org/fishnet/"
+STOCKFISH_RELEASES = "https://api.github.com/repos/niklasf/Stockfish/releases/latest"
+SUNSETTER_RELEASES = "https://api.github.com/repos/niklasf/Sunsetter/releases/latest"
 DEFAULT_THREADS = 4
 HASH_MIN = 16
 HASH_DEFAULT = 256
@@ -665,7 +667,7 @@ class Worker(threading.Thread):
 
     def start_engine(self):
         # Start process
-        self.stockfish = open_process(get_engine_command(self.conf, False),
+        self.stockfish = open_process(get_stockfish_command(self.conf, False),
                                       get_engine_dir(self.conf))
 
         self.engine_info, _ = uci(self.stockfish)
@@ -872,7 +874,18 @@ def stockfish_filename():
         return "stockfish-%s%s" % (machine, suffix)
 
 
-def update_stockfish(conf, filename):
+def sunsetter_filename():
+    machine = platform.machine().lower()
+
+    if os.name == "nt":
+        return "sunsetter-windows-%s.exe" % machine
+    elif os.name == "os2" or sys.platform == "darwin":
+        return "sunsetter-osx-%s" % machine
+    elif os.name == "posix":
+        return "sunsetter-%s" % machine
+
+
+def download_github_release(conf, release_page, filename):
     path = os.path.join(get_engine_dir(conf), filename)
     logging.info("Engine target path: %s", path)
 
@@ -891,14 +904,14 @@ def update_stockfish(conf, filename):
     # Find latest release
     logging.info("Looking up %s ...", filename)
 
-    with http("GET", "https://api.github.com/repos/niklasf/Stockfish/releases/latest", headers=headers) as response:
+    with http("GET", release_page, headers=headers) as response:
         if response.status == 304:
             logging.info("Local %s is newer than release", filename)
             return filename
 
         release = json.loads(response.read().decode("utf-8"))
 
-    logging.info("Latest stockfish release is tagged %s", release["tag_name"])
+    logging.info("Latest release is tagged %s", release["tag_name"])
 
     for asset in release["assets"]:
         if asset["name"] == filename:
@@ -927,6 +940,14 @@ def update_stockfish(conf, filename):
     st = os.stat(path)
     os.chmod(path, st.st_mode | stat.S_IEXEC)
     return filename
+
+
+def update_stockfish(conf, filename):
+    return download_github_release(conf, STOCKFISH_RELEASES, filename)
+
+
+def update_sunsetter(conf, filename):
+    return download_github_release(conf, SUNSETTER_RELEASES, filename)
 
 
 def is_user_site_package():
@@ -1055,8 +1076,10 @@ def load_conf(args):
 
     if hasattr(args, "engine_dir") and args.engine_dir is not None:
         conf.set("Fishnet", "EngineDir", args.engine_dir)
-    if hasattr(args, "engine_command") and args.engine_command is not None:
-        conf.set("Fishnet", "EngineCommand", args.engine_command)
+    if hasattr(args, "stockfish_command") and args.stockfish_command is not None:
+        conf.set("Fishnet", "StockfishCommand", args.stockfish_command)
+    if hasattr(args, "sunsetter_command") and args.sunsetter_command is not None:
+        conf.set("Fishnet", "SunsetterCommand", args.sunsetter_command)
     if hasattr(args, "key") and args.key is not None:
         conf.set("Fishnet", "Key", args.key)
     if hasattr(args, "cores") and args.cores is not None:
@@ -1124,7 +1147,7 @@ def configure(args):
         os.remove(config_file)
 
     # Stockfish working directory
-    engine_dir = config_input("Stockfish working directory (default: %s): " % os.path.abspath("."),
+    engine_dir = config_input("Engine working directory (default: %s): " % os.path.abspath("."),
                               validate_engine_dir, out)
     conf.set("Fishnet", "EngineDir", engine_dir)
 
@@ -1137,10 +1160,22 @@ def configure(args):
     print("You can build lichess.org custom Stockfish yourself and provide", file=out)
     print("the path or automatically download a precompiled binary.", file=out)
     print(file=out)
-    engine_command = config_input("Path or command (default: download): ",
-                                  lambda v: validate_engine_command(v, conf),
-                                  out)
+    stockfish_command = config_input("Path or command (default: download): ",
+                                     lambda v: validate_stockfish_command(v, conf),
+                                     out)
     print(file=out)
+
+    # Sunsetter command
+    print("Fishnet uses a patched Sunsetter build for crazyhouse.", file=out)
+    print("Sunsetter is licensed under the GNU General Public License v2.", file=out)
+    print("You can find the source at: https://github.com/niklasf/Sunsetter", file=out)
+    print(file=out)
+    print("You can build Sunsetter yourself and provide the path", file=out)
+    print("or automatically download a precompiled binary.", file=out)
+    print(file=out)
+    sunsetter_command = config_input("Path or command (default: download): ",
+                                     lambda v: validate_sunsetter_command(v, conf),
+                                     out)
 
     # Cores
     max_cores = multiprocessing.cpu_count()
@@ -1214,15 +1249,15 @@ def validate_engine_dir(engine_dir):
     return engine_dir
 
 
-def validate_engine_command(engine_command, conf):
-    if not engine_command or not engine_command.strip() or engine_command.strip().lower() == "download":
+def validate_stockfish_command(stockfish_command, conf):
+    if not stockfish_command or not stockfish_command.strip() or stockfish_command.strip().lower() == "download":
         return None
 
-    engine_command = engine_command.strip()
+    stockfish_command = stockfish_command.strip()
     engine_dir = get_engine_dir(conf)
 
     # Ensure the required options are supported
-    process = open_process(engine_command, engine_dir)
+    process = open_process(stockfish_command, engine_dir)
     _, options = uci(process)
     kill_process(process)
 
@@ -1237,7 +1272,22 @@ def validate_engine_command(engine_command, conf):
         raise ConfigError("Ensure you are using lichess custom Stockfish. "
                           "Unsupported engine options: %s" % ", ".join(missing_options))
 
-    return engine_command
+    return stockfish_command
+
+
+def validate_sunsetter_command(sunsetter_command, conf):
+    if not sunsetter_command or not sunsetter_command.strip() or sunsetter_command.strip().lower() == "download":
+        return None
+
+    sunsetter_command = sunsetter_command.strip()
+    engine_dir = get_engine_dir(conf)
+
+    # TODO: Ensure the patch for setboard is included
+    process = open_process(sunsetter_command, engine_dir)
+    send(process, "xboard")
+    kill_process(process)
+
+    return sunsetter_command
 
 
 def parse_bool(inp, default=False):
@@ -1374,15 +1424,26 @@ def get_engine_dir(conf):
     return validate_engine_dir(conf_get(conf, "EngineDir"))
 
 
-def get_engine_command(conf, update=True):
-    engine_command = validate_engine_command(conf_get(conf, "EngineCommand"), conf)
-    if not engine_command:
+def get_stockfish_command(conf, update=True):
+    stockfish_command = validate_stockfish_command(conf_get(conf, "StockfishCommand"), conf)
+    if not stockfish_command:
         filename = stockfish_filename()
         if update:
             filename = update_stockfish(conf, filename)
-        return validate_engine_command(os.path.join(".", filename), conf)
+        return validate_stockfish_command(os.path.join(".", filename), conf)
     else:
-        return engine_command
+        return stockfish_command
+
+
+def get_sunsetter_command(conf, update=True):
+    sunsetter_command = validate_sunsetter_command(conf_get(conf, "SunsetterCommand"), conf)
+    if not sunsetter_command:
+        filename = sunsetter_filename()
+        if update:
+            filename = update_sunsetter(conf, filename)
+        return validate_sunsetter_command(os.path.join(".", filename), conf)
+    else:
+        return sunsetter_command
 
 
 def get_endpoint(conf, sub=""):
@@ -1442,30 +1503,37 @@ def cmd_run(args):
         print()
         update_self()
 
-    engine_command = validate_engine_command(conf_get(conf, "EngineCommand"), conf)
-    if not engine_command:
+    stockfish_command = validate_stockfish_command(conf_get(conf, "StockfishCommand"), conf)
+    if not stockfish_command:
         print()
         print("### Updating Stockfish ...")
         print()
-        engine_command = get_engine_command(conf)
+        stockfish_command = get_stockfish_command(conf)
+
+    sunsetter_command = validate_sunsetter_command(conf_get(conf, "SunsetterCommand"), conf)
+    if not sunsetter_command:
+        print()
+        print("### Updating Sunsetter ...")
+        print()
+        sunsetter_command = get_sunsetter_command(conf)
 
     print()
     print("### Checking configuration ...")
     print()
-    print("EngineDir:     %s" % get_engine_dir(conf))
-    print("EngineCommand: %s" % engine_command)
-    print("Key:           %s" % (("*" * len(get_key(conf))) or "(none)"))
+    print("EngineDir:        %s" % get_engine_dir(conf))
+    print("StockfishCommand: %s" % stockfish_command)
+    print("Key:              %s" % (("*" * len(get_key(conf))) or "(none)"))
 
     spare_threads = validate_cores(conf_get(conf, "Cores"))
-    print("Cores:         %d" % spare_threads)
+    print("Cores:            %d" % spare_threads)
     threads_per_process = validate_threads(conf_get(conf, "Threads"), conf)
-    print("Threads:       %d (per engine process)" % threads_per_process)
+    print("Threads:          %d (per engine process)" % threads_per_process)
     memory = validate_memory(conf_get(conf, "Memory"), conf)
-    print("Memory:        %d MB" % memory)
+    print("Memory:           %d MB" % memory)
     endpoint = get_endpoint(conf)
     warning = "" if endpoint.startswith("https://") else " (WARNING: not using https)"
-    print("Endpoint:      %s%s" % (endpoint, warning))
-    print("FixedBackoff:  %s" % parse_bool(conf_get(conf, "FixedBackoff")))
+    print("Endpoint:         %s%s" % (endpoint, warning))
+    print("FixedBackoff:     %s" % parse_bool(conf_get(conf, "FixedBackoff")))
     print()
 
     if conf.has_section("Engine") and conf.items("Engine"):
@@ -1592,9 +1660,12 @@ def cmd_systemd(args):
     if args.engine_dir is not None:
         builder.append("--engine-dir")
         builder.append(shell_quote(validate_engine_dir(args.engine_dir)))
-    if args.engine_command is not None:
-        builder.append("--engine-command")
-        builder.append(shell_quote(validate_engine_command(args.engine_command, conf)))
+    if args.stockfish_command is not None:
+        builder.append("--stockfish-command")
+        builder.append(shell_quote(validate_stockfish_command(args.stockfish_command, conf)))
+    if args.sunsetter_command is not None:
+        builder.append("--sunsetter-command")
+        builder.append(shell_quote(validate_sunsetter_command(args.sunsetter_command, conf)))
     if args.cores is not None:
         builder.append("--cores")
         builder.append(shell_quote(str(validate_cores(args.cores))))
@@ -1788,7 +1859,8 @@ def main(argv):
     parser.add_argument("--key", "--apikey", "-k", help="fishnet api key")
 
     parser.add_argument("--engine-dir", help="engine working directory")
-    parser.add_argument("--engine-command", "-e", help="engine command (default: download precompiled Stockfish)")
+    parser.add_argument("--stockfish-command", help="stockfish command (default: download precompiled Stockfish)")
+    parser.add_argument("--sunsetter-command", help="sunsetter command (default: download precompiled Sunsetter)")
 
     parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
     parser.add_argument("--memory", help="total memory (MB) to use for engine hashtables")
