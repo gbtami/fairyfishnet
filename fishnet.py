@@ -566,7 +566,7 @@ class Worker(threading.Thread):
         self.positions = 0
 
         self.job = None
-        self.process = None
+        self.stockfish = None
         self.engine_info = None
         self.backoff = start_backoff(self.conf)
 
@@ -574,8 +574,8 @@ class Worker(threading.Thread):
         with self.status_lock:
             self.alive = False
 
-            if self.process:
-                kill_process(self.process)
+            if self.stockfish:
+                kill_process(self.stockfish)
 
             self.sleep.set()
 
@@ -598,11 +598,11 @@ class Worker(threading.Thread):
     def run_inner(self):
         try:
             # Check if engine is still alive
-            if self.process:
-                self.process.poll()
+            if self.stockfish:
+                self.stockfish.poll()
 
             # Restart the engine
-            if not self.process or self.process.returncode is not None:
+            if not self.stockfish or self.stockfish.returncode is not None:
                 self.start_engine()
 
             # Do the next work unit
@@ -653,7 +653,7 @@ class Worker(threading.Thread):
                 t = next(self.backoff)
                 logging.exception("Engine process has died. Backing off %0.1fs", t)
                 self.sleep.wait(t)
-                kill_process(self.process)
+                kill_process(self.stockfish)
         except Exception:
             self.job = None
             t = next(self.backoff)
@@ -661,17 +661,16 @@ class Worker(threading.Thread):
             self.sleep.wait(t)
 
             # If in doubt, restart engine
-            kill_process(self.process)
+            kill_process(self.stockfish)
 
     def start_engine(self):
         # Start process
-        self.process = open_process(get_engine_command(self.conf, False),
-                                    get_engine_dir(self.conf))
+        self.stockfish = open_process(get_engine_command(self.conf, False),
+                                      get_engine_dir(self.conf))
 
-        self.engine_info, _ = uci(self.process)
-        logging.info("Started engine process, pid: %d, "
-                     "threads: %d, identification: %s",
-                     self.process.pid, self.threads,
+        self.engine_info, _ = uci(self.stockfish)
+        logging.info("Started Stockfish, threads: %s (%d), pid: %d, identification: %s",
+                     "+" * self.threads, self.threads, self.stockfish.pid,
                      self.engine_info.get("name", "<none>"))
 
         # Prepare UCI options
@@ -684,9 +683,9 @@ class Worker(threading.Thread):
 
         # Set UCI options
         for name, value in self.engine_info["options"].items():
-            setoption(self.process, name, value)
+            setoption(self.stockfish, name, value)
 
-        isready(self.process)
+        isready(self.stockfish)
 
     def make_request(self):
         return {
@@ -715,9 +714,9 @@ class Worker(threading.Thread):
 
     def bestmove(self, job):
         lvl = job["work"]["level"]
-        set_variant_options(self.process, job.get("variant", "standard"))
-        setoption(self.process, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
-        isready(self.process)
+        set_variant_options(self.stockfish, job.get("variant", "standard"))
+        setoption(self.stockfish, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
+        isready(self.stockfish)
 
         moves = job["moves"].split(" ")
 
@@ -727,7 +726,7 @@ class Worker(threading.Thread):
                       base_url(get_endpoint(self.conf)), job["game_id"], lvl)
 
         start = time.time()
-        part = go(self.process, job["position"], moves,
+        part = go(self.stockfish, job["position"], moves,
                   movetime=movetime, depth=LVL_DEPTHS[lvl - 1])
         end = time.time()
 
@@ -757,12 +756,12 @@ class Worker(threading.Thread):
             return False
 
     def analysis(self, job, progress_report_interval=PROGRESS_REPORT_INTERVAL):
-        set_variant_options(self.process, job.get("variant", "standard"))
-        setoption(self.process, "Skill Level", 20)
-        isready(self.process)
+        set_variant_options(self.stockfish, job.get("variant", "standard"))
+        setoption(self.stockfish, "Skill Level", 20)
+        isready(self.stockfish)
 
-        send(self.process, "ucinewgame")
-        isready(self.process)
+        send(self.stockfish, "ucinewgame")
+        isready(self.stockfish)
 
         nodes = job.get("nodes") or 3500000
 
@@ -780,7 +779,7 @@ class Worker(threading.Thread):
             logging.log(PROGRESS, "Analysing %s%s#%d",
                         base_url(get_endpoint(self.conf)), job["game_id"], ply)
 
-            part = go(self.process, job["position"], moves[0:ply],
+            part = go(self.stockfish, job["position"], moves[0:ply],
                       nodes=nodes, movetime=4000)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:

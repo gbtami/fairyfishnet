@@ -34,7 +34,7 @@ class WorkerTest(unittest.TestCase):
         self.worker.start_engine()
 
     def tearDown(self):
-        fishnet.send(self.worker.process, "quit")
+        fishnet.send(self.worker.stockfish, "quit")
 
     def test_bestmove(self):
         job = {
