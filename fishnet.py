@@ -397,15 +397,21 @@ def recv(p):
         line = p.stdout.readline()
         if line == "":
             raise EOFError()
+
         line = line.rstrip()
 
         logging.log(ENGINE, "%s >> %s", p.pid, line)
 
-        command_and_args = line.split(None, 1)
-        if len(command_and_args) == 1:
-            return command_and_args[0], ""
-        elif len(command_and_args) == 2:
-            return command_and_args
+        if line:
+            return line
+
+
+def recv_uci(p):
+    command_and_args = recv(p).split(None, 1)
+    if len(command_and_args) == 1:
+        return command_and_args[0], ""
+    elif len(command_and_args) == 2:
+        return command_and_args
 
 
 def uci(p):
@@ -415,7 +421,7 @@ def uci(p):
     options = set()
 
     while True:
-        command, arg = recv(p)
+        command, arg = recv_uci(p)
 
         if command == "uciok":
             return engine_info, options
@@ -440,7 +446,7 @@ def uci(p):
 def isready(p):
     send(p, "isready")
     while True:
-        command, arg = recv(p)
+        command, arg = recv_uci(p)
         if command == "readyok":
             break
         else:
@@ -479,7 +485,7 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
     info["bestmove"] = None
 
     while True:
-        command, arg = recv(p)
+        command, arg = recv_uci(p)
 
         if command == "bestmove":
             bestmove = arg.split()[0]
@@ -550,6 +556,23 @@ def set_variant_options(p, variant):
     setoption(p, "UCI_KingOfTheHill", variant == "kingofthehill")
     setoption(p, "UCI_Race", variant == "racingkings")
     setoption(p, "UCI_3Check", variant == "threecheck")
+
+
+def xboard(p):
+    send(p, "xboard")
+
+    while True:
+        line = recv(p)
+        if line.startswith(" "):
+            continue
+        if line.startswith("Created "):
+            continue
+        if line == "tellics gameend4":
+            return
+        elif line.startswith("tellics "):
+            continue
+        else:
+            logging.warning("Unexpected engine output: %s", line)
 
 
 class Worker(threading.Thread):
@@ -1284,7 +1307,7 @@ def validate_sunsetter_command(sunsetter_command, conf):
 
     # TODO: Ensure the patch for setboard is included
     process = open_process(sunsetter_command, engine_dir)
-    send(process, "xboard")
+    xboard(process)
     kill_process(process)
 
     return sunsetter_command
