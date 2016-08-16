@@ -590,9 +590,11 @@ class Worker(threading.Thread):
         self.nodes = 0
         self.positions = 0
 
-        self.job = None
         self.stockfish = None
-        self.engine_info = None
+        self.stockfish_info = None
+        self.sunsetter = None
+
+        self.job = None
         self.backoff = start_backoff(self.conf)
 
     def stop(self):
@@ -601,6 +603,9 @@ class Worker(threading.Thread):
 
             if self.stockfish:
                 kill_process(self.stockfish)
+
+            if self.sunsetter:
+                kill_process(self.sunsetter)
 
             self.sleep.set()
 
@@ -628,7 +633,7 @@ class Worker(threading.Thread):
 
             # Restart the engine
             if not self.stockfish or self.stockfish.returncode is not None:
-                self.start_engine()
+                self.start_stockfish()
 
             # Do the next work unit
             path, request = self.work()
@@ -688,26 +693,26 @@ class Worker(threading.Thread):
             # If in doubt, restart engine
             kill_process(self.stockfish)
 
-    def start_engine(self):
+    def start_stockfish(self):
         # Start process
         self.stockfish = open_process(get_stockfish_command(self.conf, False),
                                       get_engine_dir(self.conf))
 
-        self.engine_info, _ = uci(self.stockfish)
+        self.stockfish_info, _ = uci(self.stockfish)
         logging.info("Started Stockfish, threads: %s (%d), pid: %d, identification: %s",
                      "+" * self.threads, self.threads, self.stockfish.pid,
-                     self.engine_info.get("name", "<none>"))
+                     self.stockfish_info.get("name", "<none>"))
 
         # Prepare UCI options
-        self.engine_info["options"] = {}
+        self.stockfish_info["options"] = {}
         if self.conf.has_section("Engine"):
             for name, value in self.conf.items("Engine"):
-                self.engine_info["options"][name] = value
+                self.stockfish_info["options"][name] = value
 
-        self.engine_info["options"]["threads"] = str(self.threads)
+        self.stockfish_info["options"]["threads"] = str(self.threads)
 
         # Set UCI options
-        for name, value in self.engine_info["options"].items():
+        for name, value in self.stockfish_info["options"].items():
             setoption(self.stockfish, name, value)
 
         isready(self.stockfish)
@@ -719,7 +724,8 @@ class Worker(threading.Thread):
                 "python": platform.python_version(),
                 "apikey": get_key(self.conf),
             },
-            "engine": self.engine_info
+            "stockfish": self.stockfish_info,
+            "engine": self.stockfish_info  # TODO: Just for backwards compability
         }
 
     def work(self):
