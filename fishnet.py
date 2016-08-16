@@ -1323,9 +1323,20 @@ def validate_sunsetter_command(sunsetter_command, conf):
     sunsetter_command = sunsetter_command.strip()
     engine_dir = get_engine_dir(conf)
 
-    # TODO: Ensure the patch for setboard is included
+    # Ensure the patch for setboard is included
     process = open_process(sunsetter_command, engine_dir)
     xboard(process)
+    send(process, "setboard")
+    send(process, "tellics hello")
+    while True:
+        line = recv(process)
+        if line.startswith("Illegal"):
+            raise ConfigError("Ensure you are using lichess patched Sunsetter. "
+                              "Unsupported command: setboard")
+        elif line == "tellics hello":
+            break
+        else:
+            logging.warning("Unexpected engine output: %s", line)
     kill_process(process)
 
     return sunsetter_command
