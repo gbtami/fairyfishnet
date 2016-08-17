@@ -968,17 +968,6 @@ class Worker(threading.Thread):
 
             result["analysis"][ply] = part
 
-        # Fill gaps that Sunsetter leaves for forced moves
-        for ply in range(1, len(moves) + 1):
-            if not result["analysis"][ply]["score"]:
-                prev_cp = result["analysis"][ply - 1]["score"].get("cp", None)
-                prev_mate = result["analysis"][ply - 1]["score"].get("mate", None)
-                if prev_cp is not None:
-                    result["analysis"][ply]["score"]["cp"] = -prev_cp
-                if prev_mate is not None:
-                    mate = math.copysign(abs(prev_mate) - 1, -prev_mate)
-                    result["analysis"][ply]["score"]["mate"] = mate
-
         end = time.time()
         logging.info("%s%s took %0.1fs (%0.2fs per position)",
                      base_url(get_endpoint(self.conf)), job["game_id"],
