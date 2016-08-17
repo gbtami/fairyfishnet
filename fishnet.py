@@ -1372,30 +1372,13 @@ def configure(args):
                          validate_cores, out)
     conf.set("Fishnet", "Cores", str(cores))
 
-    # Threads
-    default_threads = min(DEFAULT_THREADS, cores)
-    threads = config_input("Number of threads to use per engine process (default %d, max %d): " % (default_threads, cores),
-                           lambda v: validate_threads(v, conf), out)
-    conf.set("Fishnet", "Threads", str(threads))
-
-    # Memory
-    processes = math.ceil(cores / threads)
-    min_memory = HASH_MIN * processes
-    default_memory = HASH_DEFAULT * processes
-    max_memory = HASH_MAX * processes
-    memory = config_input("Memory in MB to use for engine hashtables (default %d, min %d, max %d): " % (default_memory, min_memory, max_memory),
-                          lambda v: validate_memory(v, conf), out)
-    conf.set("Fishnet", "Memory", str(memory))
-
     # Advanced options
     endpoint = DEFAULT_ENDPOINT
     fixed_backoff = False
     if config_input("Configure advanced options? (default: no) ", parse_bool, out):
         endpoint = config_input("Fishnet API endpoint (default: %s): " % (endpoint, ), validate_endpoint, out)
-        fixed_backoff = config_input("Fixed backoff? (for move servers, default: no) ", parse_bool, out)
 
     conf.set("Fishnet", "Endpoint", endpoint)
-    conf.set("Fishnet", "FixedBackoff", str(fixed_backoff))
 
     # Change key?
     key = None
