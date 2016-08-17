@@ -596,7 +596,7 @@ def sunsetter_go(p, position, moves, movetime, maxdepth=None):
     if maxdepth:
         send(p, "sd %d" % max(5, maxdepth))
     else:
-        send(p, "sd 40")
+        send(p, "sd 0")
 
     send(p, "go")
 
