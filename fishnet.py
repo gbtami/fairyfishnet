@@ -580,7 +580,11 @@ def xboard(p):
 
 
 def sunsetter_go(p, position, moves, movetime):
-    send(p, "setboard %s" % position)
+    if position == "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1":
+        send(p, "reset")
+    else:
+        send(p, "setboard %s" % position)
+
     send(p, "force")
     send(p, "easy")
 
@@ -920,7 +924,7 @@ class Worker(threading.Thread):
                 prev_mate = result["analysis"][ply - 1]["score"].get("mate", None)
                 if prev_cp is not None:
                     result["analysis"][ply]["score"]["cp"] = -prev_cp
-                else:
+                if prev_mate is not None:
                     mate = math.copysign(abs(prev_mate) - 1, -prev_mate)
                     result["analysis"][ply]["score"]["mate"] = mate
 
