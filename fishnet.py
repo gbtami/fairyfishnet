@@ -858,7 +858,7 @@ class Worker(threading.Thread):
         variant = job.get("variant", "standard")
         moves = job["moves"].split(" ")
 
-        logging.debug("Playing %s%s with level %d",
+        logging.debug("Playing %s%s with lvl %d",
                       base_url(get_endpoint(self.conf)), job["game_id"], lvl)
 
         if variant != "crazyhouse":
