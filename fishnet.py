@@ -597,18 +597,32 @@ def sunsetter_go(p, position, moves, movetime):
     info["depth"] = 0
     info["score"] = {}
 
+    cp = None
+
     while True:
         line = recv(p)
-        if line.startswith("set fixed depth to "):
+        if line.strip().startswith("T-hits: ") or line.startswith("Time "):
             continue
-        if line.startswith("move "):
+        elif line.startswith("set fixed depth to "):
+            continue
+        elif line.startswith("1-0 ") or line.startswith("0-1 "):
+            info["score"]["mate"] = 0
+            return info
+        elif line.startswith("1/2-1/2 "):
+            info["score"]["cp"] = 0
+            return info
+        elif line.startswith("move "):
             send(p, "exit")
+            if cp is not None and abs(cp) >= 20000:
+                info["score"]["mate"] = math.copysign((30000 - abs(cp)) // 10, cp)
+            elif cp is not None:
+                info["score"]["cp"] = cp
             info["bestmove"] = line.split(" ")[1]
             return info
-        if line[0].isdigit():
+        elif line[0].isdigit():
             depth, score, stime, nodes, pv = line.split(" ", 4)
             info["depth"] = int(depth)
-            info["score"]["cp"] = int(score)
+            cp = int(score)
             info["time"] = int(stime) * 10
             info["nodes"] = int(nodes)
             if info["time"]:
@@ -616,7 +630,10 @@ def sunsetter_go(p, position, moves, movetime):
             info["pv"] = " ".join(move for move in pv.split()
                                   if move.replace("@", "").replace("=", "").isalnum())
         else:
-            logging.warning("Unexpected engine output: %s", line)
+            logging.error("Unexpected engine output: %s", line)
+
+        # TODO: tellics whisper :-| 12: d7d5 d2d3 b8c6 c1e3 f8b4 b1c3 g8f6 (M: +0 D: +0 C: -10 KW: +0 KB: +0 )
+        # TODO: Found move: d7d5 -10 fply: 11  searches: 840015 quiesces: 113140
 
 
 class Worker(threading.Thread):
@@ -895,6 +912,17 @@ class Worker(threading.Thread):
             self.positions += 1
 
             result["analysis"][ply] = part
+
+        # Fill gaps that Sunsetter leaves for forced moves
+        for ply in range(1, len(moves) + 1):
+            if not result["analysis"][ply]["score"]:
+                prev_cp = result["analysis"][ply - 1]["score"].get("cp", None)
+                prev_mate = result["analysis"][ply - 1]["score"].get("mate", None)
+                if prev_cp is not None:
+                    result["analysis"][ply]["score"]["cp"] = -prev_cp
+                else:
+                    mate = math.copysign(abs(prev_mate) - 1, -prev_mate)
+                    result["analysis"][ply]["score"]["mate"] = mate
 
         end = time.time()
         logging.info("%s%s took %0.1fs (%0.2fs per position)",
