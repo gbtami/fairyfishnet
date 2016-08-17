@@ -619,7 +619,7 @@ def sunsetter_go(p, position, moves, movetime):
             return info
         elif line.startswith("move "):
             info["bestmove"] = line.split(" ")[1]
-            send(p, "exit")
+            send(p, "force")
 
             if cp is not None and abs(cp) >= 20000:
                 info["score"]["mate"] = math.copysign((30000 - abs(cp)) // 10, cp)
