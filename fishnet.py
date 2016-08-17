@@ -693,6 +693,13 @@ class Worker(threading.Thread):
 
     def run_inner(self):
         try:
+            # Python 3
+            dead_engine_errors = (EOFError, IOError, BrokenPipeError)
+        except NameError:
+            # Python 2
+            dead_engine_errors = (EOFError, IOError)
+
+        try:
             # Check if engine is still alive
             if self.stockfish:
                 self.stockfish.poll()
@@ -739,7 +746,7 @@ class Worker(threading.Thread):
                 logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s",
                               err.status, err.reason, t, json.dumps(request))
             self.sleep.wait(t)
-        except (EOFError, IOError):
+        except dead_engine_errors:
             if not self.is_alive():
                 # Abort
                 if self.job:
