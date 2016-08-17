@@ -609,6 +609,8 @@ def sunsetter_go(p, position, moves, movetime):
             continue
         elif line.startswith("set fixed depth to "):
             continue
+        elif line.startswith("bookfile "):
+            continue
         elif line.startswith("1-0 ") or line.startswith("0-1 "):
             info["score"]["mate"] = 0
             info["depth"] = 0
@@ -660,7 +662,8 @@ def sunsetter_go(p, position, moves, movetime):
                     break
             if pv:
                 info["pv"] = " ".join(pv)
-        elif line.startswith("tellics kibitz"):
+        elif line.startswith("tellics "):
+            # tellics kibitz, tellics gameend...
             continue
         else:
             logging.error("Unexpected engine output: %s", line)
