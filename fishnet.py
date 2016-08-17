@@ -249,7 +249,7 @@ def setup_logging(verbosity, stream=sys.stdout):
 
     tail_target = logging.StreamHandler(stream)
     tail_target.setFormatter(LogFormatter())
-    logger.addHandler(TailLogHandler(25, handler.level, logging.ERROR, tail_target))
+    logger.addHandler(TailLogHandler(35, handler.level, logging.ERROR, tail_target))
 
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
@@ -626,7 +626,7 @@ def sunsetter_go(p, position, moves, movetime):
             elif cp is not None:
                 info["score"]["cp"] = cp
 
-            if not info["pv"]:
+            if not info.get("pv", None):
                 info["pv"] = info["bestmove"]
 
             if info.get("time", None) and "nodes" in info:
