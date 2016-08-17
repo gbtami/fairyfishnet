@@ -1721,10 +1721,12 @@ def cmd_run(args):
     print("SunsetterCommand: %s" % sunsetter_command)
     print("Key:              %s" % (("*" * len(get_key(conf))) or "(none)"))
 
-    spare_threads = validate_cores(conf_get(conf, "Cores"))
-    print("Cores:            %d" % spare_threads)
-    threads_per_process = validate_threads(conf_get(conf, "Threads"), conf)
-    print("Threads:          %d (per engine process)" % threads_per_process)
+    cores = validate_cores(conf_get(conf, "Cores"))
+    print("Cores:            %d" % cores)
+
+    threads = validate_threads(conf_get(conf, "Threads"), conf)
+    instances = max(1, cores // threads)
+    print("Engine processes: %d (each ~%d threads)" % (instances, threads))
     memory = validate_memory(conf_get(conf, "Memory"), conf)
     print("Memory:           %d MB" % memory)
     endpoint = get_endpoint(conf)
@@ -1736,15 +1738,11 @@ def cmd_run(args):
     print("### Starting workers ...")
     print()
 
-    # Let spare cores exclusively run engine processes
-    workers = []
-    while spare_threads > threads_per_process:
-        workers.append(Worker(conf, threads_per_process))
-        spare_threads -= threads_per_process
+    buckets = [0] * instances
+    for i in range(0, cores):
+        buckets[i % instances] += 1
 
-    # Use the rest of the cores
-    if spare_threads > 0:
-        workers.append(Worker(conf, spare_threads))
+    workers = [Worker(conf, bucket) for bucket in buckets]
 
     # Start all threads
     for i, worker in enumerate(workers):
@@ -2055,7 +2053,7 @@ def main(argv):
 
     parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
     parser.add_argument("--memory", help="total memory (MB) to use for engine hashtables")
-    parser.add_argument("--threads", type=int, help="number of threads per engine process (default: 4)")
+    parser.add_argument("--threads", type=int, help="hint for the number of threads to use per engine process (default: 4)")
     parser.add_argument("--endpoint", help="lichess http endpoint")
     parser.add_argument("--fixed-backoff", action="store_true", default=None, help="fixed backoff (only recommended for move servers)")
     parser.add_argument("--no-fixed-backoff", dest="fixed_backoff", action="store_false", default=None)
