@@ -388,8 +388,7 @@ def kill_process(p):
 
 def send(p, line):
     logging.log(ENGINE, "%s << %s", p.pid, line)
-    p.stdin.write(line)
-    p.stdin.write("\n")
+    p.stdin.write(line + "\n")
     p.stdin.flush()
 
 
@@ -594,14 +593,9 @@ def sunsetter_go(p, position, moves, movetime):
     send(p, "?")
 
     info = {}
-    info["move"] = None
-
-    # depth
-    # time
-    # nps
-    # nodes
-    # bestmove
-    # pv?
+    info["bestmove"] = None
+    info["depth"] = 0
+    info["score"] = {}
 
     while True:
         line = recv(p)
@@ -611,6 +605,16 @@ def sunsetter_go(p, position, moves, movetime):
             send(p, "exit")
             info["bestmove"] = line.split(" ")[1]
             return info
+        if line[0].isdigit():
+            depth, score, stime, nodes, pv = line.split(" ", 4)
+            info["depth"] = int(depth)
+            info["score"]["cp"] = int(score)
+            info["time"] = int(stime) * 10
+            info["nodes"] = int(nodes)
+            if info["time"]:
+                info["nps"] = info["nodes"] * 1000 // info["time"]
+            info["pv"] = " ".join(move for move in pv.split()
+                                  if move.replace("@", "").replace("=", "").isalnum())
         else:
             logging.warning("Unexpected engine output: %s", line)
 
@@ -714,7 +718,7 @@ class Worker(threading.Thread):
                 logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s",
                               err.status, err.reason, t, json.dumps(request))
             self.sleep.wait(t)
-        except EOFError:
+        except (EOFError, IOError):
             if not self.is_alive():
                 # Abort
                 if self.job:
