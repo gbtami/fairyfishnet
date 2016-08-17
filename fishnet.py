@@ -593,7 +593,7 @@ def sunsetter_go(p, position, moves, movetime, maxdepth=None):
 
     start = time.time()
 
-    if maxdepth:
+    if maxdepth is not None:
         send(p, "sd %d" % max(5, maxdepth))
     else:
         send(p, "sd 0")
@@ -661,7 +661,7 @@ def sunsetter_go(p, position, moves, movetime, maxdepth=None):
                 info["pv"] = " ".join(move for move in pv.split()
                                       if move.replace("@", "").replace("=", "").isalnum())
 
-                if time.time() - start > movetime / 1000 or (maxdepth and info["depth"] >= maxdepth):
+                if time.time() - start > movetime / 1000 or (maxdepth is not None and info["depth"] >= maxdepth):
                     send(p, "?")
         elif line.startswith("Found move: "):
             if not done:
