@@ -751,9 +751,11 @@ class Worker(threading.Thread):
             dead_engine_errors = (EOFError, IOError)
 
         try:
-            # Check if engine is still alive
+            # Check if the engines are still alive
             if self.stockfish:
                 self.stockfish.poll()
+            if self.sunsetter:
+                self.sunsetter.poll()
 
             # Restart the engine
             if not self.stockfish or self.stockfish.returncode is not None:
