@@ -591,10 +591,9 @@ def sunsetter_go(p, position, moves, movetime):
     for move in moves:
         send(p, move)
 
-    send(p, "go")
+    start = time.time()
 
-    time.sleep(movetime / 1000)
-    send(p, "?")
+    send(p, "go")
 
     info = {}
     info["bestmove"] = None
@@ -656,6 +655,9 @@ def sunsetter_go(p, position, moves, movetime):
                 info["nodes"] = int(nodes)
                 info["pv"] = " ".join(move for move in pv.split()
                                       if move.replace("@", "").replace("=", "").isalnum())
+
+                if time.time() - start > movetime / 1000:
+                    send(p, "?")
         elif line.startswith("Found move: "):
             if not done:
                 # Found move: d7d5 -10 fply: 11  searches: 840015 quiesces: 113140
