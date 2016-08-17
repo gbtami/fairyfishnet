@@ -966,18 +966,16 @@ class Worker(threading.Thread):
             self.nodes += part.get("nodes", 0)
             self.positions += 1
 
-            result["analysis"][ply] = part
+            # Fill gaps that Sunsetter leaves for forced moves
+            if not part["score"] and ply < len(moves) and result["analysis"][ply + 1]["score"]:
+                next_cp = result["analysis"][ply + 1]["score"].get("cp", None)
+                next_mate = result["analysis"][ply + 1]["score"].get("mate", None)
+                if next_cp is not None:
+                    part["score"]["cp"] = -next_cp
+                if next_mate is not None:
+                    part["score"]["mate"] = math.copysign(abs(next_mate) + 1, -next_mate)
 
-        # Fill gaps that Sunsetter leaves for forced moves
-        for ply in range(1, len(moves) + 1):
-            if not result["analysis"][ply]["score"]:
-                prev_cp = result["analysis"][ply - 1]["score"].get("cp", None)
-                prev_mate = result["analysis"][ply - 1]["score"].get("mate", None)
-                if prev_cp is not None:
-                    result["analysis"][ply]["score"]["cp"] = -prev_cp
-                if prev_mate is not None:
-                    mate = math.copysign(abs(prev_mate) - 1, -prev_mate)
-                    result["analysis"][ply]["score"]["mate"] = mate
+            result["analysis"][ply] = part
 
         end = time.time()
         logging.info("%s%s took %0.1fs (%0.2fs per position)",
