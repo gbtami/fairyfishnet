@@ -603,65 +603,80 @@ def sunsetter_go(p, position, moves, movetime):
 
     cp = None
 
+    done = False
+
     while True:
         line = recv(p)
-        if line.strip().startswith("T-hits: ") or line.startswith("Time "):
+        if line == "tellics done":
+            if done:
+                return info
+            else:
+                logging.error("Unexpected tellics done")
+        elif line.strip().startswith("T-hits: ") or line.startswith("Time "):
             continue
         elif line.startswith("set fixed depth to "):
             continue
         elif line.startswith("bookfile "):
             continue
         elif line.startswith("1-0 ") or line.startswith("0-1 "):
-            info["score"]["mate"] = 0
-            info["depth"] = 0
-            return info
+            if not done:
+                done = True
+                send(p, "tellics done")
+                info["score"]["mate"] = 0
+                info["depth"] = 0
         elif line.startswith("1/2-1/2 "):
-            info["score"]["cp"] = 0
-            info["depth"] = 0
-            return info
+            if not done:
+                done = True
+                send(p, "tellics done")
+                info["score"]["cp"] = 0
+                info["depth"] = 0
         elif line.startswith("move "):
-            info["bestmove"] = line.split(" ")[1]
-            send(p, "force")
+            if not done:
+                done = True
+                send(p, "force")
+                send(p, "tellics done")
+                info["bestmove"] = line.split(" ")[1]
 
-            if cp is not None and abs(cp) >= 20000:
-                info["score"]["mate"] = math.copysign((30000 - abs(cp)) // 10, cp)
-            elif cp is not None:
-                info["score"]["cp"] = cp
+                if cp is not None and abs(cp) >= 20000:
+                    info["score"]["mate"] = math.copysign((30000 - abs(cp)) // 10, cp)
+                elif cp is not None:
+                    info["score"]["cp"] = cp
 
-            if not info.get("pv", None):
-                info["pv"] = info["bestmove"]
+                if not info.get("pv", None):
+                    info["pv"] = info["bestmove"]
 
-            if info.get("time", None) and "nodes" in info:
-                info["nps"] = info["nodes"] * 1000 // info["time"]
-
-            return info
+                if info.get("time", None) and "nodes" in info:
+                    info["nps"] = info["nodes"] * 1000 // info["time"]
         elif line[0].isdigit():
-            depth, score, stime, nodes, pv = line.split(" ", 4)
-            info["depth"] = int(depth)
-            cp = int(score)
-            info["time"] = int(stime) * 10
-            info["nodes"] = int(nodes)
-            info["pv"] = " ".join(move for move in pv.split()
-                                  if move.replace("@", "").replace("=", "").isalnum())
+            if not done:
+                depth, score, stime, nodes, pv = line.split(" ", 4)
+                info["depth"] = int(depth)
+                cp = int(score)
+                info["time"] = int(stime) * 10
+                info["nodes"] = int(nodes)
+                info["pv"] = " ".join(move for move in pv.split()
+                                      if move.replace("@", "").replace("=", "").isalnum())
         elif line.startswith("Found move: "):
-            # Found move: d7d5 -10 fply: 11  searches: 840015 quiesces: 113140
-            _, _, move, score, _, fply, _, searches, _ = line.split(None, 8)
-            info["bestmove"] = move
-            info["depth"] = int(fply) + 1
-            info["nodes"] = int(searches)
-            cp = int(score)
+            if not done:
+                # Found move: d7d5 -10 fply: 11  searches: 840015 quiesces: 113140
+                _, _, move, score, _, fply, _, searches, _ = line.split(None, 8)
+                info["bestmove"] = move
+                info["depth"] = int(fply) + 1
+                info["nodes"] = int(searches)
+                cp = int(score)
         elif line.startswith("tellics whisper "):
-            # tellics whisper :-| 12: d7d5 d2d3 b8c6 c1e3 f8b4 b1c3 g8f6 (M: +0 D: +0 C: -10 KW: +0 KB: +0 )
-            _, _, _, depth, trail = line.split(None, 4)
-            info["depth"] = int(depth.rstrip(":"))
-            pv = []
-            for move in trail.split():
-                if move.replace("@", "").replace("=", "").isalnum():
-                    pv.append(move)
-                else:
-                    break
-            if pv:
-                info["pv"] = " ".join(pv)
+            if not done:
+                # tellics whisper :-| 12: d7d5 d2d3 b8c6 c1e3 f8b4 b1c3 g8f6 (M: +0 D: +0 C: -10 KW: +0 KB: +0 )
+                _, _, _, depth, trail = line.split(None, 4)
+                info["depth"] = int(depth.rstrip(":"))
+                pv = []
+                for move in trail.split():
+                    if move.replace("@", "").replace("=", "").isalnum():
+                        pv.append(move)
+                    else:
+                        break
+                if pv:
+                    info["pv"] = " ".join(pv)
         elif line.startswith("tellics "):
             # tellics kibitz, tellics gameend...
             continue
