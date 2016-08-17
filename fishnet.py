@@ -660,6 +660,8 @@ def sunsetter_go(p, position, moves, movetime):
                     break
             if pv:
                 info["pv"] = " ".join(pv)
+        elif line.startswith("tellics kibitz"):
+            continue
         else:
             logging.error("Unexpected engine output: %s", line)
 
