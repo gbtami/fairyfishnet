@@ -579,7 +579,7 @@ def xboard(p):
             logging.warning("Unexpected engine output: %s", line)
 
 
-def sunsetter_go(p, position, moves, movetime):
+def sunsetter_go(p, position, moves, movetime, maxdepth=None):
     if position == "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1":
         send(p, "reset")
     else:
@@ -592,6 +592,11 @@ def sunsetter_go(p, position, moves, movetime):
         send(p, move)
 
     start = time.time()
+
+    if maxdepth:
+        send(p, "sd %d" % max(5, maxdepth))
+    else:
+        send(p, "sd 40")
 
     send(p, "go")
 
@@ -656,7 +661,7 @@ def sunsetter_go(p, position, moves, movetime):
                 info["pv"] = " ".join(move for move in pv.split()
                                       if move.replace("@", "").replace("=", "").isalnum())
 
-                if time.time() - start > movetime / 1000:
+                if time.time() - start > movetime / 1000 or (maxdepth and info["depth"] >= maxdepth):
                     send(p, "?")
         elif line.startswith("Found move: "):
             if not done:
@@ -897,7 +902,7 @@ class Worker(threading.Thread):
                       movetime=movetime, depth=LVL_DEPTHS[lvl - 1])
         else:
             part = sunsetter_go(self.sunsetter, job["position"], moves,
-                                movetime)
+                                movetime, maxdepth=LVL_DEPTHS[lvl - 1])
         end = time.time()
 
         logging.log(PROGRESS, "Played move in %s%s with lvl %d: %0.3fs elapsed, depth %d",
@@ -956,7 +961,7 @@ class Worker(threading.Thread):
                           nodes=nodes, movetime=4000)
             else:
                 part = sunsetter_go(self.sunsetter, job["position"], moves[0:ply],
-                                    3000)
+                                    2000)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
                 logging.warning("Very low time reported: %d ms.", part["time"])
