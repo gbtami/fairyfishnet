@@ -692,10 +692,11 @@ def sunsetter_go(p, position, moves, movetime, maxdepth=None):
 
 
 class Worker(threading.Thread):
-    def __init__(self, conf, threads):
+    def __init__(self, conf, threads, memory):
         super(Worker, self).__init__()
         self.conf = conf
         self.threads = threads
+        self.memory = memory
 
         self.alive = True
         self.fatal_error = None
@@ -829,13 +830,15 @@ class Worker(threading.Thread):
                                       get_engine_dir(self.conf))
 
         self.stockfish_info, _ = uci(self.stockfish)
+        self.stockfish_info.pop("author", None)
         logging.info("Started Stockfish, threads: %s (%d), pid: %d, identification: %s",
                      "+" * self.threads, self.threads, self.stockfish.pid,
                      self.stockfish_info.get("name", "<none>"))
 
         # Prepare UCI options
         self.stockfish_info["options"] = {}
-        self.stockfish_info["options"]["threads"] = str(self.threads)
+        self.stockfish_info["options"]["threads"] = self.threads
+        self.stockfish_info["options"]["hash"] = self.memory
 
         # Set UCI options
         for name, value in self.stockfish_info["options"].items():
@@ -1538,7 +1541,7 @@ def validate_threads(threads, conf):
 def validate_memory(memory, conf):
     cores = validate_cores(conf_get(conf, "Cores"))
     threads = validate_threads(conf_get(conf, "Threads"), conf)
-    processes = int(math.ceil(cores / threads))
+    processes = cores // threads
 
     if not memory or not memory.strip() or memory.strip().lower() == "auto":
         return processes * HASH_DEFAULT
@@ -1731,7 +1734,7 @@ def cmd_run(args):
     for i in range(0, cores):
         buckets[i % instances] += 1
 
-    workers = [Worker(conf, bucket) for bucket in buckets]
+    workers = [Worker(conf, bucket, memory // instances) for bucket in buckets]
 
     # Start all threads
     for i, worker in enumerate(workers):
