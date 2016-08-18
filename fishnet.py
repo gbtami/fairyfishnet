@@ -840,6 +840,11 @@ class Worker(threading.Thread):
         self.stockfish_info["options"]["threads"] = str(self.threads)
         self.stockfish_info["options"]["hash"] = str(self.memory)
 
+        # Custom options
+        if self.conf.has_section("Stockfish"):
+            for name, value in self.conf.items("Stockfish"):
+                self.stockfish_info["options"][name] = value
+
         # Set UCI options
         for name, value in self.stockfish_info["options"].items():
             setoption(self.stockfish, name, value)
@@ -1261,6 +1266,7 @@ def update_self(force=False):
 def load_conf(args):
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
+    conf.add_section("Stockfish")
 
     if not args.no_conf:
         if not args.conf and not os.path.isfile(DEFAULT_CONFIG):
@@ -1331,6 +1337,7 @@ def configure(args):
 
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
+    conf.add_section("Stockfish")
 
     # Ensure the config file is going to be writable
     config_file = os.path.abspath(args.conf or DEFAULT_CONFIG)
@@ -1726,6 +1733,18 @@ def cmd_run(args):
     print("Endpoint:         %s%s" % (endpoint, warning))
     print("FixedBackoff:     %s" % parse_bool(conf_get(conf, "FixedBackoff")))
     print()
+
+    if conf.has_section("Stockfish") and conf.items("Stockfish"):
+        print("Using custom UCI options is discouraged:")
+        for name, value in conf.items("Stockfish"):
+            if name.lower() == "hash":
+                hint = " (use --memory instead)"
+            elif name.lower() == "threads":
+                hint = " (use --threads instead)"
+            else:
+                hint = ""
+            print(" * %s = %s%s" % (name, value, hint))
+        print()
 
     print("### Starting workers ...")
     print()
