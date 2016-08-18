@@ -31,7 +31,7 @@ class WorkerTest(unittest.TestCase):
         fishnet.get_stockfish_command(conf, update=True)
         fishnet.get_sunsetter_command(conf, update=True)
 
-        self.worker = fishnet.Worker(conf, threads=multiprocessing.cpu_count())
+        self.worker = fishnet.Worker(conf, threads=multiprocessing.cpu_count(), memory=32)
         self.worker.start_stockfish()
         self.worker.start_sunsetter()
 
