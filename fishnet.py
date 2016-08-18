@@ -837,8 +837,8 @@ class Worker(threading.Thread):
 
         # Prepare UCI options
         self.stockfish_info["options"] = {}
-        self.stockfish_info["options"]["threads"] = self.threads
-        self.stockfish_info["options"]["hash"] = self.memory
+        self.stockfish_info["options"]["threads"] = str(self.threads)
+        self.stockfish_info["options"]["hash"] = str(self.memory)
 
         # Set UCI options
         for name, value in self.stockfish_info["options"].items():
