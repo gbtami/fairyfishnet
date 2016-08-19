@@ -610,13 +610,13 @@ def sunsetter_go(p, position, moves, movetime, maxdepth=None):
     done = False
 
     while True:
-        line = recv(p)
+        line = recv(p).strip()
         if line == "tellics done":
             if done:
                 return info
             else:
                 logging.error("Unexpected tellics done")
-        elif line.strip().startswith("T-hits: ") or line.startswith("Time "):
+        elif line.startswith("T-hits:") or line.startswith("Time"):
             continue
         elif line.startswith("set fixed depth to "):
             continue
@@ -639,7 +639,7 @@ def sunsetter_go(p, position, moves, movetime, maxdepth=None):
                 done = True
                 send(p, "force")
                 send(p, "tellics done")
-                info["bestmove"] = line.split(" ")[1]
+                info["bestmove"] = line.split()[1]
 
                 if cp is not None and abs(cp) >= 20000:
                     info["score"]["mate"] = math.copysign((30000 - abs(cp)) // 10, cp)
@@ -653,7 +653,7 @@ def sunsetter_go(p, position, moves, movetime, maxdepth=None):
                     info["nps"] = info["nodes"] * 1000 // info["time"]
         elif line[0].isdigit():
             if not done:
-                depth, score, stime, nodes, pv = line.split(" ", 4)
+                depth, score, stime, nodes, pv = line.split(None, 4)
                 info["depth"] = int(depth)
                 cp = int(score)
                 info["time"] = int(stime) * 10
