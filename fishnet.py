@@ -996,7 +996,9 @@ class Worker(threading.Thread):
                     if prev_cp is not None:
                         result["analysis"][next_ply]["score"]["cp"] = -prev_cp
                     if prev_mate is not None:
-                        mate = math.copysign(abs(prev_mate) - 1, -prev_mate)
+                        mate = math.copysign(max(1, abs(prev_mate) - 1), -prev_mate)
+                        logging.debug("Inferring #%d on ply %d from #%d on ply %d",
+                                      mate, next_ply, prev_mate, next_ply - 1)
                         result["analysis"][next_ply]["score"]["mate"] = mate
 
         end = time.time()
