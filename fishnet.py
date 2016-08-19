@@ -869,8 +869,7 @@ class Worker(threading.Thread):
             "stockfish": self.stockfish_info,
             "sunsetter": {
                 "name": self.sunsetter_name,
-            },
-            "engine": self.stockfish_info  # TODO: Just for backwards compability
+            }
         }
 
     def work(self):
