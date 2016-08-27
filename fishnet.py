@@ -567,11 +567,11 @@ def xboard(p):
         line = recv(p)
         if line.startswith(" Sunsetter"):
             name = line.strip()
-        if line.startswith(" "):
+        elif line.startswith(" "):
             continue
-        if line.startswith("Created "):
+        elif line.startswith("Created "):
             continue
-        if line == "tellics gameend4":
+        elif line == "tellics gameend4":
             return name
         elif line.startswith("tellics "):
             continue
