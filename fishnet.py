@@ -597,7 +597,7 @@ def sjeng_go(p, moves, movetime, maxdepth=None):
     #else:
     #    send(p, "sd 0")
 
-    send(p, "st %d" % (max(movetime // 1000, 1), ))
+    send(p, "st %f" % (max(movetime / 1000, 0.01), ))
 
     send(p, "go")
 
