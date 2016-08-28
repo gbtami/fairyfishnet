@@ -864,8 +864,9 @@ class Worker(threading.Thread):
         variant = job.get("variant", "standard")
         moves = job["moves"].split(" ")
 
-        logging.debug("Playing %s%s with lvl %d",
-                      base_url(get_endpoint(self.conf)), job["game_id"], lvl)
+        logging.debug("Playing %s%s (%s) with lvl %d",
+                      base_url(get_endpoint(self.conf)), job["game_id"],
+                      variant, lvl)
 
         if variant != "crazyhouse":
             set_variant_options(self.stockfish, job.get("variant", "standard"))
@@ -934,7 +935,8 @@ class Worker(threading.Thread):
                 if self.send_analysis_progress(job, result):
                     last_progress_report = time.time()
 
-            logging.log(PROGRESS, "Analysing %s%s#%d",
+            logging.log(PROGRESS, "Analysing %s game %s%s#%d",
+                        variant,
                         base_url(get_endpoint(self.conf)), job["game_id"], ply)
 
             if variant != "crazyhouse":
