@@ -3,8 +3,10 @@ fishnet.ini
 *.py[cd]
 stockfish-*
 sunsetter-*
+sjeng-*
 Stockfish
 Sunsetter
+Sjeng
 build/
 dist/
 fishnet.egg-info/
