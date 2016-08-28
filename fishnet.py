@@ -100,7 +100,7 @@ __license__ = "MIT"
 
 DEFAULT_ENDPOINT = "https://en.lichess.org/fishnet/"
 STOCKFISH_RELEASES = "https://api.github.com/repos/niklasf/Stockfish/releases/latest"
-SUNSETTER_RELEASES = "https://api.github.com/repos/niklasf/Sunsetter/releases/latest"
+SJENG_RELEASES = "https://api.github.com/repos/niklasf/Sjeng/releases/latest"
 DEFAULT_THREADS = 4
 HASH_MIN = 16
 HASH_DEFAULT = 256
@@ -565,25 +565,25 @@ def xboard(p):
 
     while True:
         line = recv(p)
-        if line.startswith(" Sunsetter"):
-            name = line.strip()
-        elif line.startswith(" "):
+        if line.startswith("Allocated "):
             continue
-        elif line.startswith("Created "):
+        elif line.startswith("No .OPN opening book found."):
             continue
-        elif line == "tellics gameend4":
+        elif line.startswith("No configuration file!"):
+            continue
+        elif line.startswith("Sjeng version"):
+            name, _ = line.split(",", 1)
+        elif name and line.startswith("tellics "):
             return name
-        elif line.startswith("tellics "):
+        elif name:
             continue
         else:
             logging.warning("Unexpected engine output: %s", line)
 
 
-def sunsetter_go(p, position, moves, movetime, maxdepth=None):
-    if position == "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1":
-        send(p, "reset")
-    else:
-        send(p, "setboard %s" % position)
+def sjeng_go(p, moves, movetime, maxdepth=None):
+    send(p, "reset")
+    send(p, "variant crazyhouse")
 
     send(p, "force")
     send(p, "easy")
@@ -591,12 +591,13 @@ def sunsetter_go(p, position, moves, movetime, maxdepth=None):
     for move in moves:
         send(p, move)
 
-    start = time.time()
+    # TODO: Better depth and time limits
+    #if maxdepth is not None:
+    #    send(p, "sd %d" % max(5, maxdepth))
+    #else:
+    #    send(p, "sd 0")
 
-    if maxdepth is not None:
-        send(p, "sd %d" % max(5, maxdepth))
-    else:
-        send(p, "sd 0")
+    send(p, "st %d" % (max(movetime // 1000, 1), ))
 
     send(p, "go")
 
@@ -605,90 +606,61 @@ def sunsetter_go(p, position, moves, movetime, maxdepth=None):
     info["depth"] = 0
     info["score"] = {}
 
-    cp = None
-
-    done = False
-
     while True:
         line = recv(p).strip()
-        if line == "tellics done":
-            if done:
-                return info
-            else:
-                logging.error("Unexpected tellics done")
-        elif line.startswith("T-hits:") or line.startswith("Time"):
-            continue
-        elif line.startswith("set fixed depth to "):
-            continue
-        elif line.startswith("bookfile "):
-            continue
-        elif line.startswith("1-0 ") or line.startswith("0-1 "):
-            if not done:
-                done = True
-                send(p, "tellics done")
+        if line.endswith(" phase."):
+            pass
+        elif any(line.startswith(prefix) for prefix in ["Hash",
+                    "Material", "Move ordering", "EGTB", "Check extensions",
+                    "NTries", "TTStores", "ECacheProbes", "Time for move",
+                    "Used time"]):
+            pass
+        elif line.startswith("Nodes:"):
+            _, nodes, _ = line.split(None, 2)
+            info["nodes"] = int(nodes)
+        elif line.startswith("NPS:"):
+            _, nps = line.split(None, 1)
+            info["nps"] = int(nps)
+        elif line.startswith("1-0") or line.startswith("0-1"):
+            if not info["bestmove"]:
                 info["score"]["mate"] = 0
                 info["depth"] = 0
-        elif line.startswith("1/2-1/2 "):
-            if not done:
-                done = True
-                send(p, "tellics done")
-                info["score"]["cp"] = 0
+                return info
+            else:
+                info["score"]["mate"] = 1
+        elif line.startswith("1/2-1/2"):
+            info["score"]["cp"] = 0
+            if not info["bestmove"]:
                 info["depth"] = 0
-        elif line.startswith("move "):
-            if not done:
-                done = True
-                send(p, "force")
-                send(p, "tellics done")
-                info["bestmove"] = line.split()[1]
-
-                if cp is not None and abs(cp) >= 20000:
-                    info["score"]["mate"] = math.copysign((30000 - abs(cp)) // 10, cp)
-                elif cp is not None:
-                    info["score"]["cp"] = cp
-
-                if not info.get("pv", None):
-                    info["pv"] = info["bestmove"]
-
-                if info.get("time", None) and "nodes" in info:
-                    info["nps"] = info["nodes"] * 1000 // info["time"]
+                return info
         elif line[0].isdigit():
-            if not done:
-                depth, score, stime, nodes, pv = line.split(None, 4)
-                info["depth"] = int(depth)
-                cp = int(score)
-                info["time"] = int(stime) * 10
-                info["nodes"] = int(nodes)
-                info["pv"] = " ".join(move for move in pv.split()
-                                      if move.replace("@", "").replace("=", "").isalnum())
+            depth, cp, stime, nodes, trail = (line + " !").split(None, 4)
+            info["depth"] = int(depth)
+            cp = int(cp)
+            info["time"] = int(stime)
+            info["nodes"] = int(nodes)
 
-                if time.time() - start > movetime / 1000 or (maxdepth is not None and info["depth"] >= maxdepth):
-                    send(p, "?")
-        elif line.startswith("Found move: "):
-            if not done:
-                # Found move: d7d5 -10 fply: 11  searches: 840015 quiesces: 113140
-                _, _, move, score, _, fply, _, searches, _ = line.split(None, 8)
-                info["bestmove"] = move
-                info["depth"] = int(fply) + 1
-                info["nodes"] = int(searches)
-                cp = int(score)
-        elif line.startswith("tellics whisper "):
-            if not done:
-                # tellics whisper :-| 12: d7d5 d2d3 b8c6 c1e3 f8b4 b1c3 g8f6 (M: +0 D: +0 C: -10 KW: +0 KB: +0 )
-                _, _, _, depth, trail = line.split(None, 4)
-                info["depth"] = int(depth.rstrip(":"))
-                pv = []
-                for move in trail.split():
-                    if move.replace("@", "").replace("=", "").isalnum():
-                        pv.append(move)
-                    else:
-                        break
-                if pv:
-                    info["pv"] = " ".join(pv)
-        elif line.startswith("tellics "):
-            # tellics kibitz, tellics gameend...
-            continue
+            pv = []
+            for move in trail.split():
+                if move.replace("@", "").replace("=", "").isalnum():
+                    pv.append(move.capitalize() if "@" in move else move)
+                else:
+                    break
+            if pv:
+                info["pv"] = " ".join(pv)
+
+            if abs(cp) > 999000:
+                info["score"]["mate"] = math.copysign(999999 - abs(cp), cp)
+            else:
+                info["score"]["cp"] = cp
+        elif line.startswith("move "):
+            _, move = line.split(None, 1)
+            info["bestmove"] = move.capitalize() if "@" in move else move
+            send(p, "ping 1337")
+        elif line == "pong 1337":
+            return info
         else:
-            logging.error("Unexpected engine output: %s", line)
+            logging.warning("Unexpected engine output: %s", line)
 
 
 class Worker(threading.Thread):
@@ -709,8 +681,8 @@ class Worker(threading.Thread):
 
         self.stockfish = None
         self.stockfish_info = None
-        self.sunsetter = None
-        self.sunsetter_name = None
+        self.sjeng = None
+        self.sjeng_name = None
 
         self.job = None
         self.backoff = start_backoff(self.conf)
@@ -722,8 +694,8 @@ class Worker(threading.Thread):
             if self.stockfish:
                 kill_process(self.stockfish)
 
-            if self.sunsetter:
-                kill_process(self.sunsetter)
+            if self.sjeng:
+                kill_process(self.sjeng)
 
             self.sleep.set()
 
@@ -755,14 +727,14 @@ class Worker(threading.Thread):
             # Check if the engines are still alive
             if self.stockfish:
                 self.stockfish.poll()
-            if self.sunsetter:
-                self.sunsetter.poll()
+            if self.sjeng:
+                self.sjeng.poll()
 
             # Restart the engine
             if not self.stockfish or self.stockfish.returncode is not None:
                 self.start_stockfish()
-            if not self.sunsetter or self.sunsetter.returncode is not None:
-                self.start_sunsetter()
+            if not self.sjeng or self.sjeng.returncode is not None:
+                self.start_sjeng()
 
             # Do the next work unit
             path, request = self.work()
@@ -813,7 +785,7 @@ class Worker(threading.Thread):
                 logging.exception("Engine process has died. Backing off %0.1fs", t)
                 self.sleep.wait(t)
                 kill_process(self.stockfish)
-                kill_process(self.sunsetter)
+                kill_process(self.sjeng)
         except Exception:
             self.job = None
             t = next(self.backoff)
@@ -822,7 +794,7 @@ class Worker(threading.Thread):
 
             # If in doubt, restart engine
             kill_process(self.stockfish)
-            kill_process(self.sunsetter)
+            kill_process(self.sjeng)
 
     def start_stockfish(self):
         # Start process
@@ -851,13 +823,13 @@ class Worker(threading.Thread):
 
         isready(self.stockfish)
 
-    def start_sunsetter(self):
-        self.sunsetter = open_process(get_sunsetter_command(self.conf, False),
-                                      get_engine_dir(self.conf))
+    def start_sjeng(self):
+        self.sjeng = open_process(get_sjeng_command(self.conf, False),
+                                  get_engine_dir(self.conf))
 
-        self.sunsetter_name = xboard(self.sunsetter)
-        logging.info("Started Sunsetter, pid: %d, identification: %s",
-                     self.sunsetter.pid, self.sunsetter_name or "<none>")
+        self.sjeng_name = xboard(self.sjeng)
+        logging.info("Started Sjeng, pid: %d, identification: %s",
+                     self.sjeng.pid, self.sjeng_name or "<none>")
 
     def make_request(self):
         return {
@@ -868,7 +840,7 @@ class Worker(threading.Thread):
             },
             "stockfish": self.stockfish_info,
             "sunsetter": {
-                "name": self.sunsetter_name,
+                "name": self.sjeng_name,
             }
         }
 
@@ -910,8 +882,8 @@ class Worker(threading.Thread):
             part = go(self.stockfish, job["position"], moves,
                       movetime=movetime, depth=LVL_DEPTHS[lvl - 1])
         else:
-            part = sunsetter_go(self.sunsetter, job["position"], moves,
-                                movetime, maxdepth=LVL_DEPTHS[lvl - 1])
+            part = sjeng_go(self.sjeng, moves,
+                            movetime, maxdepth=LVL_DEPTHS[lvl - 1])
         end = time.time()
 
         logging.log(PROGRESS, "Played move in %s%s with lvl %d: %0.3fs elapsed, depth %d",
@@ -969,8 +941,7 @@ class Worker(threading.Thread):
                 part = go(self.stockfish, job["position"], moves[0:ply],
                           nodes=nodes, movetime=4000)
             else:
-                part = sunsetter_go(self.sunsetter, job["position"], moves[0:ply],
-                                    2000)
+                part = sjeng_go(self.sjeng, moves[0:ply], 2000)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
                 logging.warning("Very low time reported: %d ms.", part["time"])
@@ -1079,15 +1050,15 @@ def stockfish_filename():
         return "stockfish-%s%s" % (machine, suffix)
 
 
-def sunsetter_filename():
+def sjeng_filename():
     machine = platform.machine().lower()
 
     if os.name == "nt":
-        return "sunsetter-windows-%s.exe" % machine
+        return "sjeng-windows-%s.exe" % machine
     elif os.name == "os2" or sys.platform == "darwin":
-        return "sunsetter-osx-%s" % machine
+        return "sjeng-osx-%s" % machine
     elif os.name == "posix":
-        return "sunsetter-%s" % machine
+        return "sjeng-%s" % machine
 
 
 def download_github_release(conf, release_page, filename):
@@ -1151,8 +1122,8 @@ def update_stockfish(conf, filename):
     return download_github_release(conf, STOCKFISH_RELEASES, filename)
 
 
-def update_sunsetter(conf, filename):
-    return download_github_release(conf, SUNSETTER_RELEASES, filename)
+def update_sjeng(conf, filename):
+    return download_github_release(conf, SJENG_RELEASES, filename)
 
 
 def is_user_site_package():
@@ -1283,8 +1254,8 @@ def load_conf(args):
         conf.set("Fishnet", "EngineDir", args.engine_dir)
     if hasattr(args, "stockfish_command") and args.stockfish_command is not None:
         conf.set("Fishnet", "StockfishCommand", args.stockfish_command)
-    if hasattr(args, "sunsetter_command") and args.sunsetter_command is not None:
-        conf.set("Fishnet", "SunsetterCommand", args.sunsetter_command)
+    if hasattr(args, "sjeng_command") and args.sjeng_command is not None:
+        conf.set("Fishnet", "SjengCommand", args.sjeng_command)
     if hasattr(args, "key") and args.key is not None:
         conf.set("Fishnet", "Key", args.key)
     if hasattr(args, "cores") and args.cores is not None:
@@ -1370,17 +1341,17 @@ def configure(args):
                                      out)
     print(file=out)
 
-    # Sunsetter command
-    print("Fishnet uses a patched Sunsetter build for crazyhouse.", file=out)
-    print("Sunsetter is licensed under the GNU General Public License v2.", file=out)
-    print("You can find the source at: https://github.com/niklasf/Sunsetter", file=out)
+    # Sjeng command
+    print("Fishnet uses a patched Sjeng build for crazyhouse.", file=out)
+    print("Sjeng is licensed under the GNU General Public License v2.", file=out)
+    print("You can find the source at: https://github.com/niklasf/Sjeng", file=out)
     print(file=out)
-    print("You can build Sunsetter yourself and provide the path", file=out)
+    print("You can build Sjeng yourself and provide the path", file=out)
     print("or automatically download a precompiled binary.", file=out)
     print(file=out)
-    sunsetter_command = config_input("Path or command (default: download): ",
-                                     lambda v: validate_sunsetter_command(v, conf),
-                                     out)
+    sjeng_command = config_input("Path or command (default: download): ",
+                                 lambda v: validate_sjeng_command(v, conf),
+                                 out)
 
     # Cores
     max_cores = multiprocessing.cpu_count()
@@ -1463,30 +1434,19 @@ def validate_stockfish_command(stockfish_command, conf):
     return stockfish_command
 
 
-def validate_sunsetter_command(sunsetter_command, conf):
-    if not sunsetter_command or not sunsetter_command.strip() or sunsetter_command.strip().lower() == "download":
+def validate_sjeng_command(sjeng_command, conf):
+    if not sjeng_command or not sjeng_command.strip() or sjeng_command.strip().lower() == "download":
         return None
 
-    sunsetter_command = sunsetter_command.strip()
+    sjeng_command = sjeng_command.strip()
     engine_dir = get_engine_dir(conf)
 
     # Ensure the patch for setboard is included
-    process = open_process(sunsetter_command, engine_dir)
+    process = open_process(sjeng_command, engine_dir)
     xboard(process)
-    send(process, "setboard")
-    send(process, "tellics hello")
-    while True:
-        line = recv(process)
-        if line.startswith("Illegal"):
-            raise ConfigError("Ensure you are using lichess patched Sunsetter. "
-                              "Unsupported command: setboard")
-        elif line == "tellics hello":
-            break
-        else:
-            logging.warning("Unexpected engine output: %s", line)
     kill_process(process)
 
-    return sunsetter_command
+    return sjeng_command
 
 
 def parse_bool(inp, default=False):
@@ -1634,15 +1594,15 @@ def get_stockfish_command(conf, update=True):
         return stockfish_command
 
 
-def get_sunsetter_command(conf, update=True):
-    sunsetter_command = validate_sunsetter_command(conf_get(conf, "SunsetterCommand"), conf)
-    if not sunsetter_command:
-        filename = sunsetter_filename()
+def get_sjeng_command(conf, update=True):
+    sjeng_command = validate_sjeng_command(conf_get(conf, "SjengCommand"), conf)
+    if not sjeng_command:
+        filename = sjeng_filename()
         if update:
-            filename = update_sunsetter(conf, filename)
-        return validate_sunsetter_command(os.path.join(".", filename), conf)
+            filename = update_sjeng(conf, filename)
+        return validate_sjeng_command(os.path.join(".", filename), conf)
     else:
-        return sunsetter_command
+        return sjeng_command
 
 
 def get_endpoint(conf, sub=""):
@@ -1703,22 +1663,22 @@ def cmd_run(args):
         update_self()
 
     stockfish_command = validate_stockfish_command(conf_get(conf, "StockfishCommand"), conf)
-    sunsetter_command = validate_sunsetter_command(conf_get(conf, "SunsetterCommand"), conf)
-    if not stockfish_command or not sunsetter_command:
+    sjeng_command = validate_sjeng_command(conf_get(conf, "SjengCommand"), conf)
+    if not stockfish_command or not sjeng_command:
         print()
         print("### Updating engines ...")
         print()
         if not stockfish_command:
             stockfish_command = get_stockfish_command(conf)
-        if not sunsetter_command:
-            sunsetter_command = get_sunsetter_command(conf)
+        if not sjeng_command:
+            sjeng_command = get_sjeng_command(conf)
 
     print()
     print("### Checking configuration ...")
     print()
     print("EngineDir:        %s" % get_engine_dir(conf))
     print("StockfishCommand: %s" % stockfish_command)
-    print("SunsetterCommand: %s" % sunsetter_command)
+    print("SjengCommand:     %s" % sjeng_command)
     print("Key:              %s" % (("*" * len(get_key(conf))) or "(none)"))
 
     cores = validate_cores(conf_get(conf, "Cores"))
@@ -1864,9 +1824,9 @@ def cmd_systemd(args):
     if args.stockfish_command is not None:
         builder.append("--stockfish-command")
         builder.append(shell_quote(validate_stockfish_command(args.stockfish_command, conf)))
-    if args.sunsetter_command is not None:
-        builder.append("--sunsetter-command")
-        builder.append(shell_quote(validate_sunsetter_command(args.sunsetter_command, conf)))
+    if args.sjeng_command is not None:
+        builder.append("--sjeng-command")
+        builder.append(shell_quote(validate_sjeng_command(args.sjeng_command, conf)))
     if args.cores is not None:
         builder.append("--cores")
         builder.append(shell_quote(str(validate_cores(args.cores))))
@@ -2061,7 +2021,7 @@ def main(argv):
 
     parser.add_argument("--engine-dir", help="engine working directory")
     parser.add_argument("--stockfish-command", help="stockfish command (default: download precompiled Stockfish)")
-    parser.add_argument("--sunsetter-command", help="sunsetter command (default: download precompiled Sunsetter)")
+    parser.add_argument("--sjeng-command", help="sjeng command (default: download precompiled Sjeng)")
 
     parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
     parser.add_argument("--memory", help="total memory (MB) to use for engine hashtables")
