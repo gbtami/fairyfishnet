@@ -887,8 +887,8 @@ class Worker(threading.Thread):
                             movetime, maxdepth=LVL_DEPTHS[lvl - 1])
         end = time.time()
 
-        logging.log(PROGRESS, "Played move in %s%s with lvl %d: %0.3fs elapsed, depth %d",
-                    base_url(get_endpoint(self.conf)), job["game_id"],
+        logging.log(PROGRESS, "Played move in %s%s (%s) with lvl %d: %0.3fs elapsed, depth %d",
+                    base_url(get_endpoint(self.conf)), job["game_id"], variant,
                     lvl, end - start, part.get("depth", 0))
 
         self.nodes += part.get("nodes", 0)
