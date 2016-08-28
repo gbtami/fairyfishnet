@@ -29,11 +29,11 @@ class WorkerTest(unittest.TestCase):
         conf.set("Fishnet", "Key", "testkey")
 
         fishnet.get_stockfish_command(conf, update=True)
-        fishnet.get_sunsetter_command(conf, update=True)
+        fishnet.get_sjeng_command(conf, update=True)
 
         self.worker = fishnet.Worker(conf, threads=multiprocessing.cpu_count(), memory=32)
         self.worker.start_stockfish()
-        self.worker.start_sunsetter()
+        self.worker.start_sjeng()
 
     def tearDown(self):
         fishnet.send(self.worker.stockfish, "quit")
