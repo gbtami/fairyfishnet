@@ -591,11 +591,10 @@ def sjeng_go(p, moves, movetime, maxdepth=None):
     for move in moves:
         send(p, move)
 
-    # TODO: Better depth and time limits
-    #if maxdepth is not None:
-    #    send(p, "sd %d" % max(5, maxdepth))
-    #else:
-    #    send(p, "sd 0")
+    if maxdepth is not None:
+        send(p, "sd %d" % max(5, maxdepth))
+    else:
+        send(p, "sd 40")
 
     send(p, "st %f" % (max(movetime / 1000, 0.01), ))
 
@@ -611,6 +610,7 @@ def sjeng_go(p, moves, movetime, maxdepth=None):
         if line.endswith(" phase."):
             pass
         elif any(line.startswith(prefix) for prefix in ["Hash",
+                    "New max depth set to",
                     "Material", "Move ordering", "EGTB", "Check extensions",
                     "NTries", "TTStores", "ECacheProbes", "Time for move",
                     "Used time"]):
