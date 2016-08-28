@@ -617,10 +617,16 @@ def sjeng_go(p, moves, movetime, maxdepth=None):
             pass
         elif line.startswith("Nodes:"):
             _, nodes, _ = line.split(None, 2)
-            info["nodes"] = int(nodes)
+            try:
+                info["nodes"] = int(nodes)
+            except ValueError:
+                logging.warning("Nodes was not an integer: %s", nodes)
         elif line.startswith("NPS:"):
             _, nps = line.split(None, 1)
-            info["nps"] = int(nps)
+            try:
+                info["nps"] = int(nps)
+            except ValueError:
+                logging.warning("NPS was not an integer: %s", nps)
         elif line.startswith("1-0") or line.startswith("0-1"):
             if not info["bestmove"]:
                 info["score"]["mate"] = 0
