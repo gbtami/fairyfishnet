@@ -100,7 +100,6 @@ __license__ = "MIT"
 
 DEFAULT_ENDPOINT = "https://en.lichess.org/fishnet/"
 STOCKFISH_RELEASES = "https://api.github.com/repos/niklasf/Stockfish/releases/latest"
-SJENG_RELEASES = "https://api.github.com/repos/niklasf/Sjeng/releases/latest"
 DEFAULT_THREADS = 4
 HASH_MIN = 16
 HASH_DEFAULT = 256
@@ -558,117 +557,6 @@ def set_variant_options(p, variant):
     setoption(p, "UCI_3Check", variant == "threecheck")
 
 
-def xboard(p):
-    send(p, "xboard")
-
-    name = None
-
-    while True:
-        line = recv(p)
-        if line.startswith("Allocated "):
-            continue
-        elif line.startswith("No .OPN opening book found."):
-            continue
-        elif line.startswith("No configuration file!"):
-            continue
-        elif line.startswith("Sjeng version"):
-            name, _ = line.split(",", 1)
-        elif name and line.startswith("tellics "):
-            return name
-        elif name:
-            continue
-        else:
-            logging.warning("Unexpected engine output: %s", line)
-
-
-def sjeng_go(p, moves, movetime, maxdepth=None):
-    send(p, "reset")
-    send(p, "variant crazyhouse")
-
-    send(p, "force")
-    send(p, "easy")
-
-    for move in moves:
-        send(p, move)
-
-    if maxdepth is not None:
-        send(p, "sd %d" % max(5, maxdepth))
-    else:
-        send(p, "sd 40")
-
-    send(p, "st %f" % (max(movetime / 1000, 0.01), ))
-
-    send(p, "go")
-
-    info = {}
-    info["bestmove"] = None
-    info["depth"] = 0
-    info["score"] = {}
-
-    while True:
-        line = recv(p).strip()
-        if line.endswith(" phase."):
-            pass
-        elif any(line.startswith(prefix) for prefix in ["Hash",
-                    "New max depth set to",
-                    "Material", "Move ordering", "EGTB", "Check extensions",
-                    "NTries", "TTStores", "ECacheProbes", "Time for move",
-                    "Used time"]):
-            pass
-        elif line.startswith("Nodes:"):
-            _, nodes, _ = line.split(None, 2)
-            try:
-                info["nodes"] = int(nodes)
-            except ValueError:
-                logging.warning("Nodes was not an integer: %s", nodes)
-        elif line.startswith("NPS:"):
-            _, nps = line.split(None, 1)
-            try:
-                info["nps"] = int(nps)
-            except ValueError:
-                logging.warning("NPS was not an integer: %s", nps)
-        elif line.startswith("1-0") or line.startswith("0-1"):
-            if not info["bestmove"]:
-                info["score"]["mate"] = 0
-                info["depth"] = 0
-                return info
-            else:
-                info["score"]["mate"] = 1
-        elif line.startswith("1/2-1/2"):
-            info["score"]["cp"] = 0
-            if not info["bestmove"]:
-                info["depth"] = 0
-                return info
-        elif line[0].isdigit():
-            depth, cp, stime, nodes, trail = (line + " !").split(None, 4)
-            info["depth"] = int(depth)
-            cp = int(cp)
-            info["time"] = int(stime)
-            info["nodes"] = int(nodes)
-
-            pv = []
-            for move in trail.split():
-                if move.replace("@", "").replace("=", "").isalnum():
-                    pv.append(move.capitalize() if "@" in move else move)
-                else:
-                    break
-            if pv:
-                info["pv"] = " ".join(pv)
-
-            if abs(cp) > 999000:
-                info["score"]["mate"] = math.copysign(999999 - abs(cp), cp)
-            else:
-                info["score"]["cp"] = cp
-        elif line.startswith("move "):
-            _, move = line.split(None, 1)
-            info["bestmove"] = move.capitalize() if "@" in move else move
-            send(p, "ping 1337")
-        elif line == "pong 1337":
-            return info
-        else:
-            logging.warning("Unexpected engine output: %s", line)
-
-
 class Worker(threading.Thread):
     def __init__(self, conf, threads, memory):
         super(Worker, self).__init__()
@@ -687,8 +575,6 @@ class Worker(threading.Thread):
 
         self.stockfish = None
         self.stockfish_info = None
-        self.sjeng = None
-        self.sjeng_name = None
 
         self.job = None
         self.backoff = start_backoff(self.conf)
@@ -699,9 +585,6 @@ class Worker(threading.Thread):
 
             if self.stockfish:
                 kill_process(self.stockfish)
-
-            if self.sjeng:
-                kill_process(self.sjeng)
 
             self.sleep.set()
 
@@ -733,14 +616,10 @@ class Worker(threading.Thread):
             # Check if the engines are still alive
             if self.stockfish:
                 self.stockfish.poll()
-            if self.sjeng:
-                self.sjeng.poll()
 
             # Restart the engine
             if not self.stockfish or self.stockfish.returncode is not None:
                 self.start_stockfish()
-            if not self.sjeng or self.sjeng.returncode is not None:
-                self.start_sjeng()
 
             # Do the next work unit
             path, request = self.work()
@@ -791,7 +670,6 @@ class Worker(threading.Thread):
                 logging.exception("Engine process has died. Backing off %0.1fs", t)
                 self.sleep.wait(t)
                 kill_process(self.stockfish)
-                kill_process(self.sjeng)
         except Exception:
             self.job = None
             t = next(self.backoff)
@@ -800,7 +678,6 @@ class Worker(threading.Thread):
 
             # If in doubt, restart engine
             kill_process(self.stockfish)
-            kill_process(self.sjeng)
 
     def start_stockfish(self):
         # Start process
@@ -829,14 +706,6 @@ class Worker(threading.Thread):
 
         isready(self.stockfish)
 
-    def start_sjeng(self):
-        self.sjeng = open_process(get_sjeng_command(self.conf, False),
-                                  get_engine_dir(self.conf))
-
-        self.sjeng_name = xboard(self.sjeng)
-        logging.info("Started Sjeng, pid: %d, identification: %s",
-                     self.sjeng.pid, self.sjeng_name or "<none>")
-
     def make_request(self):
         return {
             "fishnet": {
@@ -845,9 +714,6 @@ class Worker(threading.Thread):
                 "apikey": get_key(self.conf),
             },
             "stockfish": self.stockfish_info,
-            "sunsetter": {
-                "name": self.sjeng_name,
-            }
         }
 
     def work(self):
@@ -885,12 +751,8 @@ class Worker(threading.Thread):
             movetime = LVL_CRAZY_MOVETIMES[lvl - 1]
 
         start = time.time()
-        if variant != "crazyhouse":
-            part = go(self.stockfish, job["position"], moves,
-                      movetime=movetime, depth=LVL_DEPTHS[lvl - 1])
-        else:
-            part = sjeng_go(self.sjeng, moves,
-                            movetime, maxdepth=LVL_DEPTHS[lvl - 1])
+        part = go(self.stockfish, job["position"], moves,
+                  movetime=movetime, depth=LVL_DEPTHS[lvl - 1])
         end = time.time()
 
         logging.log(PROGRESS, "Played move in %s%s (%s) with lvl %d: %0.3fs elapsed, depth %d",
@@ -945,11 +807,8 @@ class Worker(threading.Thread):
                         variant,
                         base_url(get_endpoint(self.conf)), job["game_id"], ply)
 
-            if variant != "crazyhouse":
-                part = go(self.stockfish, job["position"], moves[0:ply],
-                          nodes=nodes, movetime=4000)
-            else:
-                part = sjeng_go(self.sjeng, moves[0:ply], 2000)
+            part = go(self.stockfish, job["position"], moves[0:ply],
+                      nodes=nodes, movetime=4000)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
                 logging.warning("Very low time reported: %d ms.", part["time"])
@@ -962,23 +821,6 @@ class Worker(threading.Thread):
             self.positions += 1
 
             result["analysis"][ply] = part
-
-            # Fill gaps that Sunsetter leaves for forced moves
-            if part["score"]:
-                for next_ply in range(ply + 1, len(moves) + 1):
-                    if result["analysis"][next_ply]["score"]:
-                        break
-
-                    prev_cp = result["analysis"][next_ply - 1]["score"].get("cp", None)
-                    prev_mate = result["analysis"][next_ply - 1]["score"].get("mate", None)
-
-                    if prev_cp is not None:
-                        result["analysis"][next_ply]["score"]["cp"] = -prev_cp
-                    if prev_mate is not None:
-                        mate = math.copysign(max(1, abs(prev_mate) - 1), -prev_mate)
-                        logging.debug("Inferring #%d on ply %d from #%d on ply %d",
-                                      mate, next_ply, prev_mate, next_ply - 1)
-                        result["analysis"][next_ply]["score"]["mate"] = mate
 
         end = time.time()
         logging.info("%s%s took %0.1fs (%0.2fs per position)",
@@ -1058,17 +900,6 @@ def stockfish_filename():
         return "stockfish-%s%s" % (machine, suffix)
 
 
-def sjeng_filename():
-    machine = platform.machine().lower()
-
-    if os.name == "nt":
-        return "sjeng-windows-%s.exe" % machine
-    elif os.name == "os2" or sys.platform == "darwin":
-        return "sjeng-osx-%s" % machine
-    elif os.name == "posix":
-        return "sjeng-%s" % machine
-
-
 def download_github_release(conf, release_page, filename):
     path = os.path.join(get_engine_dir(conf), filename)
     logging.info("Engine target path: %s", path)
@@ -1128,10 +959,6 @@ def download_github_release(conf, release_page, filename):
 
 def update_stockfish(conf, filename):
     return download_github_release(conf, STOCKFISH_RELEASES, filename)
-
-
-def update_sjeng(conf, filename):
-    return download_github_release(conf, SJENG_RELEASES, filename)
 
 
 def is_user_site_package():
@@ -1262,8 +1089,6 @@ def load_conf(args):
         conf.set("Fishnet", "EngineDir", args.engine_dir)
     if hasattr(args, "stockfish_command") and args.stockfish_command is not None:
         conf.set("Fishnet", "StockfishCommand", args.stockfish_command)
-    if hasattr(args, "sjeng_command") and args.sjeng_command is not None:
-        conf.set("Fishnet", "SjengCommand", args.sjeng_command)
     if hasattr(args, "key") and args.key is not None:
         conf.set("Fishnet", "Key", args.key)
     if hasattr(args, "cores") and args.cores is not None:
@@ -1349,18 +1174,6 @@ def configure(args):
                                      out)
     print(file=out)
 
-    # Sjeng command
-    print("Fishnet uses a patched Sjeng build for crazyhouse.", file=out)
-    print("Sjeng is licensed under the GNU General Public License v2.", file=out)
-    print("You can find the source at: https://github.com/niklasf/Sjeng", file=out)
-    print(file=out)
-    print("You can build Sjeng yourself and provide the path", file=out)
-    print("or automatically download a precompiled binary.", file=out)
-    print(file=out)
-    sjeng_command = config_input("Path or command (default: download): ",
-                                 lambda v: validate_sjeng_command(v, conf),
-                                 out)
-
     # Cores
     max_cores = multiprocessing.cpu_count()
     default_cores = max(1, max_cores - 1)
@@ -1440,21 +1253,6 @@ def validate_stockfish_command(stockfish_command, conf):
                           "Unsupported engine options: %s" % ", ".join(missing_options))
 
     return stockfish_command
-
-
-def validate_sjeng_command(sjeng_command, conf):
-    if not sjeng_command or not sjeng_command.strip() or sjeng_command.strip().lower() == "download":
-        return None
-
-    sjeng_command = sjeng_command.strip()
-    engine_dir = get_engine_dir(conf)
-
-    # Ensure the patch for setboard is included
-    process = open_process(sjeng_command, engine_dir)
-    xboard(process)
-    kill_process(process)
-
-    return sjeng_command
 
 
 def parse_bool(inp, default=False):
@@ -1602,17 +1400,6 @@ def get_stockfish_command(conf, update=True):
         return stockfish_command
 
 
-def get_sjeng_command(conf, update=True):
-    sjeng_command = validate_sjeng_command(conf_get(conf, "SjengCommand"), conf)
-    if not sjeng_command:
-        filename = sjeng_filename()
-        if update:
-            filename = update_sjeng(conf, filename)
-        return validate_sjeng_command(os.path.join(".", filename), conf)
-    else:
-        return sjeng_command
-
-
 def get_endpoint(conf, sub=""):
     return urlparse.urljoin(validate_endpoint(conf_get(conf, "Endpoint")), sub)
 
@@ -1671,22 +1458,17 @@ def cmd_run(args):
         update_self()
 
     stockfish_command = validate_stockfish_command(conf_get(conf, "StockfishCommand"), conf)
-    sjeng_command = validate_sjeng_command(conf_get(conf, "SjengCommand"), conf)
-    if not stockfish_command or not sjeng_command:
+    if not stockfish_command:
         print()
-        print("### Updating engines ...")
+        print("### Updating Stockfish ...")
         print()
-        if not stockfish_command:
-            stockfish_command = get_stockfish_command(conf)
-        if not sjeng_command:
-            sjeng_command = get_sjeng_command(conf)
+        stockfish_command = get_stockfish_command(conf)
 
     print()
     print("### Checking configuration ...")
     print()
     print("EngineDir:        %s" % get_engine_dir(conf))
     print("StockfishCommand: %s" % stockfish_command)
-    print("SjengCommand:     %s" % sjeng_command)
     print("Key:              %s" % (("*" * len(get_key(conf))) or "(none)"))
 
     cores = validate_cores(conf_get(conf, "Cores"))
@@ -1832,9 +1614,6 @@ def cmd_systemd(args):
     if args.stockfish_command is not None:
         builder.append("--stockfish-command")
         builder.append(shell_quote(validate_stockfish_command(args.stockfish_command, conf)))
-    if args.sjeng_command is not None:
-        builder.append("--sjeng-command")
-        builder.append(shell_quote(validate_sjeng_command(args.sjeng_command, conf)))
     if args.cores is not None:
         builder.append("--cores")
         builder.append(shell_quote(str(validate_cores(args.cores))))
@@ -2029,7 +1808,6 @@ def main(argv):
 
     parser.add_argument("--engine-dir", help="engine working directory")
     parser.add_argument("--stockfish-command", help="stockfish command (default: download precompiled Stockfish)")
-    parser.add_argument("--sjeng-command", help="sjeng command (default: download precompiled Sjeng)")
 
     parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
     parser.add_argument("--memory", help="total memory (MB) to use for engine hashtables")

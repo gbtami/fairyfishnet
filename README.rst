@@ -47,17 +47,6 @@ You can build Stockfish yourself (for example with ``./build-stockfish.sh``)
 and provide the path using ``python -m fishnet --stockfish-command``. Otherwise
 a precompiled binary will be downloaded for you.
 
-lichess.org patched Sunsetter
------------------------------
-
-For crazyhouse fishnet uses the engine
-`Sunsetter <http://sunsetter.sourceforge.net/>`__ with
-`a couple of patches <https://github.com/niklasf/Sunsetter>`__.
-
-You can build Sunsetter yourself (using ``./build-sunsetter.sh``) and provide
-the path using ``python -m fishnet --sunsetter-command``. Otherwise a
-precompiled binary will be downloaded for you.
-
 Overview
 --------
 
