@@ -87,7 +87,7 @@ class ValidatorTest(unittest.TestCase):
 
 if __name__ == "__main__":
     if "-v" in sys.argv or "--verbose" in sys.argv:
-        fishnet.setup_logging(2)
+        fishnet.setup_logging(3)
     else:
         fishnet.setup_logging(0)
 
