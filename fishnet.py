@@ -691,9 +691,9 @@ class Worker(threading.Thread):
 
         self.stockfish_info, _ = uci(self.stockfish)
         self.stockfish_info.pop("author", None)
-        logging.info("Started Stockfish, threads: %s (%d), pid: %d, identification: %s",
-                     "+" * self.threads, self.threads, self.stockfish.pid,
-                     self.stockfish_info.get("name", "<none>"))
+        logging.info("Started %s, threads: %s (%d), pid: %d",
+                     self.stockfish_info.get("name", "Stockfish <?>"),
+                     "+" * self.threads, self.threads, self.stockfish.pid)
 
         # Prepare UCI options
         self.stockfish_info["options"] = {}
