@@ -658,16 +658,21 @@ class Worker(threading.Thread):
                               err.status, err.reason, t, json.dumps(request))
             self.sleep.wait(t)
         except dead_engine_errors:
-            if not self.is_alive():
-                # Abort
-                if self.job:
-                    logging.debug("Aborting job %s", self.job["work"]["id"])
-                    with http("POST", get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]), json.dumps(self.make_request())) as response:
-                        response.read()
-                        logging.info("Aborted job %s", self.job["work"]["id"])
-            else:
+            alive = self.is_alive()
+            if alive:
                 t = next(self.backoff)
                 logging.exception("Engine process has died. Backing off %0.1fs", t)
+
+            # Abort current job
+            if self.job:
+                logging.debug("Aborting job %s", self.job["work"]["id"])
+                with http("POST", get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]), json.dumps(self.make_request())) as response:
+                    response.read()
+                    logging.info("Aborted job %s", self.job["work"]["id"])
+
+                self.job = None
+
+            if alive:
                 self.sleep.wait(t)
                 kill_process(self.stockfish)
         except Exception:
