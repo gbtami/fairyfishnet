@@ -740,15 +740,11 @@ class Worker(threading.Thread):
                       base_url(get_endpoint(self.conf)), job["game_id"],
                       variant, lvl)
 
-        if variant != "crazyhouse":
-            set_variant_options(self.stockfish, job.get("variant", "standard"))
-            setoption(self.stockfish, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
-            isready(self.stockfish)
+        set_variant_options(self.stockfish, job.get("variant", "standard"))
+        setoption(self.stockfish, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
+        isready(self.stockfish)
 
-
-            movetime = int(round(LVL_MOVETIMES[lvl - 1] / (self.threads * 0.9 ** (self.threads - 1))))
-        else:
-            movetime = LVL_CRAZY_MOVETIMES[lvl - 1]
+        movetime = int(round(LVL_MOVETIMES[lvl - 1] / (self.threads * 0.9 ** (self.threads - 1))))
 
         start = time.time()
         part = go(self.stockfish, job["position"], moves,
@@ -788,15 +784,14 @@ class Worker(threading.Thread):
         result["analysis"] = [None for _ in range(len(moves) + 1)]
         start = last_progress_report = time.time()
 
-        if variant != "crazyhouse":
-            set_variant_options(self.stockfish, variant)
-            setoption(self.stockfish, "Skill Level", 20)
-            isready(self.stockfish)
+        set_variant_options(self.stockfish, variant)
+        setoption(self.stockfish, "Skill Level", 20)
+        isready(self.stockfish)
 
-            send(self.stockfish, "ucinewgame")
-            isready(self.stockfish)
+        send(self.stockfish, "ucinewgame")
+        isready(self.stockfish)
 
-            nodes = job.get("nodes") or 3500000
+        nodes = job.get("nodes") or 3500000
 
         for ply in range(len(moves), -1, -1):
             if last_progress_report + progress_report_interval < time.time():
