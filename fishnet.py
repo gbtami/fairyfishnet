@@ -128,7 +128,7 @@ def intro():
 .        / /\_   \ /      |     |_|   |_|___/_| |_|_| \_|\___|\__| %s
 .        |/   \_  \|      /
 .               \________/      Distributed Stockfish analysis for lichess.org
-""" % __version__
+""".lstrip() % __version__
 
 
 PROGRESS = 15
