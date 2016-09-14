@@ -664,13 +664,7 @@ class Worker(threading.Thread):
                 logging.exception("Engine process has died. Backing off %0.1fs", t)
 
             # Abort current job
-            if self.job:
-                logging.debug("Aborting job %s", self.job["work"]["id"])
-                with http("POST", get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]), json.dumps(self.make_request())) as response:
-                    response.read()
-                    logging.info("Aborted job %s", self.job["work"]["id"])
-
-                self.job = None
+            self.abort_job()
 
             if alive:
                 self.sleep.wait(t)
@@ -683,6 +677,21 @@ class Worker(threading.Thread):
 
             # If in doubt, restart engine
             kill_process(self.stockfish)
+
+    def abort_job(self):
+        if self.job is None:
+            return
+
+        logging.debug("Aborting job %s", self.job["work"]["id"])
+
+        try:
+            with http("POST", get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]), json.dumps(self.make_request())) as response:
+                response.read()
+                logging.info("Aborted job %s", self.job["work"]["id"])
+        except:
+            logging.exception("Could not abort job. Continuing.")
+
+        self.job = None
 
     def start_stockfish(self):
         # Start process
