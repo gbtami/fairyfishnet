@@ -50,6 +50,7 @@ import getpass
 import signal
 import ctypes
 import string
+import socket
 
 from distutils.version import LooseVersion
 
@@ -1830,6 +1831,8 @@ def main(argv):
     parser.add_argument("--no-fixed-backoff", dest="fixed_backoff", action="store_false", default=None)
     parser.add_argument("--auto-update", action="store_true", help="automatically install available updates")
 
+    parser.add_argument("--socks5-host", type=str, help="use a SOCKS5 proxy (host or host:port)")
+
     commands = collections.OrderedDict([
         ("run", cmd_run),
         ("configure", cmd_configure),
@@ -1848,6 +1851,19 @@ def main(argv):
     # Show intro
     if args.command not in ["systemd", "cpuid"]:
         print(intro())
+
+    # Configure SOCKS5
+    if args.socks5_host:
+        try:
+            import socks
+
+            proxy_url = urlparse.urlparse("socks5://%s" % args.socks5_host)
+            socks.set_default_proxy(socks.SOCKS5, proxy_url.hostname, proxy_url.port or 1080)
+            socket.socket = socks.socksocket
+            logging.debug("Using SOCKS5 proxy: %s", args.socks5_host)
+        except ImportError:
+            logging.error("Got --socks5-host but failed to import socks (try pip install PySocks)")
+            return 78
 
     # Run
     try:
