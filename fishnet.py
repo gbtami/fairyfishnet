@@ -1592,7 +1592,7 @@ def cmd_systemd(args):
         PrivateTmp=true
         PrivateDevices=true
         DevicePolicy=closed
-        ProtectSystem=full
+        ProtectSystem={protect_system}
         NoNewPrivileges=true
         Restart=always
 
@@ -1645,11 +1645,16 @@ def cmd_systemd(args):
 
     start = " ".join(builder)
 
+    protect_system = "full"
+    if args.auto_update and os.path.realpath(os.path.abspath(__file__)).startswith("/usr/"):
+        protect_system = "false"
+
     print(template.format(
         user=getpass.getuser(),
         group=getpass.getuser(),
         cwd=os.path.abspath("."),
-        start=start
+        start=start,
+        protect_system=protect_system
     ))
 
     try:
