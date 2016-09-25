@@ -1192,7 +1192,7 @@ def configure(args):
     conf.set("Fishnet", "Cores", str(cores))
 
     # Advanced options
-    endpoint = DEFAULT_ENDPOINT
+    endpoint = args.endpoint or DEFAULT_ENDPOINT
     fixed_backoff = False
     if config_input("Configure advanced options? (default: no) ", parse_bool, out):
         endpoint = config_input("Fishnet API endpoint (default: %s): " % (endpoint, ), validate_endpoint, out)
@@ -1831,7 +1831,7 @@ def main(argv):
     parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
     parser.add_argument("--memory", help="total memory (MB) to use for engine hashtables")
     parser.add_argument("--threads", type=int, help="hint for the number of threads to use per engine process (default: 4)")
-    parser.add_argument("--endpoint", help="lichess http endpoint")
+    parser.add_argument("--endpoint", help="lichess http endpoint (default: %s)" % DEFAULT_ENDPOINT)
     parser.add_argument("--fixed-backoff", action="store_true", default=None, help="fixed backoff (only recommended for move servers)")
     parser.add_argument("--no-fixed-backoff", dest="fixed_backoff", action="store_false", default=None)
     parser.add_argument("--auto-update", action="store_true", help="automatically install available updates")
