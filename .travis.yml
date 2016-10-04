@@ -4,9 +4,8 @@ python:
  - "3.3"
  - "3.4"
  - "3.5"
-
-dist: trusty
-sudo: required  # Just to get the trusty beta environment
+ - "pypy"
+ - "pypy3"
 
 env:
   global:
