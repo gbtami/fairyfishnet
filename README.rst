@@ -57,5 +57,5 @@ See `protocol.md <https://github.com/niklasf/fishnet/blob/master/doc/protocol.md
 License
 -------
 
-fishnet is licensed under the MIT license. See LICENSE.txt for the full license
-text.
+fishnet is licensed under the GPL3 license. See LICENSE.txt for the full
+license text.
