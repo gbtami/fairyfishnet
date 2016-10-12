@@ -457,7 +457,23 @@ def setoption(p, name, value):
     send(p, "setoption name %s value %s" % (name, value))
 
 
+def adjust_threecheck_fen(position):
+    m = re.match(r"(.+) (w|b) (.+) (.+) (\d+) (\d+) \+(\d+)\+(\d+)", position)
+    if not m:
+        return position
+    else:
+        return " ".join([
+            m.group(1), m.group(2), m.group(3), m.group(4),
+            "%d+%d" % (3 - int(m.group(7)), 3 - int(m.group(8))),
+            m.group(5), m.group(6)])
+
+
 def go(p, position, moves, movetime=None, depth=None, nodes=None):
+    # TODO: Once UCI_Variant is required make this unconditional
+    _, options = uci(p)
+    if "UCI_Variant" in options:
+        position = adjust_threecheck_fen(position)
+
     send(p, "position fen %s moves %s" % (position, " ".join(moves)))
     isready(p)
 
@@ -542,13 +558,23 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
 
 def set_variant_options(p, variant):
     variant = variant.lower()
-    setoption(p, "UCI_Chess960", variant in ["fromposition", "chess960"])
+
+    # TODO: remove these deprecated options
     setoption(p, "UCI_Atomic", variant == "atomic")
     setoption(p, "UCI_Horde", variant == "horde")
     setoption(p, "UCI_House", variant == "crazyhouse")
     setoption(p, "UCI_KingOfTheHill", variant == "kingofthehill")
     setoption(p, "UCI_Race", variant == "racingkings")
     setoption(p, "UCI_3Check", variant == "threecheck")
+
+    setoption(p, "UCI_Chess960", variant in ["fromposition", "chess960"])
+
+    if variant in ["standard", "fromposition", "chess960"]:
+        setoption(p, "UCI_Variant", "chess")
+    elif variant == "antichess":
+        setoption(p, "UCI_Variant", "giveaway")
+    else:
+        setoption(p, "UCI_Variant", variant)
 
 
 class Worker(threading.Thread):
@@ -1246,9 +1272,8 @@ def validate_stockfish_command(stockfish_command, conf):
 
     logging.debug("Supported options: %s", ", ".join(options))
 
-    required_options = set(["UCI_Chess960", "UCI_Atomic", "UCI_Horde",
-                            "UCI_House", "UCI_KingOfTheHill", "UCI_Race",
-                            "UCI_3Check", "Threads", "Hash"])
+    # TODO: Add UCI_Variant
+    required_options = set(["UCI_Chess960", "Threads", "Hash"])
 
     missing_options = required_options.difference(options)
     if missing_options:
