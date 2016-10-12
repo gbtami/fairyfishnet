@@ -442,6 +442,8 @@ def isready(p):
         command, arg = recv_uci(p)
         if command == "readyok":
             break
+        elif command == "info" and arg.startswith("string "):
+            pass
         else:
             logging.warning("Unexpected engine output: %s %s", command, arg)
 
