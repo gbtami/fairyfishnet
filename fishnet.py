@@ -86,7 +86,7 @@ except NameError:
     pass
 
 
-__version__ = "1.9.4"
+__version__ = "1.10.0"
 
 __author__ = "Niklas Fiekas"
 __email__ = "niklas.fiekas@backscattering.de"
@@ -471,11 +471,7 @@ def adjust_threecheck_fen(position):
 
 
 def go(p, position, moves, movetime=None, depth=None, nodes=None):
-    # TODO: Once UCI_Variant is required make this unconditional
-    _, options = uci(p)
-    if "UCI_Variant" in options:
-        position = adjust_threecheck_fen(position)
-
+    position = adjust_threecheck_fen(position)
     send(p, "position fen %s moves %s" % (position, " ".join(moves)))
     isready(p)
 
@@ -560,14 +556,6 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
 
 def set_variant_options(p, variant):
     variant = variant.lower()
-
-    # TODO: remove these deprecated options
-    setoption(p, "UCI_Atomic", variant == "atomic")
-    setoption(p, "UCI_Horde", variant == "horde")
-    setoption(p, "UCI_House", variant == "crazyhouse")
-    setoption(p, "UCI_KingOfTheHill", variant == "kingofthehill")
-    setoption(p, "UCI_Race", variant == "racingkings")
-    setoption(p, "UCI_3Check", variant == "threecheck")
 
     setoption(p, "UCI_Chess960", variant in ["fromposition", "chess960"])
 
@@ -1274,9 +1262,7 @@ def validate_stockfish_command(stockfish_command, conf):
 
     logging.debug("Supported options: %s", ", ".join(options))
 
-    # TODO: Add UCI_Variant
-    required_options = set(["UCI_Chess960", "Threads", "Hash"])
-
+    required_options = set(["Threads", "Hash", "UCI_Chess960", "UCI_Variant"])
     missing_options = required_options.difference(options)
     if missing_options:
         raise ConfigError("Ensure you are using lichess custom Stockfish. "
