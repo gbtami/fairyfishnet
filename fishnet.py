@@ -106,7 +106,6 @@ DEFAULT_CONFIG = "fishnet.ini"
 PROGRESS_REPORT_INTERVAL=3.0
 CHECK_PYPI_CHANCE = 0.01
 LVL_MOVETIMES = [50, 100, 150, 200, 300, 400, 500, 800]
-LVL_CRAZY_MOVETIMES = [1, 10, 50, 100, 200, 300, 400, 800]
 LVL_DEPTHS = [1, 1, 2, 3, 5, 8, 13, 22]
 
 
@@ -469,9 +468,13 @@ def adjust_threecheck_fen(position):
             "%d+%d" % (3 - int(m.group(7)), 3 - int(m.group(8))),
             m.group(5), m.group(6)])
 
+def adjust_crazyhouse_fen(fen):
+    m = re.match(r"((?:\w+/){7}\w+)/([PNBRQKpnbrqk]*) (.*)", fen)
+    return "%s[%s] %s" % (m.group(1), m.group(2), m.group(3)) if m else fen
+
 
 def go(p, position, moves, movetime=None, depth=None, nodes=None):
-    position = adjust_threecheck_fen(position)
+    position = adjust_crazyhouse_fen(adjust_threecheck_fen(position))
     send(p, "position fen %s moves %s" % (position, " ".join(moves)))
     isready(p)
 
