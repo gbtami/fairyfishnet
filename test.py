@@ -84,17 +84,6 @@ class UnitTests(unittest.TestCase):
         self.assertEqual(fishnet.parse_bool(""), False)
         self.assertEqual(fishnet.parse_bool("", default=True), True)
 
-    def test_adjust_threecheck_position(self):
-        self.assertEqual(fishnet.adjust_threecheck_fen("startpos"), "startpos")
-
-        normal_fen = "4k3/8/8/8/8/8/8/4KNB1 w - - 0 1"
-        self.assertEqual(fishnet.adjust_threecheck_fen(normal_fen), normal_fen)
-
-        lichess_fen = "r1b1k2r/1pqp1ppp/p1nbpn2/8/8/2PBPN2/PP1P1PPP/R1BQK2R b KQkq - 2 7 +1+0"
-        sf_fen = "r1b1k2r/1pqp1ppp/p1nbpn2/8/8/2PBPN2/PP1P1PPP/R1BQK2R b KQkq - 2+3 2 7"
-        self.assertEqual(fishnet.adjust_threecheck_fen(lichess_fen), sf_fen)
-        self.assertEqual(fishnet.adjust_threecheck_fen(sf_fen), sf_fen)
-
 
 if __name__ == "__main__":
     if "-v" in sys.argv or "--verbose" in sys.argv:

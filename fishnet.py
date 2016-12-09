@@ -458,23 +458,7 @@ def setoption(p, name, value):
     send(p, "setoption name %s value %s" % (name, value))
 
 
-def adjust_threecheck_fen(position):
-    m = re.match(r"(.+) (w|b) (.+) (.+) (\d+) (\d+) \+(\d+)\+(\d+)", position)
-    if not m:
-        return position
-    else:
-        return " ".join([
-            m.group(1), m.group(2), m.group(3), m.group(4),
-            "%d+%d" % (3 - int(m.group(7)), 3 - int(m.group(8))),
-            m.group(5), m.group(6)])
-
-def adjust_crazyhouse_fen(fen):
-    m = re.match(r"((?:\w+/){7}\w+)/([PNBRQKpnbrqk]*) (.*)", fen)
-    return "%s[%s] %s" % (m.group(1), m.group(2), m.group(3)) if m else fen
-
-
 def go(p, position, moves, movetime=None, depth=None, nodes=None):
-    position = adjust_crazyhouse_fen(adjust_threecheck_fen(position))
     send(p, "position fen %s moves %s" % (position, " ".join(moves)))
     isready(p)
 
