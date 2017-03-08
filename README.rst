@@ -25,6 +25,12 @@ Example usage:
 
     python -m fishnet --auto-update
 
+In order to generate a systemd service file:
+
+::
+
+    python -m fishnet systemd
+
 Via Docker
 ----------
 
