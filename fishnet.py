@@ -1494,7 +1494,7 @@ def cmd_run(args):
             if name.lower() == "hash":
                 hint = " (use --memory instead)"
             elif name.lower() == "threads":
-                hint = " (use --threads instead)"
+                hint = " (use --threads-per-process instead)"
             else:
                 hint = ""
             print(" * %s = %s%s" % (name, value, hint))
@@ -1624,7 +1624,7 @@ def cmd_systemd(args):
         builder.append("--memory")
         builder.append(shell_quote(str(validate_memory(args.memory, conf))))
     if args.threads is not None:
-        builder.append("--threads")
+        builder.append("--threads-per-process")
         builder.append(shell_quote(str(validate_threads(args.threads, conf))))
     if args.endpoint is not None:
         builder.append("--endpoint")
@@ -1813,23 +1813,25 @@ def main(argv):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--verbose", "-v", default=0, action="count", help="increase verbosity")
     parser.add_argument("--version", action="version", version="fishnet v{0}".format(__version__))
-    parser.add_argument("--conf", help="configuration file")
-    parser.add_argument("--no-conf", action="store_true", help="do not use a configuration file")
 
-    parser.add_argument("--key", "--apikey", "-k", help="fishnet api key")
+    g = parser.add_argument_group("configuration")
+    g.add_argument("--auto-update", action="store_true", help="automatically install available updates")
+    g.add_argument("--conf", help="configuration file")
+    g.add_argument("--no-conf", action="store_true", help="do not use a configuration file")
+    g.add_argument("--key", "--apikey", "-k", help="fishnet api key")
 
-    parser.add_argument("--engine-dir", help="engine working directory")
-    parser.add_argument("--stockfish-command", help="stockfish command (default: download precompiled Stockfish)")
+    g = parser.add_argument_group("resources")
+    g.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
+    g.add_argument("--memory", help="total memory (MB) to use for engine hashtables")
 
-    parser.add_argument("--cores", help="number of cores to use for engine processes (or auto for n - 1, or all for n)")
-    parser.add_argument("--memory", help="total memory (MB) to use for engine hashtables")
-    parser.add_argument("--threads", type=int, help="hint for the number of threads to use per engine process (default: 4)")
-    parser.add_argument("--endpoint", help="lichess http endpoint (default: %s)" % DEFAULT_ENDPOINT)
-    parser.add_argument("--fixed-backoff", action="store_true", default=None, help="fixed backoff (only recommended for move servers)")
-    parser.add_argument("--no-fixed-backoff", dest="fixed_backoff", action="store_false", default=None)
-    parser.add_argument("--auto-update", action="store_true", help="automatically install available updates")
-
-    parser.add_argument("--socks5-host", type=str, help="use a SOCKS5 proxy (host or host:port)")
+    g = parser.add_argument_group("advanced")
+    g.add_argument("--endpoint", help="lichess http endpoint (default: %s)" % DEFAULT_ENDPOINT)
+    g.add_argument("--socks5-host", type=str, help="use a SOCKS5 proxy (host or host:port)")
+    g.add_argument("--engine-dir", help="engine working directory")
+    g.add_argument("--stockfish-command", help="stockfish command (default: download precompiled Stockfish)")
+    g.add_argument("--threads-per-process", "--threads", type=int, help="hint for the number of threads to use per engine process (default: 4)")
+    g.add_argument("--fixed-backoff", action="store_true", default=None, help="fixed backoff (only recommended for move servers)")
+    g.add_argument("--no-fixed-backoff", dest="fixed_backoff", action="store_false", default=None)
 
     commands = collections.OrderedDict([
         ("run", cmd_run),
