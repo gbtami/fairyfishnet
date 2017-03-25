@@ -1175,7 +1175,7 @@ def configure(args):
     print("You can build lichess.org custom Stockfish yourself and provide", file=out)
     print("the path or automatically download a precompiled binary.", file=out)
     print(file=out)
-    stockfish_command = config_input("Path or command (default: download): ",
+    stockfish_command = config_input("Path or command (will download by default): ",
                                      lambda v: validate_stockfish_command(v, conf),
                                      out)
     print(file=out)
