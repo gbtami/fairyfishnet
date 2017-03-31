@@ -458,7 +458,7 @@ def setoption(p, name, value):
     send(p, "setoption name %s value %s" % (name, value))
 
 
-def go(p, position, moves, movetime=None, depth=None, nodes=None):
+def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None):
     send(p, "position fen %s moves %s" % (position, " ".join(moves)))
     isready(p)
 
@@ -473,6 +473,16 @@ def go(p, position, moves, movetime=None, depth=None, nodes=None):
     if nodes is not None:
         builder.append("nodes")
         builder.append(str(nodes))
+    if clock is not None:
+        builder.append("wtime")
+        builder.append(str(clock["wtime"] * 10))
+        builder.append("btime")
+        builder.append(str(clock["btime"] * 10))
+        builder.append("winc")
+        builder.append(str(clock["inc"] * 1000))
+        builder.append("binc")
+        builder.append(str(clock["inc"] * 1000))
+
     send(p, " ".join(builder))
 
     info = {}
@@ -759,7 +769,8 @@ class Worker(threading.Thread):
 
         start = time.time()
         part = go(self.stockfish, job["position"], moves,
-                  movetime=movetime, depth=LVL_DEPTHS[lvl - 1])
+                  movetime=movetime, clock=job["work"].get("clock"),
+                  depth=LVL_DEPTHS[lvl - 1])
         end = time.time()
 
         logging.log(PROGRESS, "Played move in %s%s (%s) with lvl %d: %0.3fs elapsed, depth %d",
