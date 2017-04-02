@@ -1840,7 +1840,7 @@ def main(argv):
     g.add_argument("--socks5-host", type=str, help="use a SOCKS5 proxy (host or host:port)")
     g.add_argument("--engine-dir", help="engine working directory")
     g.add_argument("--stockfish-command", help="stockfish command (default: download precompiled Stockfish)")
-    g.add_argument("--threads-per-process", "--threads", type=int, help="hint for the number of threads to use per engine process (default: 4)")
+    g.add_argument("--threads-per-process", "--threads", type=int, dest="threads", help="hint for the number of threads to use per engine process (default: 4)")
     g.add_argument("--fixed-backoff", action="store_true", default=None, help="fixed backoff (only recommended for move servers)")
     g.add_argument("--no-fixed-backoff", dest="fixed_backoff", action="store_false", default=None)
 
