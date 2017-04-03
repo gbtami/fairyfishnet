@@ -1118,6 +1118,8 @@ def load_conf(args):
         conf.set("Fishnet", "Endpoint", args.endpoint)
     if hasattr(args, "fixed_backoff") and args.fixed_backoff is not None:
         conf.set("Fishnet", "FixedBackoff", str(args.fixed_backoff))
+    for option_name, option_value in args.setoption:
+        conf.set("Stockfish", option_name.lower(), option_value)
 
     logging.getLogger().addFilter(CensorLogFilter(conf_get(conf, "Key")))
 
@@ -1642,6 +1644,10 @@ def cmd_systemd(args):
         builder.append(shell_quote(validate_endpoint(args.endpoint)))
     if args.fixed_backoff is not None:
         builder.append("--fixed-backoff" if args.fixed_backoff else "--no-fixed-backoff")
+    for option_name, option_value in args.setoption:
+        builder.append("--setoption")
+        builder.append(shell_quote(option_name))
+        builder.append(shell_quote(option_value))
     if args.auto_update:
         builder.append("--auto-update")
 
@@ -1843,6 +1849,7 @@ def main(argv):
     g.add_argument("--threads-per-process", "--threads", type=int, dest="threads", help="hint for the number of threads to use per engine process (default: 4)")
     g.add_argument("--fixed-backoff", action="store_true", default=None, help="fixed backoff (only recommended for move servers)")
     g.add_argument("--no-fixed-backoff", dest="fixed_backoff", action="store_false", default=None)
+    g.add_argument("--setoption", "-o", nargs=2, action="append", default=[], metavar=("NAME", "VALUE"), help="set a custom uci option")
 
     commands = collections.OrderedDict([
         ("run", cmd_run),
