@@ -1536,10 +1536,11 @@ def cmd_run(args):
 
         while True:
             # Check worker status
-            for worker in workers:
-                worker.finished.wait(STAT_INTERVAL / len(workers))
-                if worker.fatal_error:
-                    raise worker.fatal_error
+            for _ in range(int(max(1, STAT_INTERVAL / len(workers)))):
+                for worker in workers:
+                    worker.finished.wait(1)
+                    if worker.fatal_error:
+                        raise worker.fatal_error
 
             # Log stats
             logging.info("[fishnet v%s] Analyzed %d positions, crunched %d million nodes",
