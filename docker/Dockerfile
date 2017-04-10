@@ -1,14 +1,8 @@
-FROM debian:8.3
+FROM python:slim
 
-MAINTAINER Sylvain Ageneau <ageneau@gmail.com>
+LABEL maintainer "Sylvain Ageneau <ageneau@gmail.com>"
 
-RUN apt-get update && apt-get install -y --no-install-recommends python python-pip
-
-RUN useradd --create-home --user-group fishnet
-USER fishnet:fishnet
-WORKDIR /home/fishnet/
-
-RUN pip install --user --upgrade pip
-RUN pip install --user fishnet
+WORKDIR /tmp/fishnet/
+RUN pip install fishnet
 
 ENTRYPOINT ["python", "-m", "fishnet", "--no-conf"]
