@@ -410,24 +410,22 @@ def uci(p):
     send(p, "uci")
 
     engine_info = {}
-    options = set()
+    variants = set()
 
     while True:
         command, arg = recv_uci(p)
 
         if command == "uciok":
-            return engine_info, options
+            return engine_info, variants
         elif command == "id":
             name_and_value = arg.split(None, 1)
             if len(name_and_value) == 2:
                 engine_info[name_and_value[0]] = name_and_value[1]
         elif command == "option":
-            name = []
-            for token in arg.split(" ")[1:]:
-                if name and token == "type":
-                    break
-                name.append(token)
-            options.add(" ".join(name))
+            if arg.startswith("name UCI_Variant type combo default chess"):
+                for variant in arg.split(" ")[6:]:
+                    if variant is not "var":
+                        variants.add(variant)
         elif command == "Stockfish" and " by " in arg:
             # Ignore identification line
             pass
@@ -560,6 +558,8 @@ def set_variant_options(p, variant):
         setoption(p, "UCI_Variant", "chess")
     elif variant == "antichess":
         setoption(p, "UCI_Variant", "giveaway")
+    elif variant == "threecheck":
+        setoption(p, "UCI_Variant", "3check")
     else:
         setoption(p, "UCI_Variant", variant)
 
@@ -1257,16 +1257,16 @@ def validate_stockfish_command(stockfish_command, conf):
 
     # Ensure the required options are supported
     process = open_process(stockfish_command, engine_dir)
-    _, options = uci(process)
+    _, variants = uci(process)
     kill_process(process)
 
-    logging.debug("Supported options: %s", ", ".join(options))
+    logging.debug("Supported variants: %s", ", ".join(variants))
 
-    required_options = set(["Threads", "Hash", "UCI_Chess960", "UCI_Variant"])
-    missing_options = required_options.difference(options)
-    if missing_options:
+    required_variants = set(["chess", "giveaway", "atomic", "crazyhouse", "horde",  "kingofthehill", "racingkings", "3check"])
+    missing_variants = required_variants.difference(variants)
+    if missing_variants:
         raise ConfigError("Ensure you are using lichess custom Stockfish. "
-                          "Unsupported engine options: %s" % ", ".join(missing_options))
+                          "Unsupported variants: %s" % ", ".join(missing_variants))
 
     return stockfish_command
 
