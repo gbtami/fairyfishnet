@@ -94,7 +94,7 @@ __license__ = "GPLv3+"
 
 DEFAULT_ENDPOINT = "https://en.lichess.org/fishnet/"
 STOCKFISH_RELEASES = "https://api.github.com/repos/niklasf/Stockfish/releases/latest"
-DEFAULT_THREADS = 4
+DEFAULT_THREADS = 3
 HASH_MIN = 16
 HASH_DEFAULT = 256
 HASH_MAX = 512
