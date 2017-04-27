@@ -1587,7 +1587,8 @@ def cmd_systemd(args):
     template = textwrap.dedent("""\
         [Unit]
         Description=Fishnet instance
-        After=network.target
+        After=network-online.target
+        Wants=network-online.target
 
         [Service]
         ExecStart={start}
