@@ -76,6 +76,11 @@ except ImportError:
     import ConfigParser as configparser
 
 try:
+    import queue
+except ImportError:
+    import Queue as queue
+
+try:
     from shlex import quote as shell_quote
 except ImportError:
     from pipes import quote as shell_quote
@@ -564,12 +569,50 @@ def set_variant_options(p, variant):
         setoption(p, "UCI_Variant", variant)
 
 
+class ProgressReporter(threading.Thread):
+    def __init__(self, conf):
+        super(ProgressReporter, self).__init__()
+        self.conf = conf
+
+        self.queue = queue.Queue(maxsize=4)
+        self._poison_pill = object()
+
+    def send(self, job, result):
+        path = "analysis/%s" % job["work"]["id"]
+        data = json.dumps(result)
+        try:
+            self.queue.put_nowait((path, data))
+        except queue.Full:
+            logging.warning("Could not keep up with progress reports. Dropping one.")
+
+    def stop(self):
+        while not self.queue.empty():
+            self.queue.get_nowait()
+        self.queue.put(self._poison_pill)
+
+    def run(self):
+        while True:
+            item = self.queue.get()
+            if item == self._poison_pill:
+                return
+
+            path, data = item
+
+            try:
+                with http("POST", get_endpoint(self.conf, path), data) as response:
+                    if response.status != 204:
+                        logging.error("Expected status 204 for progress report, got %d", response.status)
+            except:
+                logging.exception("Could not send progress report. Continuing.")
+
+
 class Worker(threading.Thread):
-    def __init__(self, conf, threads, memory):
+    def __init__(self, conf, threads, memory, progress_reporter):
         super(Worker, self).__init__()
         self.conf = conf
         self.threads = threads
         self.memory = memory
+        self.progress_reporter = progress_reporter
 
         self.alive = True
         self.fatal_error = None
@@ -787,7 +830,6 @@ class Worker(threading.Thread):
         return result
 
     def send_analysis_progress(self, job, result):
-        path = "analysis/%s" % job["work"]["id"]
 
         try:
             with http("POST", get_endpoint(self.conf, path), json.dumps(result)) as response:
@@ -798,7 +840,7 @@ class Worker(threading.Thread):
             logging.exception("Could not send progress report. Continuing.")
             return False
 
-    def analysis(self, job, progress_report_interval=PROGRESS_REPORT_INTERVAL):
+    def analysis(self, job):
         variant = job.get("variant", "standard")
         moves = job["moves"].split(" ")
 
@@ -816,9 +858,10 @@ class Worker(threading.Thread):
         nodes = job.get("nodes") or 3500000
 
         for ply in range(len(moves), -1, -1):
-            if last_progress_report + progress_report_interval < time.time():
-                if self.send_analysis_progress(job, result):
-                    last_progress_report = time.time()
+            if last_progress_report + PROGRESS_REPORT_INTERVAL < time.time():
+                if self.progress_reporter:
+                    self.progress_reporter.send(job, result)
+                last_progress_report = time.time()
 
             logging.log(PROGRESS, "Analysing %s game %s%s#%d",
                         variant,
@@ -1520,7 +1563,11 @@ def cmd_run(args):
     for i in range(0, cores):
         buckets[i % instances] += 1
 
-    workers = [Worker(conf, bucket, memory // instances) for bucket in buckets]
+    progress_reporter = ProgressReporter(conf)
+    progress_reporter.setDaemon(True)
+    progress_reporter.start()
+
+    workers = [Worker(conf, bucket, memory // instances, progress_reporter) for bucket in buckets]
 
     # Start all threads
     for i, worker in enumerate(workers):
@@ -1568,6 +1615,8 @@ def cmd_run(args):
         # Stop workers
         for worker in workers:
             worker.stop()
+
+        progress_reporter.stop()
 
         # Wait
         for worker in workers:

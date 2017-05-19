@@ -30,7 +30,10 @@ class WorkerTest(unittest.TestCase):
 
         fishnet.get_stockfish_command(conf, update=True)
 
-        self.worker = fishnet.Worker(conf, threads=multiprocessing.cpu_count(), memory=32)
+        self.worker = fishnet.Worker(conf,
+            threads=multiprocessing.cpu_count(),
+            memory=32,
+            progress_reporter=None)
         self.worker.start_stockfish()
 
     def tearDown(self):
@@ -65,7 +68,7 @@ class WorkerTest(unittest.TestCase):
             "moves": "f2f3 e7e6 g2g4 d8h4",
         }
 
-        response = self.worker.analysis(job, progress_report_interval=9999.9)
+        response = self.worker.analysis(job)
         result = response["analysis"]
 
         self.assertTrue(0 <= result[0]["score"]["cp"] <= 90)
