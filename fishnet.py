@@ -91,7 +91,7 @@ except NameError:
     pass
 
 
-__version__ = "1.13.2"
+__version__ = "1.14.0"
 
 __author__ = "Niklas Fiekas"
 __email__ = "niklas.fiekas@backscattering.de"
