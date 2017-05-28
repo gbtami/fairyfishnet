@@ -570,11 +570,11 @@ def set_variant_options(p, variant):
 
 
 class ProgressReporter(threading.Thread):
-    def __init__(self, conf):
+    def __init__(self, queue_size, conf):
         super(ProgressReporter, self).__init__()
         self.conf = conf
 
-        self.queue = queue.Queue(maxsize=4)
+        self.queue = queue.Queue(maxsize=queue_size)
         self._poison_pill = object()
 
     def send(self, job, result):
@@ -1563,7 +1563,7 @@ def cmd_run(args):
     for i in range(0, cores):
         buckets[i % instances] += 1
 
-    progress_reporter = ProgressReporter(conf)
+    progress_reporter = ProgressReporter(max(len(buckets), 4), conf)
     progress_reporter.setDaemon(True)
     progress_reporter.start()
 
