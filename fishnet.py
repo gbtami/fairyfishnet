@@ -97,7 +97,7 @@ __author__ = "Niklas Fiekas"
 __email__ = "niklas.fiekas@backscattering.de"
 __license__ = "GPLv3+"
 
-DEFAULT_ENDPOINT = "https://en.lichess.org/fishnet/"
+DEFAULT_ENDPOINT = "https://lichess.org/fishnet/"
 STOCKFISH_RELEASES = "https://api.github.com/repos/niklasf/Stockfish/releases/latest"
 DEFAULT_THREADS = 3
 HASH_MIN = 16
