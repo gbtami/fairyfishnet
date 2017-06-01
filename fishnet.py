@@ -1562,7 +1562,7 @@ def cmd_run(args):
     for i in range(0, cores):
         buckets[i % instances] += 1
 
-    progress_reporter = ProgressReporter(max(len(buckets), 4), conf)
+    progress_reporter = ProgressReporter(len(buckets) + 4, conf)
     progress_reporter.setDaemon(True)
     progress_reporter.start()
 
