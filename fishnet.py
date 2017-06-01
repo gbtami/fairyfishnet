@@ -583,7 +583,7 @@ class ProgressReporter(threading.Thread):
         try:
             self.queue.put_nowait((path, data))
         except queue.Full:
-            logging.warning("Could not keep up with progress reports. Dropping one.")
+            logging.debug("Could not keep up with progress reports. Dropping one.")
 
     def stop(self):
         while not self.queue.empty():
@@ -830,7 +830,6 @@ class Worker(threading.Thread):
         return result
 
     def send_analysis_progress(self, job, result):
-
         try:
             with http("POST", get_endpoint(self.conf, path), json.dumps(result)) as response:
                 if response.status != 204:
