@@ -1756,11 +1756,7 @@ def make_cpuid():
         else:
             libc = ctypes.windll.kernel32
     else:
-        try:
-            libc = ctypes.pythonapi
-        except AttributeError:
-            # No CPython API on PyPy
-            libc = ctypes.CDLL("libc.so.6")
+        libc = ctypes.cdll.LoadLibrary(None)
 
     # Select opcodes
     if is_64bit:
