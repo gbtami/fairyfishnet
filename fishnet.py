@@ -44,6 +44,7 @@ import signal
 import ctypes
 import string
 import socket
+import requests
 
 from distutils.version import LooseVersion
 
@@ -56,19 +57,9 @@ else:
     import subprocess
 
 try:
-    import httplib
-except ImportError:
-    import http.client as httplib
-
-try:
     import urlparse
 except ImportError:
     import urllib.parse as urlparse
-
-try:
-    import urllib.request as urllib
-except ImportError:
-    import urllib
 
 try:
     import configparser
@@ -255,61 +246,6 @@ def setup_logging(verbosity, stream=sys.stdout):
 def base_url(url):
     url_info = urlparse.urlparse(url)
     return "%s://%s/" % (url_info.scheme, url_info.hostname)
-
-
-class HttpError(Exception):
-    def __init__(self, status, reason, body):
-        self.status = status
-        self.reason = reason
-        self.body = body
-
-    def __str__(self):
-        return "HTTP %d %s\n\n%s" % (self.status, self.reason, self.body)
-
-    def __repr__(self):
-        return "%s(%d, %r, %r)" % (type(self).__name__, self.status,
-                                   self.reason, self.body)
-
-
-class HttpServerError(HttpError):
-    pass
-
-
-class HttpClientError(HttpError):
-    pass
-
-
-@contextlib.contextmanager
-def http(method, url, body=None, headers=None):
-    logging.debug("HTTP request: %s %s, body: %s", method, url, body)
-
-    url_info = urlparse.urlparse(url)
-    if url_info.scheme == "https":
-        con = httplib.HTTPSConnection(url_info.hostname, url_info.port or 443,
-                                      timeout=HTTP_TIMEOUT)
-    else:
-        con = httplib.HTTPConnection(url_info.hostname, url_info.port or 80,
-                                     timeout=HTTP_TIMEOUT)
-
-    headers_with_useragent = {"User-Agent": "fishnet %s" % __version__}
-    if headers:
-        headers_with_useragent.update(headers)
-
-    con.request(method, url_info.path, body, headers_with_useragent)
-    response = con.getresponse()
-    logging.debug("HTTP response: %d %s", response.status, response.reason)
-
-    try:
-        if 400 <= response.status < 500:
-            raise HttpClientError(response.status, response.reason,
-                                  response.read())
-        elif 500 <= response.status < 600:
-            raise HttpServerError(response.status, response.reason,
-                                  response.read())
-        else:
-            yield response
-    finally:
-        con.close()
 
 
 class ConfigError(Exception):
@@ -572,6 +508,7 @@ def set_variant_options(p, variant):
 class ProgressReporter(threading.Thread):
     def __init__(self, queue_size, conf):
         super(ProgressReporter, self).__init__()
+        self.http = requests.Session()
         self.conf = conf
 
         self.queue = queue.Queue(maxsize=queue_size)
@@ -579,7 +516,7 @@ class ProgressReporter(threading.Thread):
 
     def send(self, job, result):
         path = "analysis/%s" % job["work"]["id"]
-        data = json.dumps(result)
+        data = json.dumps(result).encode("utf-8")
         try:
             self.queue.put_nowait((path, data))
         except queue.Full:
@@ -599,9 +536,10 @@ class ProgressReporter(threading.Thread):
             path, data = item
 
             try:
-                with http("POST", get_endpoint(self.conf, path), data) as response:
-                    if response.status != 204:
-                        logging.error("Expected status 204 for progress report, got %d", response.status)
+                response = self.http.post(get_endpoint(self.conf, path),
+                                          data=data)
+                if response.status_code != 204:
+                    logging.error("Expected status 204 for progress report, got %d", response.status_code)
             except:
                 logging.exception("Could not send progress report. Continuing.")
 
@@ -609,6 +547,7 @@ class ProgressReporter(threading.Thread):
 class Worker(threading.Thread):
     def __init__(self, conf, threads, memory, progress_reporter):
         super(Worker, self).__init__()
+        self.http = requests.Session()
         self.conf = conf
         self.threads = threads
         self.memory = memory
@@ -675,38 +614,43 @@ class Worker(threading.Thread):
             path, request = self.work()
 
             # Report result and fetch next job
-            with http("POST", get_endpoint(self.conf, path), json.dumps(request)) as response:
-                if response.status == 204:
-                    self.job = None
-                    t = next(self.backoff)
-                    logging.debug("No job found. Backing off %0.1fs", t)
-                    self.sleep.wait(t)
-                else:
-                    data = response.read().decode("utf-8")
-                    logging.debug("Got job: %s", data)
+            response = self.http.post(get_endpoint(self.conf, path),
+                                      data=json.dumps(request))
 
-                    self.job = json.loads(data)
-                    self.backoff = start_backoff(self.conf)
-        except HttpServerError as err:
-            self.job = None
-            t = next(self.backoff)
-            logging.error("Server error: HTTP %d %s. Backing off %0.1fs", err.status, err.reason, t)
-            self.sleep.wait(t)
-        except HttpClientError as err:
-            self.job = None
-            t = next(self.backoff)
-            try:
-                logging.debug("Client error: HTTP %d %s: %s", err.status, err.reason, err.body.decode("utf-8"))
-                error = json.loads(err.body.decode("utf-8"))["error"]
-                logging.error(error)
+            if response.status_code == 204:
+                self.job = None
+                t = next(self.backoff)
+                logging.debug("No job found. Backing off %0.1fs", t)
+                self.sleep.wait(t)
+            elif response.status_code == 202:
+                logging.debug("Got job: %s", response.text)
+                self.job = response.json()
+                self.backoff = start_backoff(self.conf)
+            elif 500 <= response.status_code <= 599:
+                self.job = None
+                t = next(self.backoff)
+                logging.error("Server error: HTTP %d %s. Backing off %0.1fs", response.status_code, response.reason, t)
+                self.sleep.wait(t)
+            elif 400 <= response.status_code <= 499:
+                self.job = None
+                t = next(self.backoff)
+                try:
+                    logging.debug("Client error: HTTP %d %s: %s", response.status_code, response.reason, response.text)
+                    error = response.json()["error"]
+                    logging.error(error)
 
-                if "Please restart fishnet to upgrade." in error:
-                    logging.error("Stopping worker for update.")
-                    raise UpdateRequired()
-            except (KeyError, ValueError):
-                logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s",
-                              err.status, err.reason, t, json.dumps(request))
-            self.sleep.wait(t)
+                    if "Please restart fishnet to upgrade." in error:
+                        logging.error("Stopping worker for update.")
+                        raise UpdateRequired()
+                except (KeyError, ValueError):
+                    logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s",
+                                  reponse.status_code, response.reason, t, json.dumps(request))
+                self.sleep.wait(t)
+            else:
+                self.job = None
+                t = next(self.backoff)
+                logging.error("Unexpected HTTP status for acquire: %d", response.status_code)
+                self.sleep.wait(t)
         except dead_engine_errors:
             alive = self.is_alive()
             if alive:
@@ -735,9 +679,12 @@ class Worker(threading.Thread):
         logging.debug("Aborting job %s", self.job["work"]["id"])
 
         try:
-            with http("POST", get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]), json.dumps(self.make_request())) as response:
-                response.read()
+            response = self.http.post(get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]),
+                                      data=json.dumps(self.make_request()))
+            if response.status_code == 204:
                 logging.info("Aborted job %s", self.job["work"]["id"])
+            else:
+                logging.error("Unexpected HTTP status for abort: %d", response.status_code)
         except:
             logging.exception("Could not abort job. Continuing.")
 
@@ -828,16 +775,6 @@ class Worker(threading.Thread):
             "bestmove": part["bestmove"],
         }
         return result
-
-    def send_analysis_progress(self, job, result):
-        try:
-            with http("POST", get_endpoint(self.conf, path), json.dumps(result)) as response:
-                if response.status != 204:
-                    logging.error("Expected status 204 for progress report, got %d", response.status)
-            return True
-        except:
-            logging.exception("Could not send progress report. Continuing.")
-            return False
 
     def analysis(self, job):
         variant = job.get("variant", "standard")
@@ -978,12 +915,12 @@ def download_github_release(conf, release_page, filename):
     # Find latest release
     logging.info("Looking up %s ...", filename)
 
-    with http("GET", release_page, headers=headers) as response:
-        if response.status == 304:
-            logging.info("Local %s is newer than release", filename)
-            return filename
+    response = requests.get(release_page, headers=headers)
+    if response.status_code == 304:
+        logging.info("Local %s is newer than release", filename)
+        return filename
 
-        release = json.loads(response.read().decode("utf-8"))
+    release = response.json()
 
     logging.info("Latest release is tagged %s", release["tag_name"])
 
@@ -997,17 +934,22 @@ def download_github_release(conf, release_page, filename):
     # Download
     logging.info("Downloading %s ...", filename)
 
-    def reporthook(a, b, c):
-        if sys.stderr.isatty():
-            sys.stderr.write("\rDownloading %s: %d/%d (%d%%)" % (
-                                 filename, min(a * b, c), c,
-                                 round(min(a * b, c) * 100 / c)))
-            sys.stderr.flush()
+    download = requests.get(asset["browser_download_url"], stream=True)
+    progress = 0
+    size = int(download.headers["content-length"])
+    with open(path, "wb") as target:
+        for chunk in download.iter_content(chunk_size=1024):
+            target.write(chunk)
+            progress += len(chunk)
 
-    urllib.urlretrieve(asset["browser_download_url"], path, reporthook)
-
-    sys.stderr.write("\n")
-    sys.stderr.flush()
+            if sys.stderr.isatty():
+                sys.stderr.write("\rDownloading %s: %d/%d (%d%%)" % (
+                                    filename, progress, size,
+                                    progress * 100 / size))
+                sys.stderr.flush()
+    if sys.stderr.isatty():
+        sys.stderr.write("\n")
+        sys.stderr.flush()
 
     # Make executable
     logging.info("chmod +x %s", filename)
@@ -1422,14 +1364,11 @@ def validate_key(key, conf, network=False):
         raise ConfigError("Fishnet key is expected to be alphanumeric")
 
     if network:
-        try:
-            with http("GET", get_endpoint(conf, "key/%s" % key)) as response:
-                response.read()
-        except HttpClientError as error:
-            if error.status == 404:
-                raise ConfigError("Invalid or inactive fishnet key")
-            else:
-                raise
+        response = requests.get(get_endpoint(conf, "key/%s" % key))
+        if response.status_code == 404:
+            raise ConfigError("Invalid or inactive fishnet key")
+        else:
+            reponse.raise_for_status()
 
     return key
 
@@ -1484,9 +1423,7 @@ def start_backoff(conf):
 
 
 def lookup_latest_version():
-    with http("GET", "https://pypi.python.org/pypi/fishnet/json") as response:
-        result = json.loads(response.read().decode("utf-8"))
-
+    result = requests.get("https://pypi.python.org/pypi/fishnet/json").json()
     return result["info"]["version"]
 
 

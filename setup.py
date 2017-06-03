@@ -22,6 +22,10 @@ def read_description():
     return description
 
 
+def dependencies():
+    return ["requests"]
+
+
 setuptools.setup(
     name="fishnet",
     version=fishnet.__version__,
@@ -33,6 +37,7 @@ setuptools.setup(
     url="https://github.com/niklasf/fishnet",
     py_modules=["fishnet"],
     test_suite="test",
+    install_requires=dependencies(),
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Environment :: Console",
