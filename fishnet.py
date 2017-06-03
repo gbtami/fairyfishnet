@@ -1826,7 +1826,6 @@ def main(argv):
 
     g = parser.add_argument_group("advanced")
     g.add_argument("--endpoint", help="lichess http endpoint (default: %s)" % DEFAULT_ENDPOINT)
-    g.add_argument("--socks5-host", type=str, help="use a SOCKS5 proxy (host or host:port)")
     g.add_argument("--engine-dir", help="engine working directory")
     g.add_argument("--stockfish-command", help="stockfish command (default: download precompiled Stockfish)")
     g.add_argument("--threads-per-process", "--threads", type=int, dest="threads", help="hint for the number of threads to use per engine process (default: 4)")
@@ -1852,19 +1851,6 @@ def main(argv):
     # Show intro
     if args.command not in ["systemd", "cpuid"]:
         print(intro())
-
-    # Configure SOCKS5
-    if args.socks5_host:
-        try:
-            import socks
-
-            proxy_url = urlparse.urlparse("socks5://%s" % args.socks5_host)
-            socks.set_default_proxy(socks.SOCKS5, proxy_url.hostname, proxy_url.port or 1080)
-            socket.socket = socks.socksocket
-            logging.debug("Using SOCKS5 proxy: %s", args.socks5_host)
-        except ImportError:
-            logging.error("Got --socks5-host but failed to import socks (try pip install PySocks)")
-            return 78
 
     # Run
     try:
