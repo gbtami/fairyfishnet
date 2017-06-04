@@ -35,7 +35,6 @@ import site
 import sys
 import os
 import stat
-import math
 import platform
 import re
 import textwrap
@@ -43,7 +42,6 @@ import getpass
 import signal
 import ctypes
 import string
-import socket
 import requests
 
 from distutils.version import LooseVersion
@@ -99,7 +97,7 @@ MAX_FIXED_BACKOFF = 3.0
 HTTP_TIMEOUT = 15.0
 STAT_INTERVAL = 60.0
 DEFAULT_CONFIG = "fishnet.ini"
-PROGRESS_REPORT_INTERVAL=5.0
+PROGRESS_REPORT_INTERVAL = 5.0
 CHECK_PYPI_CHANCE = 0.01
 LVL_MOVETIMES = [50, 100, 150, 200, 300, 400, 500, 1000]
 LVL_DEPTHS = [1, 1, 2, 3, 5, 8, 13, 22]
@@ -644,7 +642,7 @@ class Worker(threading.Thread):
                         raise UpdateRequired()
                 except (KeyError, ValueError):
                     logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s",
-                                  reponse.status_code, response.reason, t, json.dumps(request))
+                                  response.status_code, response.reason, t, json.dumps(request))
                 self.sleep.wait(t)
             else:
                 self.job = None
@@ -1033,13 +1031,6 @@ def update_self(force=False):
 
         print()
 
-    # Check for root privileges
-    try:
-        is_root = os.geteuid() == 0
-    except AttributeError:
-        # No os.geteuid() on Windows
-        is_root = False
-
     # Update
     if is_user_site_package():
         logging.info("$ pip install --user --upgrade fishnet")
@@ -1175,6 +1166,10 @@ def configure(args):
     stockfish_command = config_input("Path or command (will download by default): ",
                                      lambda v: validate_stockfish_command(v, conf),
                                      out)
+    if not stockfish_command:
+        conf.remove_option("Fishnet", "StockfishCommand")
+    else:
+        conf.set("Fishnet", "StockfishCommand", stockfish_command)
     print(file=out)
 
     # Cores
@@ -1186,7 +1181,6 @@ def configure(args):
 
     # Advanced options
     endpoint = args.endpoint or DEFAULT_ENDPOINT
-    fixed_backoff = False
     if config_input("Configure advanced options? (default: no) ", parse_bool, out):
         endpoint = config_input("Fishnet API endpoint (default: %s): " % (endpoint, ), validate_endpoint, out)
 
@@ -1368,7 +1362,7 @@ def validate_key(key, conf, network=False):
         if response.status_code == 404:
             raise ConfigError("Invalid or inactive fishnet key")
         else:
-            reponse.raise_for_status()
+            response.raise_for_status()
 
     return key
 
