@@ -1506,6 +1506,7 @@ def cmd_run(args):
     print()
     print("### Checking configuration ...")
     print()
+    print("Python:           %s (with requests %s)" % (platform.python_version(), requests.__version__))
     print("EngineDir:        %s" % get_engine_dir(conf))
     print("StockfishCommand: %s" % stockfish_command)
     print("Key:              %s" % (("*" * len(get_key(conf))) or "(none)"))
