@@ -535,7 +535,8 @@ class ProgressReporter(threading.Thread):
 
             try:
                 response = self.http.post(get_endpoint(self.conf, path),
-                                          data=data)
+                                          data=data,
+                                          timeout=HTTP_TIMEOUT)
                 if response.status_code != 204:
                     logging.error("Expected status 204 for progress report, got %d", response.status_code)
             except:
@@ -628,7 +629,8 @@ class Worker(threading.Thread):
         try:
             # Report result and fetch next job
             response = self.http.post(get_endpoint(self.conf, path),
-                                      data=json.dumps(request))
+                                      data=json.dumps(request),
+                                      timeout=HTTP_TIMEOUT)
         except Exception:
             self.job = None
             t = next(self.backoff)
@@ -681,7 +683,8 @@ class Worker(threading.Thread):
 
         try:
             response = self.http.post(get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]),
-                                      data=json.dumps(self.make_request()))
+                                      data=json.dumps(self.make_request()),
+                                      timeout=HTTP_TIMEOUT)
             if response.status_code == 204:
                 logging.info("Aborted job %s", self.job["work"]["id"])
             else:
@@ -916,7 +919,7 @@ def download_github_release(conf, release_page, filename):
     # Find latest release
     logging.info("Looking up %s ...", filename)
 
-    response = requests.get(release_page, headers=headers)
+    response = requests.get(release_page, headers=headers, timeout=HTTP_TIMEOUT)
     if response.status_code == 304:
         logging.info("Local %s is newer than release", filename)
         return filename
@@ -935,7 +938,7 @@ def download_github_release(conf, release_page, filename):
     # Download
     logging.info("Downloading %s ...", filename)
 
-    download = requests.get(asset["browser_download_url"], stream=True)
+    download = requests.get(asset["browser_download_url"], stream=True, timeout=HTTP_TIMEOUT)
     progress = 0
     size = int(download.headers["content-length"])
     with open(path, "wb") as target:
@@ -1361,7 +1364,7 @@ def validate_key(key, conf, network=False):
         raise ConfigError("Fishnet key is expected to be alphanumeric")
 
     if network:
-        response = requests.get(get_endpoint(conf, "key/%s" % key))
+        response = requests.get(get_endpoint(conf, "key/%s" % key), timeout=HTTP_TIMEOUT)
         if response.status_code == 404:
             raise ConfigError("Invalid or inactive fishnet key")
         else:
@@ -1420,7 +1423,7 @@ def start_backoff(conf):
 
 
 def lookup_latest_version():
-    result = requests.get("https://pypi.python.org/pypi/fishnet/json").json()
+    result = requests.get("https://pypi.python.org/pypi/fishnet/json", timeout=HTTP_TIMEOUT).json()
     return result["info"]["version"]
 
 
