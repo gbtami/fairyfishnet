@@ -1584,7 +1584,7 @@ def cmd_run(args):
             handler.install()
 
             if any(worker.job for worker in workers):
-                logging.info("\n\n### Stopping soon. Hit Ctrl + C again to abort pending jobs ...\n")
+                logging.info("\n\n### Stopping soon. Hit Ctrl+C again to abort pending jobs ...\n")
 
             for worker in workers:
                 worker.stop_soon()
