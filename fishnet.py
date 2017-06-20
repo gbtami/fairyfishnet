@@ -1006,8 +1006,13 @@ def update_self(force=False):
     # Ensure pip is available
     try:
         import pip
-    except ImportError:
-        raise ConfigError("Auto update enabled, but pip not installed")
+    except ImportError as e:
+        if "IncompleteRead" in str(e):
+            # Version incompatible with requests:
+            # https://github.com/pypa/pip/commit/796320abac38410316067bbb9455007cc51079db
+            raise ConfigError("Auto update enabled, but pip >= 6.0 required")
+        else:
+            raise ConfigError("Auto update enabled, but pip not installed")
 
     # Check pip is up to date
     pip_up_to_date = LooseVersion(pip.__version__) >= LooseVersion("8.0.0")
