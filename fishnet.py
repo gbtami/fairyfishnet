@@ -1172,7 +1172,7 @@ def configure(args):
     if sys.stdout.isatty():
         out = sys.stdout
         try:
-            # Unix: Importing for its side-effect
+            # Unix: Importing for its side effect
             import readline  # noqa: F401
         except ImportError:
             # Windows
