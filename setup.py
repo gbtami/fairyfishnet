@@ -11,7 +11,7 @@ import os.path
 
 
 with open(os.path.join(os.path.dirname(__file__), "fishnet.py")) as f:
-    # Trick: Strip imports of dependencies.
+    # Trick: Strip imports of dependencies
     fishnet = {}
     code = re.sub(r"^(\s*)import requests\s*$", r"\1pass", f.read(), flags=re.MULTILINE)
     eval(compile(code, "fishnet.py", "exec"), fishnet)

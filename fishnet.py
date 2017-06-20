@@ -265,19 +265,28 @@ class Shutdown(Exception):
     pass
 
 
+class ShutdownSoon(Exception):
+    pass
+
+
 class SignalHandler(object):
     def __init__(self):
         self.ignore = False
 
     def install(self):
         signal.signal(signal.SIGTERM, self.handle_term)
-        signal.signal(signal.SIGINT, self.handle_term)
+        signal.signal(signal.SIGINT, self.handle_int)
 
         try:
             signal.signal(signal.SIGUSR1, self.handle_usr1)
         except AttributeError:
             # No SIGUSR1 on Windows
             pass
+
+    def handle_int(self, signum, frame):
+        if not self.ignore:
+            self.ignore = True
+            raise ShutdownSoon()
 
     def handle_term(self, signum, frame):
         if not self.ignore:
@@ -583,6 +592,11 @@ class Worker(threading.Thread):
 
             self.sleep.set()
 
+    def stop_soon(self):
+        with self.status_lock:
+            self.alive = False
+            self.sleep.set()
+
     def is_alive(self):
         with self.status_lock:
             return self.alive
@@ -608,12 +622,8 @@ class Worker(threading.Thread):
             dead_engine_errors = (EOFError, IOError)
 
         try:
-            # Check if the engines are still alive
-            if self.stockfish:
-                self.stockfish.poll()
-
-            # Restart the engine
-            if not self.stockfish or self.stockfish.returncode is not None:
+            # Check if the engine is still alive and restart, if necessary
+            if not self.stockfish or self.stockfish.poll() is not None:
                 self.start_stockfish()
 
             # Do the next work unit
@@ -1524,24 +1534,38 @@ def cmd_run(args):
         handler = SignalHandler()
         handler.install()
 
-        while True:
-            # Check worker status
-            for _ in range(int(max(1, STAT_INTERVAL / len(workers)))):
-                for worker in workers:
-                    worker.finished.wait(1)
-                    if worker.fatal_error:
-                        raise worker.fatal_error
+        try:
+            while True:
+                # Check worker status
+                for _ in range(int(max(1, STAT_INTERVAL / len(workers)))):
+                    for worker in workers:
+                        worker.finished.wait(1.0)
+                        if worker.fatal_error:
+                            raise worker.fatal_error
 
-            # Log stats
-            logging.info("[fishnet v%s] Analyzed %d positions, crunched %d million nodes",
-                         __version__,
-                         sum(worker.positions for worker in workers),
-                         int(sum(worker.nodes for worker in workers) / 1000 / 1000))
+                # Log stats
+                logging.info("[fishnet v%s] Analyzed %d positions, crunched %d million nodes",
+                             __version__,
+                             sum(worker.positions for worker in workers),
+                             int(sum(worker.nodes for worker in workers) / 1000 / 1000))
 
-            # Check for update
-            if random.random() <= CHECK_PYPI_CHANCE and update_available() and args.auto_update:
-                raise UpdateRequired()
-    except Shutdown:
+                # Check for update
+                if random.random() <= CHECK_PYPI_CHANCE and update_available() and args.auto_update:
+                    raise UpdateRequired()
+        except ShutdownSoon:
+            handler = SignalHandler()
+            handler.install()
+
+            if any(worker.job for worker in workers):
+                logging.info("\n\n### Stopping soon. Hit Ctrl + C again to abort pending jobs ...\n")
+
+            for worker in workers:
+                worker.stop_soon()
+
+            for worker in workers:
+                while not worker.finished.wait(0.5):
+                    pass
+    except (Shutdown, ShutdownSoon):
         if any(worker.job for worker in workers):
             logging.info("\n\n### Good bye! Aborting pending jobs ...\n")
         else:
@@ -1872,7 +1896,7 @@ def main(argv):
     except ConfigError:
         logging.exception("Configuration error")
         return 78
-    except (KeyboardInterrupt, Shutdown):
+    except (KeyboardInterrupt, Shutdown, ShutdownSoon):
         return 0
 
 
