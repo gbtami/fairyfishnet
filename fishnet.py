@@ -42,7 +42,14 @@ import getpass
 import signal
 import ctypes
 import string
-import requests
+
+try:
+    import requests
+except ImportError:
+    print("fishnet requires the 'requests' module.", file=sys.stderr)
+    print("Try 'pip install requests' or install python-requests from your distro packages.", file=sys.stderr)
+    print(file=sys.stderr)
+    raise
 
 from distutils.version import LooseVersion
 
