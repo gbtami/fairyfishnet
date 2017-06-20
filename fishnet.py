@@ -610,11 +610,34 @@ class Worker(threading.Thread):
 
             # Do the next work unit
             path, request = self.work()
+        except dead_engine_errors:
+            alive = self.is_alive()
+            if alive:
+                t = next(self.backoff)
+                logging.exception("Engine process has died. Backing off %0.1fs", t)
 
+            # Abort current job
+            self.abort_job()
+
+            if alive:
+                self.sleep.wait(t)
+                kill_process(self.stockfish)
+
+            return
+
+        try:
             # Report result and fetch next job
             response = self.http.post(get_endpoint(self.conf, path),
                                       data=json.dumps(request))
+        except Exception:
+            self.job = None
+            t = next(self.backoff)
+            logging.exception("Backing off %0.1fs after exception in worker", t)
+            self.sleep.wait(t)
 
+            # If in doubt, restart engine
+            kill_process(self.stockfish)
+        else:
             if response.status_code == 204:
                 self.job = None
                 t = next(self.backoff)
@@ -649,26 +672,6 @@ class Worker(threading.Thread):
                 t = next(self.backoff)
                 logging.error("Unexpected HTTP status for acquire: %d", response.status_code)
                 self.sleep.wait(t)
-        except dead_engine_errors:
-            alive = self.is_alive()
-            if alive:
-                t = next(self.backoff)
-                logging.exception("Engine process has died. Backing off %0.1fs", t)
-
-            # Abort current job
-            self.abort_job()
-
-            if alive:
-                self.sleep.wait(t)
-                kill_process(self.stockfish)
-        except Exception:
-            self.job = None
-            t = next(self.backoff)
-            logging.exception("Backing off %0.1fs after exception in worker", t)
-            self.sleep.wait(t)
-
-            # If in doubt, restart engine
-            kill_process(self.stockfish)
 
     def abort_job(self):
         if self.job is None:
