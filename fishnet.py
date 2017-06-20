@@ -253,6 +253,13 @@ def base_url(url):
     return "%s://%s/" % (url_info.scheme, url_info.hostname)
 
 
+def http_session():
+    session = requests.Session()
+    adapter = requests.adapters.HTTPAdapter(max_retries=1)
+    session.mount("https://", adapter)
+    return session
+
+
 class ConfigError(Exception):
     pass
 
@@ -522,7 +529,7 @@ def set_variant_options(p, variant):
 class ProgressReporter(threading.Thread):
     def __init__(self, queue_size, conf):
         super(ProgressReporter, self).__init__()
-        self.http = requests.Session()
+        self.http = http_session()
         self.conf = conf
 
         self.queue = queue.Queue(maxsize=queue_size)
@@ -562,7 +569,7 @@ class ProgressReporter(threading.Thread):
 class Worker(threading.Thread):
     def __init__(self, conf, threads, memory, progress_reporter):
         super(Worker, self).__init__()
-        self.http = requests.Session()
+        self.http = http_session()
         self.conf = conf
         self.threads = threads
         self.memory = memory
