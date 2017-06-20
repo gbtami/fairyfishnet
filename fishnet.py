@@ -1172,8 +1172,8 @@ def configure(args):
     if sys.stdout.isatty():
         out = sys.stdout
         try:
-            # Unix
-            import readline
+            # Unix: Importing for its side-effect
+            import readline  # noqa: F401
         except ImportError:
             # Windows
             pass
