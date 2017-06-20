@@ -221,17 +221,6 @@ class CensorLogFilter(logging.Filter):
         return True
 
 
-class DowngradeLogFilter(logging.Filter):
-    def __init__(self, max_level, target_level):
-        self.max_level = max_level
-        self.target_level = target_level
-
-    def filter(self, record):
-        if record.levelno <= self.max_level:
-            record.levelno = self.target_level
-        return True
-
-
 def setup_logging(verbosity, stream=sys.stdout):
     logger = logging.getLogger()
     logger.setLevel(ENGINE)
@@ -258,21 +247,10 @@ def setup_logging(verbosity, stream=sys.stdout):
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
 
-    # Silence retries
-    requests_logger = logging.getLogger("requests.packages.urllib3.connectionpool")
-    requests_logger.addFilter(DowngradeLogFilter(logging.WARNING, logging.DEBUG))
-
 
 def base_url(url):
     url_info = urlparse.urlparse(url)
     return "%s://%s/" % (url_info.scheme, url_info.hostname)
-
-
-def http_session():
-    session = requests.Session()
-    adapter = requests.adapters.HTTPAdapter(max_retries=1)
-    session.mount("https://", adapter)
-    return session
 
 
 class ConfigError(Exception):
@@ -544,7 +522,7 @@ def set_variant_options(p, variant):
 class ProgressReporter(threading.Thread):
     def __init__(self, queue_size, conf):
         super(ProgressReporter, self).__init__()
-        self.http = http_session()
+        self.http = requests.Session()
         self.conf = conf
 
         self.queue = queue.Queue(maxsize=queue_size)
@@ -584,7 +562,6 @@ class ProgressReporter(threading.Thread):
 class Worker(threading.Thread):
     def __init__(self, conf, threads, memory, progress_reporter):
         super(Worker, self).__init__()
-        self.http = http_session()
         self.conf = conf
         self.threads = threads
         self.memory = memory
@@ -667,9 +644,9 @@ class Worker(threading.Thread):
 
         try:
             # Report result and fetch next job
-            response = self.http.post(get_endpoint(self.conf, path),
-                                      data=json.dumps(request),
-                                      timeout=HTTP_TIMEOUT)
+            response = requests.post(get_endpoint(self.conf, path),
+                                     data=json.dumps(request),
+                                     timeout=HTTP_TIMEOUT)
         except Exception:
             self.job = None
             t = next(self.backoff)
@@ -721,9 +698,9 @@ class Worker(threading.Thread):
         logging.debug("Aborting job %s", self.job["work"]["id"])
 
         try:
-            response = self.http.post(get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]),
-                                      data=json.dumps(self.make_request()),
-                                      timeout=HTTP_TIMEOUT)
+            response = requests.post(get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]),
+                                     data=json.dumps(self.make_request()),
+                                     timeout=HTTP_TIMEOUT)
             if response.status_code == 204:
                 logging.info("Aborted job %s", self.job["work"]["id"])
             else:
