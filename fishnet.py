@@ -221,6 +221,17 @@ class CensorLogFilter(logging.Filter):
         return True
 
 
+class DowngradeLogFilter(logging.Filter):
+    def __init__(self, max_level, target_level):
+        self.max_level = max_level
+        self.target_level = target_level
+
+    def filter(self, record):
+        if record.levelno <= self.max_level:
+            record.levelno = self.target_level
+        return True
+
+
 def setup_logging(verbosity, stream=sys.stdout):
     logger = logging.getLogger()
     logger.setLevel(ENGINE)
@@ -246,6 +257,10 @@ def setup_logging(verbosity, stream=sys.stdout):
 
     handler.setFormatter(LogFormatter())
     logger.addHandler(handler)
+
+    # Silence retries
+    requests_logger = logging.getLogger("requests.packages.urllib3.connectionpool")
+    requests_logger.addFilter(DowngradeLogFilter(logging.WARNING, logging.DEBUG))
 
 
 def base_url(url):
