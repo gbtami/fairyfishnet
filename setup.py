@@ -5,9 +5,16 @@
 # Copyright (C) 2016-2017 Niklas Fiekas <niklas.fiekas@backscattering.de>
 # See LICENSE.txt for licensing information.
 
-import fishnet
 import setuptools
+import re
 import os.path
+
+
+with open(os.path.join(os.path.dirname(__file__), "fishnet.py")) as f:
+    # Trick: Strip imports of dependencies.
+    fishnet = {}
+    code = re.sub(r"^(\s*)import requests\s*$", r"\1pass", f.read(), flags=re.MULTILINE)
+    eval(compile(code, "fishnet.py", "exec"), fishnet)
 
 
 def read_description():
@@ -17,7 +24,7 @@ def read_description():
     # Show the Travis CI build status of the concrete version
     description = description.replace(
         "//travis-ci.org/niklasf/fishnet.svg?branch=master",
-        "//travis-ci.org/niklasf/fishnet.svg?branch=v{0}".format(fishnet.__version__))
+        "//travis-ci.org/niklasf/fishnet.svg?branch=v{0}".format(fishnet["__version__"]))
 
     return description
 
@@ -28,10 +35,10 @@ def dependencies():
 
 setuptools.setup(
     name="fishnet",
-    version=fishnet.__version__,
-    author=fishnet.__author__,
-    author_email=fishnet.__email__,
-    description=fishnet.__doc__.replace("\n", " ").strip(),
+    version=fishnet["__version__"],
+    author=fishnet["__author__"],
+    author_email=fishnet["__email__"],
+    description=fishnet["__doc__"].replace("\n", " ").strip(),
     long_description=read_description(),
     keywords="lichess.org chess stockfish uci",
     url="https://github.com/niklasf/fishnet",
