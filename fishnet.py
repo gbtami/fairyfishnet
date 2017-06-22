@@ -273,7 +273,6 @@ class SignalHandler(object):
     def __init__(self):
         self.ignore = False
 
-    def install(self):
         signal.signal(signal.SIGTERM, self.handle_term)
         signal.signal(signal.SIGINT, self.handle_int)
 
@@ -1537,7 +1536,6 @@ def cmd_run(args):
     try:
         # Let SIGTERM and SIGINT gracefully terminate the program
         handler = SignalHandler()
-        handler.install()
 
         try:
             while True:
@@ -1559,7 +1557,6 @@ def cmd_run(args):
                     raise UpdateRequired()
         except ShutdownSoon:
             handler = SignalHandler()
-            handler.install()
 
             if any(worker.job for worker in workers):
                 logging.info("\n\n### Stopping soon. Press ^C again to abort pending jobs ...\n")
