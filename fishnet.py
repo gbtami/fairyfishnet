@@ -644,7 +644,7 @@ class Worker(threading.Thread):
         try:
             # Report result and fetch next job
             response = requests.post(get_endpoint(self.conf, path),
-                                     data=json.dumps(request),
+                                     json=request,
                                      timeout=HTTP_TIMEOUT)
         except Exception:
             self.job = None
