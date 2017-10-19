@@ -106,6 +106,7 @@ STAT_INTERVAL = 60.0
 DEFAULT_CONFIG = "fishnet.ini"
 PROGRESS_REPORT_INTERVAL = 5.0
 CHECK_PYPI_CHANCE = 0.01
+LVL_SKILL = [0, 3, 6, 10, 14, 16, 18, 20]
 LVL_MOVETIMES = [50, 100, 150, 200, 300, 400, 500, 1000]
 LVL_DEPTHS = [1, 1, 2, 3, 5, 8, 13, 22]
 
@@ -771,7 +772,7 @@ class Worker(threading.Thread):
                       variant, lvl)
 
         set_variant_options(self.stockfish, job.get("variant", "standard"))
-        setoption(self.stockfish, "Skill Level", int(round((lvl - 1) * 20.0 / 7)))
+        setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl - 1])
         isready(self.stockfish)
 
         movetime = int(round(LVL_MOVETIMES[lvl - 1] / (self.threads * 0.9 ** (self.threads - 1))))
