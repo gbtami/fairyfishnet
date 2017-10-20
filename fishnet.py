@@ -1722,10 +1722,7 @@ def make_cpuid():
 
     # Select kernel32 or libc
     if is_windows:
-        if is_64bit:
-            libc = ctypes.CDLL("kernel32.dll")
-        else:
-            libc = ctypes.windll.kernel32
+        libc = ctypes.windll.kernel32
     else:
         libc = ctypes.cdll.LoadLibrary(None)
 
@@ -1789,6 +1786,8 @@ def make_cpuid():
 
     if is_windows:
         # Allocate executable memory
+        libc.VirtualAlloc.restype = ctypes.c_void_p
+        libc.VirtualAlloc.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_ulong, ctypes.c_ulong]
         addr = libc.VirtualAlloc(None, code_size, 0x1000, 0x40)
         if not addr:
             raise MemoryError("Could not VirtualAlloc RWX memory")
@@ -1823,6 +1822,8 @@ def make_cpuid():
 
     # Free
     if is_windows:
+        libc.VirtualFree.restype = ctypes.c_long
+        libc.VirtualFree.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_ulong]
         libc.VirtualFree(addr, 0, 0x8000)
     else:
         libc.free.restype = None
