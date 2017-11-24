@@ -10,37 +10,41 @@ fishnet: distributed Stockfish analysis for lichess.org
 .. image:: https://coveralls.io/repos/github/niklasf/fishnet/badge.svg?branch=master
     :target: https://coveralls.io/github/niklasf/fishnet?branch=master
 
-Via pip
--------
+Installation
+------------
 
-To install or upgrade to the latest version do:
+1. Request your personal fishnet key: https://lichess.org/get-fishnet
+2. Install the fishnet client.
 
-::
+   **Via pip**
 
-    pip install --upgrade --user fishnet
+   To install or upgrade to the latest version do:
 
-Example usage:
+   ::
 
-::
+       pip install --upgrade --user fishnet
 
-    python -m fishnet --auto-update
+   Example usage:
 
-In order to generate a systemd service file:
+   ::
 
-::
+       python -m fishnet --auto-update
 
-    python -m fishnet systemd
+   Optional: Generate a systemd service file:
 
-Via Docker
-----------
+   ::
 
-There is a `Docker container <https://hub.docker.com/r/ageneau/fishnet/>`_
-courtesy of `@ageneau <https://github.com/ageneau>`_. For example you can
-simply do:
+       python -m fishnet systemd
 
-::
+   **Via Docker**
 
-    docker run ageneau/fishnet --key MY_APIKEY --auto-update
+   There is a `Docker container <https://hub.docker.com/r/ageneau/fishnet/>`_
+   courtesy of `@ageneau <https://github.com/ageneau>`_. For example you can
+   simply do:
+
+   ::
+
+       docker run ageneau/fishnet --key MY_APIKEY --auto-update
 
 lichess.org custom Stockfish
 ----------------------------
