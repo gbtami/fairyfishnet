@@ -1221,7 +1221,7 @@ def configure(args):
 
     # Key
     if key is None:
-        status = "required" if is_production_endpoint(conf) else "probably not required"
+        status = "https://lichess.org/get-fishnet" if is_production_endpoint(conf) else "probably not required"
         key = config_input("Personal fishnet key (append ! to force, %s): " % status,
                            lambda v: validate_key(v, conf, network=True), out)
     conf.set("Fishnet", "Key", key)
