@@ -1435,14 +1435,10 @@ def start_backoff(conf):
             backoff = min(backoff + 1, MAX_BACKOFF)
 
 
-def lookup_latest_version():
-    result = requests.get("https://pypi.org/pypi/fishnet/json", timeout=HTTP_TIMEOUT).json()
-    return result["info"]["version"]
-
-
 def update_available():
     try:
-        latest_version = lookup_latest_version()
+        result = requests.get("https://pypi.org/pypi/fishnet/json", timeout=HTTP_TIMEOUT).json()
+        latest_version = result["info"]["version"]
     except Exception:
         logging.exception("Failed to check for update on PyPI")
         return False
