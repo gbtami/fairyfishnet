@@ -31,8 +31,7 @@ POST http://lichess.org/fishnet/acquire
 {
   "work": {
     "type": "analysis",
-    "id": "work_id",
-    "nodes": 3500000 // optional limit
+    "id": "work_id"
   },
   // or:
   // "work": {
@@ -43,7 +42,9 @@ POST http://lichess.org/fishnet/acquire
   "game_id": "abcdefgh",
   "position": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
   "variant": "standard",
-  "moves": "e2e4 c7c5 c2c4 b8c6 g1e2 g8f6 b1c3 c6b4 g2g3 b4d3"
+  "moves": "e2e4 c7c5 c2c4 b8c6 g1e2 g8f6 b1c3 c6b4 g2g3 b4d3",
+  "nodes": 3500000, // optional limit
+  "skipPositions": [1, 5] // 0 is the first position
 }
 ```
 
@@ -69,7 +70,7 @@ POST http://lichess.org/fishnet/analysis/{work_id}
     }
   },
   "analysis": [
-    {  // first ply
+    { // first ply
       "pv": "e2e4 e7e5 g1f3 g8f6",
       "seldepth": 24,
       "tbhits": 0,
@@ -81,8 +82,11 @@ POST http://lichess.org/fishnet/analysis/{work_id}
       "nodes": 1686023,
       "nps": 1670251
     },
+    { // second ply (1 was in skipPositions)
+      "skipped": true
+    },
     // ...
-    {  // second last ply
+    { // second last ply
       "pv": "b4d3",
       "seldepth": 2,
       "tbhits": 0,
@@ -94,7 +98,7 @@ POST http://lichess.org/fishnet/analysis/{work_id}
       "nodes": 3691,
       "nps": 1230333
     },
-    {  // last ply
+    { // last ply
       "depth": 0,
       "score": {
         "mate": 0

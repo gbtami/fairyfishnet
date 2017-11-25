@@ -812,8 +812,15 @@ class Worker(threading.Thread):
         isready(self.stockfish)
 
         nodes = job.get("nodes") or 3500000
+        skip = job.get("skipPositions", [])
+
+        num_positions = 0
 
         for ply in range(len(moves), -1, -1):
+            if ply in skip:
+                result["analysis"][ply] = { "skipped": True }
+                continue
+
             if last_progress_report + PROGRESS_REPORT_INTERVAL < time.time():
                 if self.progress_reporter:
                     self.progress_reporter.send(job, result)
@@ -835,13 +842,19 @@ class Worker(threading.Thread):
 
             self.nodes += part.get("nodes", 0)
             self.positions += 1
+            num_positions += 1
 
             result["analysis"][ply] = part
 
         end = time.time()
-        logging.info("%s%s took %0.1fs (%0.2fs per position)",
-                     base_url(get_endpoint(self.conf)), job["game_id"],
-                     end - start, (end - start) / (len(moves) + 1))
+
+        if num_positions:
+            logging.info("%s%s took %0.1fs (%0.2fs per position)",
+                         base_url(get_endpoint(self.conf)), job["game_id"],
+                         end - start, (end - start) / num_positions)
+        else:
+            logging.info("%s%s done (nothing to do)",
+                         base_url(get_endpoint(self.conf)), job["game_id"])
 
         return result
 

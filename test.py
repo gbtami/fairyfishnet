@@ -66,12 +66,15 @@ class WorkerTest(unittest.TestCase):
             "variant": "standard",
             "position": STARTPOS,
             "moves": "f2f3 e7e6 g2g4 d8h4",
+            "skipPositions": [1],
         }
 
         response = self.worker.analysis(job)
         result = response["analysis"]
 
         self.assertTrue(0 <= result[0]["score"]["cp"] <= 90)
+
+        self.assertTrue(result[1]["skipped"])
 
         self.assertEqual(result[3]["score"]["mate"], 1)
         self.assertTrue(result[3]["pv"].startswith("d8h4"))
