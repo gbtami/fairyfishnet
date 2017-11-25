@@ -1004,7 +1004,7 @@ def is_user_site_package():
     return os.path.abspath(__file__).startswith(os.path.join(user_site, ""))
 
 
-def update_self(force=False):
+def update_self():
     # Ensure current instance is installed as a package
     if __package__ is None:
         raise ConfigError("Not started as a package (python -m). Can not update using pip")
@@ -1026,13 +1026,6 @@ def update_self(force=False):
         else:
             raise ConfigError("Auto update enabled, but pip not installed")
 
-    # Check pip is up to date
-    pip_up_to_date = LooseVersion(pip.__version__) >= LooseVersion("8.0.0")
-    if pip_up_to_date:
-        logging.debug("using pip %s", pip.__version__)
-    else:
-        logging.warning("using pip %s < 8.0.0", pip.__version__)
-
     # Ensure module file is going to be writable
     try:
         with open(__file__, "r+"):
@@ -1042,12 +1035,12 @@ def update_self(force=False):
                           "to module file. Use virtualenv or "
                           "pip install --user")
 
-    # Check for updates
-    if not update_available():
-        if not force:
-            return 0
-        else:
-            logging.info("Updating anyway")
+    # Look up the latest version
+    result = requests.get("https://pypi.org/pypi/fishnet/json", timeout=HTTP_TIMEOUT).json()
+    latest_version = result["info"]["version"]
+    if latest_version != __version__:
+        return 0
+    url = result["releases"][latest_version][0]["url"]
 
     # Wait
     t = random.random() * 15.0
@@ -1056,28 +1049,13 @@ def update_self(force=False):
 
     print()
 
-    # Force download
-    if force:
-        if pip_up_to_date:
-            logging.info("$ pip download fishnet")
-            ret = pip.main(["download", "fishnet"])
-        else:
-            logging.info("$ pip install --download fishnet")
-            ret = pip.main(["install", "--download", "fishnet"])
-
-        if ret != 0:
-            logging.warning("Unexpected exit code for pip download: %d", ret)
-            return ret
-
-        print()
-
     # Update
     if is_user_site_package():
-        logging.info("$ pip install --user --upgrade fishnet")
-        ret = pip.main(["install", "--user", "--upgrade", "fishnet"])
+        logging.info("$ pip install --user --upgrade %s", url)
+        ret = pip.main(["install", "--user", "--upgrade", url])
     else:
-        logging.info("$ pip install --upgrade fishnet")
-        ret = pip.main(["install", "--upgrade", "fishnet"])
+        logging.info("$ pip install --upgrade %s", url)
+        ret = pip.main(["install", "--upgrade", url])
     if ret != 0:
         logging.warning("Unexpected exit code for pip install: %d", ret)
         return ret
@@ -1906,7 +1884,7 @@ def main(argv):
     except UpdateRequired:
         if args.auto_update:
             logging.info("\n\n### Updating ...\n")
-            update_self(force=True)
+            update_self()
 
         logging.error("Update required. Exiting (status 70)")
         return 70
