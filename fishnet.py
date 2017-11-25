@@ -1457,7 +1457,7 @@ def start_backoff(conf):
 
 
 def lookup_latest_version():
-    result = requests.get("https://pypi.python.org/pypi/fishnet/json", timeout=HTTP_TIMEOUT).json()
+    result = requests.get("https://pypi.org/pypi/fishnet/json", timeout=HTTP_TIMEOUT).json()
     return result["info"]["version"]
 
 
