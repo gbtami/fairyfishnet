@@ -1038,9 +1038,10 @@ def update_self():
     # Look up the latest version
     result = requests.get("https://pypi.org/pypi/fishnet/json", timeout=HTTP_TIMEOUT).json()
     latest_version = result["info"]["version"]
-    if latest_version == __version__:
-        return 0
     url = result["releases"][latest_version][0]["url"]
+    if latest_version == __version__:
+        logging.info("Already up to date.")
+        return 0
 
     # Wait
     t = random.random() * 15.0
