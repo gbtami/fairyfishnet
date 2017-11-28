@@ -385,7 +385,7 @@ def uci(p):
             # Ignore identification line
             pass
         else:
-            logging.warning("Unexpected engine output: %s %s", command, arg)
+            logging.warning("Unexpected engine response to uci: %s %s", command, arg)
 
 
 def isready(p):
@@ -397,7 +397,7 @@ def isready(p):
         elif command == "info" and arg.startswith("string "):
             pass
         else:
-            logging.warning("Unexpected engine output: %s %s", command, arg)
+            logging.warning("Unexpected engine response to isready: %s %s", command, arg)
 
 
 def setoption(p, name, value):
@@ -501,7 +501,7 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None):
             if score_kind and score_value is not None and not score_bound:
                 info["score"] = {score_kind: score_value}
         else:
-            logging.warning("Unexpected engine output: %s %s", command, arg)
+            logging.warning("Unexpected engine response to go: %s %s", command, arg)
 
 
 def set_variant_options(p, variant):
