@@ -379,7 +379,7 @@ def uci(p):
         elif command == "option":
             if arg.startswith("name UCI_Variant type combo default chess"):
                 for variant in arg.split(" ")[6:]:
-                    if variant is not "var":
+                    if variant != "var":
                         variants.add(variant)
         elif command == "Stockfish" and " by " in arg:
             # Ignore identification line
