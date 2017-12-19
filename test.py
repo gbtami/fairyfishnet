@@ -52,9 +52,40 @@ class WorkerTest(unittest.TestCase):
             "moves": "f2f3 e7e6 g2g4",
         }
 
-        result = self.worker.bestmove(job)["move"]
+        response = self.worker.bestmove(job)
+        self.assertEqual(response["move"]["bestmove"], "d8h4")
 
-        self.assertEqual(result["bestmove"], "d8h4")
+    def test_zh_bestmove(self):
+        job = {
+            "work": {
+                "type": "move",
+                "id": "hihihihi",
+                "level": 1,
+            },
+            "game_id": "ihihihih",
+            "variant": "crazyhouse",
+            "position": "rnbqk1nr/ppp2ppp/3b4/3N4/4p1PP/5P2/PPPPP3/R1BQKBNR/P b KQkq - 9 5",
+            "moves": "d6g3",
+        }
+
+        response = self.worker.bestmove(job)
+        self.assertEqual(response["move"]["bestmove"], "P@f2") # only move
+
+    def test_3check_bestmove(self):
+        job = {
+            "work": {
+                "type": "move",
+                "id": "3c3c3c3c",
+                "level": 8,
+            },
+            "game_id": "c3c3c3c3",
+            "variant": "threecheck",
+            "position": "r1b1kbnr/pppp1ppp/2n2q2/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 4 4 +2+0",
+            "moves": "f1c4 d7d6",
+        }
+
+        response = self.worker.bestmove(job)
+        self.assertEqual(response["move"]["bestmove"], "c4f7")
 
     def test_analysis(self):
         job = {
