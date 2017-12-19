@@ -37,7 +37,7 @@ class WorkerTest(unittest.TestCase):
         self.worker.start_stockfish()
 
     def tearDown(self):
-        fishnet.send(self.worker.stockfish, "quit")
+        self.worker.stop()
 
     def test_bestmove(self):
         job = {

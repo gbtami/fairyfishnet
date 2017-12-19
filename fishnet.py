@@ -325,12 +325,17 @@ def open_process(command, cwd=None, shell=True, _popen_lock=threading.Lock()):
 
 
 def kill_process(p):
+    p.stdin.close()
+    p.stdout.close()
+
     try:
         # Windows
         p.send_signal(signal.CTRL_BREAK_EVENT)
     except AttributeError:
         # Unix
         os.killpg(p.pid, signal.SIGKILL)
+
+    p.wait()
 
 
 def send(p, line):
@@ -902,6 +907,8 @@ def detect_cpu_capabilities():
             logging.warning("Unexpected cpuid output: %s", line)
 
     # Done
+    process.stdin.close()
+    process.stdout.close()
     process.wait()
     if process.returncode != 0:
         logging.error("cpuid exited with status code %d", process.returncode)
