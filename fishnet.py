@@ -241,6 +241,9 @@ def setup_logging(verbosity, stream=sys.stdout):
         else:
             handler.setLevel(logging.INFO)
 
+    if verbosity < 2:
+        logging.getLogger("urllib3").setLevel(logging.WARNING)
+
     tail_target = logging.StreamHandler(stream)
     tail_target.setFormatter(LogFormatter())
     logger.addHandler(TailLogHandler(35, handler.level, logging.ERROR, tail_target))
