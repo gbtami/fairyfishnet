@@ -770,14 +770,25 @@ class Worker(threading.Thread):
 
             return "acquire", result
 
+    def job_name(self, job, ply=None):
+        builder = []
+        if "game_id" in job:
+            builder.append(base_url(get_endpoint(self.conf)))
+            builder.append(job["game_id"])
+        else:
+            builder.append(job["work"]["id"])
+        if ply is not None:
+            builder.append("#")
+            builder.append(str(ply))
+        return "".join(builder)
+
     def bestmove(self, job):
         lvl = job["work"]["level"]
         variant = job.get("variant", "standard")
         moves = job["moves"].split(" ")
 
-        logging.debug("Playing %s%s (%s) with lvl %d",
-                      base_url(get_endpoint(self.conf)), job["game_id"],
-                      variant, lvl)
+        logging.debug("Playing %s (%s) with lvl %d",
+                      self.job_name(job), variant, lvl)
 
         set_variant_options(self.stockfish, job.get("variant", "standard"))
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl - 1])
@@ -792,8 +803,8 @@ class Worker(threading.Thread):
                   depth=LVL_DEPTHS[lvl - 1])
         end = time.time()
 
-        logging.log(PROGRESS, "Played move in %s%s (%s) with lvl %d: %0.3fs elapsed, depth %d",
-                    base_url(get_endpoint(self.conf)), job["game_id"], variant,
+        logging.log(PROGRESS, "Played move in %s (%s) with lvl %d: %0.3fs elapsed, depth %d",
+                    self.job_name(job), variant,
                     lvl, end - start, part.get("depth", 0))
 
         self.nodes += part.get("nodes", 0)
@@ -833,9 +844,8 @@ class Worker(threading.Thread):
                     self.progress_reporter.send(job, result)
                 last_progress_report = time.time()
 
-            logging.log(PROGRESS, "Analysing %s game %s%s#%d",
-                        variant,
-                        base_url(get_endpoint(self.conf)), job["game_id"], ply)
+            logging.log(PROGRESS, "Analysing %s: %s",
+                        variant, self.job_name(job, ply))
 
             part = go(self.stockfish, job["position"], moves[0:ply],
                       nodes=nodes, movetime=4000)
@@ -856,12 +866,11 @@ class Worker(threading.Thread):
         end = time.time()
 
         if num_positions:
-            logging.info("%s%s took %0.1fs (%0.2fs per position)",
-                         base_url(get_endpoint(self.conf)), job["game_id"],
+            logging.info("%s took %0.1fs (%0.2fs per position)",
+                         self.job_name(job),
                          end - start, (end - start) / num_positions)
         else:
-            logging.info("%s%s done (nothing to do)",
-                         base_url(get_endpoint(self.conf)), job["game_id"])
+            logging.info("%s done (nothing to do)", self.job_name(job))
 
         return result
 
