@@ -772,7 +772,7 @@ class Worker(threading.Thread):
 
     def job_name(self, job, ply=None):
         builder = []
-        if "game_id" in job:
+        if job.get("game_id"):
             builder.append(base_url(get_endpoint(self.conf)))
             builder.append(job["game_id"])
         else:
