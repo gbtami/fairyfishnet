@@ -792,6 +792,7 @@ class Worker(threading.Thread):
 
         set_variant_options(self.stockfish, job.get("variant", "standard"))
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl - 1])
+        setoption(self.stockfish, "Contempt", 20)
         send(self.stockfish, "ucinewgame")
         isready(self.stockfish)
 
@@ -826,6 +827,7 @@ class Worker(threading.Thread):
 
         set_variant_options(self.stockfish, variant)
         setoption(self.stockfish, "Skill Level", 20)
+        setoption(self.stockfish, "Contempt", 0)
         send(self.stockfish, "ucinewgame")
         isready(self.stockfish)
 
