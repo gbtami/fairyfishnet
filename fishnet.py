@@ -560,8 +560,8 @@ class ProgressReporter(threading.Thread):
                                           timeout=HTTP_TIMEOUT)
                 if response.status_code != 204:
                     logging.error("Expected status 204 for progress report, got %d", response.status_code)
-            except:
-                logging.exception("Could not send progress report. Continuing.")
+            except Exception as err:
+                logging.warning("Could not send progress report (%s). Continuing.", err)
 
 
 class Worker(threading.Thread):
