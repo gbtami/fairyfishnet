@@ -918,9 +918,7 @@ def detect_cpu_capabilities():
             logging.warning("Unexpected cpuid output: %s", line)
 
     # Done
-    process.stdin.close()
-    process.stdout.close()
-    process.wait()
+    process.communicate()
     if process.returncode != 0:
         logging.error("cpuid exited with status code %d", process.returncode)
 
