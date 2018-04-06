@@ -328,9 +328,6 @@ def open_process(command, cwd=None, shell=True, _popen_lock=threading.Lock()):
 
 
 def kill_process(p):
-    p.stdin.close()
-    p.stdout.close()
-
     try:
         # Windows
         p.send_signal(signal.CTRL_BREAK_EVENT)
@@ -338,7 +335,7 @@ def kill_process(p):
         # Unix
         os.killpg(p.pid, signal.SIGKILL)
 
-    p.wait()
+    p.communicate()
 
 
 def send(p, line):
