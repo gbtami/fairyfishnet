@@ -38,13 +38,13 @@ Installation
 
    **Via Docker**
 
-   There is a `Docker container <https://hub.docker.com/r/ageneau/fishnet/>`_
-   courtesy of `@ageneau <https://github.com/ageneau>`_. For example you can
+   There is a `Docker container <https://hub.docker.com/r/mklemenz/fishnet/>`_
+   courtesy of `@mklemenz <https://github.com/mklemenz>`_. For example you can
    simply do:
 
    ::
 
-       docker run ageneau/fishnet --key MY_APIKEY --auto-update
+       docker run mklemenz/fishnet --key MY_APIKEY --auto-update
 
 lichess.org custom Stockfish
 ----------------------------
