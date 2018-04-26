@@ -730,6 +730,7 @@ class Worker(threading.Thread):
         self.stockfish_info["options"] = {}
         self.stockfish_info["options"]["threads"] = str(self.threads)
         self.stockfish_info["options"]["hash"] = str(self.memory)
+        self.stockfish_info["options"]["analysis contempt"] = "Off"
 
         # Custom options
         if self.conf.has_section("Stockfish"):
@@ -789,7 +790,7 @@ class Worker(threading.Thread):
 
         set_variant_options(self.stockfish, job.get("variant", "standard"))
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl - 1])
-        setoption(self.stockfish, "Contempt", 20)
+        setoption(self.stockfish, "UCI_AnalyseMode", False)
         send(self.stockfish, "ucinewgame")
         isready(self.stockfish)
 
@@ -824,7 +825,7 @@ class Worker(threading.Thread):
 
         set_variant_options(self.stockfish, variant)
         setoption(self.stockfish, "Skill Level", 20)
-        setoption(self.stockfish, "Contempt", 0)
+        setoption(self.stockfish, "UCI_AnalyseMode", True)
         send(self.stockfish, "ucinewgame")
         isready(self.stockfish)
 
