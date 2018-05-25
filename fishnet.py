@@ -1734,29 +1734,29 @@ def make_cpuid():
     if is_64bit:
         if is_windows:
             # Windows x86_64
-            # Two first call registers : RCX, RDX
-            # Volatile registers       : RAX, RCX, RDX, R8-11
+            # Three first call registers : RCX, RDX, R8
+            # Volatile registers         : RAX, RCX, RDX, R8-11
             opc = [
                 0x53,                    # push   %rbx
-                0x48, 0x89, 0xd0,        # mov    %rdx,%rax
-                0x49, 0x89, 0xc8,        # mov    %rcx,%r8
-                0x31, 0xc9,              # xor    %ecx,%ecx
+                0x89, 0xd0,              # mov    %edx,%eax
+                0x41, 0x89, 0xc9,        # mov    %ecx,%r9d
+                0x44, 0x89, 0xc1,        # mov    %r8d,%ecx
                 0x0f, 0xa2,              # cpuid
-                0x41, 0x89, 0x00,        # mov    %eax,(%r8)
-                0x41, 0x89, 0x58, 0x04,  # mov    %ebx,0x4(%r8)
-                0x41, 0x89, 0x48, 0x08,  # mov    %ecx,0x8(%r8)
-                0x41, 0x89, 0x50, 0x0c,  # mov    %edx,0xc(%r8)
+                0x41, 0x89, 0x01,        # mov    %eax,(%r9)
+                0x41, 0x89, 0x59, 0x04,  # mov    %ebx,0x4(%r9)
+                0x41, 0x89, 0x49, 0x08,  # mov    %ecx,0x8(%r9)
+                0x41, 0x89, 0x51, 0x0c,  # mov    %edx,0xc(%r9)
                 0x5b,                    # pop    %rbx
                 0xc3                     # retq
             ]
         else:
             # Posix x86_64
-            # Two first call registers : RDI, RSI
-            # Volatile registers       : RAX, RCX, RDX, RSI, RDI, R8-11
+            # Three first call registers : RDI, RSI, RDX
+            # Volatile registers         : RAX, RCX, RDX, RSI, RDI, R8-11
             opc = [
                 0x53,                    # push   %rbx
-                0x48, 0x89, 0xf0,        # mov    %rsi,%rax
-                0x31, 0xc9,              # xor    %ecx,%ecx
+                0x89, 0xf0,              # mov    %esi,%eax
+                0x89, 0xd1,              # mov    %edx,%ecx
                 0x0f, 0xa2,              # cpuid
                 0x89, 0x07,              # mov    %eax,(%rdi)
                 0x89, 0x5f, 0x04,        # mov    %ebx,0x4(%rdi)
@@ -1767,14 +1767,14 @@ def make_cpuid():
             ]
     else:
         # CDECL 32 bit
-        # Two first call registers : Stack (%esp)
-        # Volatile registers       : EAX, ECX, EDX
+        # Three first call registers : Stack (%esp)
+        # Volatile registers         : EAX, ECX, EDX
         opc = [
             0x53,                    # push   %ebx
             0x57,                    # push   %edi
             0x8b, 0x7c, 0x24, 0x0c,  # mov    0xc(%esp),%edi
             0x8b, 0x44, 0x24, 0x10,  # mov    0x10(%esp),%eax
-            0x31, 0xc9,              # xor    %ecx,%ecx
+            0x8b, 0x4c, 0x24, 0x14,  # mov    0x14(%esp),%ecx
             0x0f, 0xa2,              # cpuid
             0x89, 0x07,              # mov    %eax,(%edi)
             0x89, 0x5f, 0x04,        # mov    %ebx,0x4(%edi)
@@ -1815,11 +1815,11 @@ def make_cpuid():
 
     # Create and yield callable
     result = CPUID_struct()
-    func_type = ctypes.CFUNCTYPE(None, ctypes.POINTER(CPUID_struct), ctypes.c_uint32)
+    func_type = ctypes.CFUNCTYPE(None, ctypes.POINTER(CPUID_struct), ctypes.c_uint32, ctypes.c_uint32)
     func_ptr = func_type(addr)
 
-    def cpuid(eax):
-        func_ptr(result, eax)
+    def cpuid(eax, ecx=0):
+        func_ptr(result, eax, ecx)
         return result.eax, result.ebx, result.ecx, result.edx
 
     yield cpuid
