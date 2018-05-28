@@ -1890,6 +1890,7 @@ def main(argv):
     # Show intro
     if args.command not in ["systemd", "cpuid"]:
         print(intro())
+        sys.stdout.flush()
 
     # Run
     try:
