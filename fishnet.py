@@ -1704,6 +1704,8 @@ def cmd_systemd(args):
         print("# python -m fishnet systemd | sudo tee /etc/systemd/system/fishnet.service", file=sys.stderr)
         print("# sudo systemctl enable fishnet.service", file=sys.stderr)
         print("# sudo systemctl start fishnet.service", file=sys.stderr)
+        print("#", file=sys.stderr)
+        print("# Live view of the log: sudo journalctl --follow -u fishnet", file=sys.stderr)
 
 
 @contextlib.contextmanager
