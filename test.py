@@ -6,9 +6,7 @@
 # See LICENSE.txt for licensing information.
 
 import fishnet
-import argparse
 import unittest
-import logging
 import sys
 import multiprocessing
 

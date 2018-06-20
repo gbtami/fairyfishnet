@@ -51,8 +51,6 @@ except ImportError:
     print(file=sys.stderr)
     raise
 
-from distutils.version import LooseVersion
-
 if os.name == "posix" and sys.version_info[0] < 3:
     try:
         import subprocess32 as subprocess
@@ -836,7 +834,7 @@ class Worker(threading.Thread):
 
         for ply in range(len(moves), -1, -1):
             if ply in skip:
-                result["analysis"][ply] = { "skipped": True }
+                result["analysis"][ply] = {"skipped": True}
                 continue
 
             if last_progress_report + PROGRESS_REPORT_INTERVAL < time.time():
