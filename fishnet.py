@@ -556,7 +556,10 @@ class ProgressReporter(threading.Thread):
                 response = self.http.post(get_endpoint(self.conf, path),
                                           data=data,
                                           timeout=HTTP_TIMEOUT)
-                if response.status_code != 204:
+                if response.status_code == 429:
+                    logging.error("Too many requests. Suspending progress reports for 60s ...")
+                    time.sleep(60.0)
+                elif response.status_code != 204:
                     logging.error("Expected status 204 for progress report, got %d", response.status_code)
             except Exception as err:
                 logging.warning("Could not send progress report (%s). Continuing.", err)
@@ -675,7 +678,7 @@ class Worker(threading.Thread):
                 self.sleep.wait(t)
             elif 400 <= response.status_code <= 499:
                 self.job = None
-                t = next(self.backoff)
+                t = next(self.backoff) + (60 if response.status_code == 429 else 0)
                 try:
                     logging.debug("Client error: HTTP %d %s: %s", response.status_code, response.reason, response.text)
                     error = response.json()["error"]
