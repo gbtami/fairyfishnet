@@ -85,7 +85,7 @@ except NameError:
     pass
 
 
-__version__ = "1.15.10"
+__version__ = "1.15.9"
 
 __author__ = "Niklas Fiekas"
 __email__ = "niklas.fiekas@backscattering.de"
@@ -1031,14 +1031,17 @@ def update_self():
 
     # Ensure pip is available
     try:
-        import pip
-    except ImportError as e:
-        if "IncompleteRead" in str(e):
-            # Version incompatible with requests:
-            # https://github.com/pypa/pip/commit/796320abac38410316067bbb9455007cc51079db
-            raise ConfigError("Auto update enabled, but pip >= 6.0 required")
-        else:
-            raise ConfigError("Auto update enabled, but pip not installed")
+        from pip._internal import main as pip_main
+    except ImportError:
+        try:
+            from pip import main as pip_main
+        except ImportError as e:
+            if "IncompleteRead" in str(e):
+                # Version incompatible with requests:
+                # https://github.com/pypa/pip/commit/796320abac38410316067bbb9455007cc51079db
+                raise ConfigError("Auto update enabled, but pip >= 6.0 required")
+            else:
+                raise ConfigError("Auto update enabled, but pip not installed")
 
     # Ensure module file is going to be writable
     try:
@@ -1067,10 +1070,10 @@ def update_self():
     # Update
     if is_user_site_package():
         logging.info("$ pip install --user --upgrade %s", url)
-        ret = pip.main(["install", "--user", "--upgrade", url])
+        ret = pip_main(["install", "--user", "--upgrade", url])
     else:
         logging.info("$ pip install --upgrade %s", url)
-        ret = pip.main(["install", "--upgrade", url])
+        ret = pip_main(["install", "--upgrade", url])
     if ret != 0:
         logging.warning("Unexpected exit code for pip install: %d", ret)
         return ret
