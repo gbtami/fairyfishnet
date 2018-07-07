@@ -579,6 +579,7 @@ class Worker(threading.Thread):
         self.conf = conf
         self.threads = threads
         self.memory = memory
+
         self.progress_reporter = progress_reporter
 
         self.alive = True
@@ -596,6 +597,7 @@ class Worker(threading.Thread):
 
         self.job = None
         self.backoff = start_backoff(self.conf)
+        self.http = requests.Session()
 
     def set_name(self, name):
         self.name = name
@@ -652,9 +654,9 @@ class Worker(threading.Thread):
 
         try:
             # Report result and fetch next job
-            response = requests.post(get_endpoint(self.conf, path),
-                                     json=request,
-                                     timeout=HTTP_TIMEOUT)
+            response = self.http.post(get_endpoint(self.conf, path),
+                                      json=request,
+                                      timeout=HTTP_TIMEOUT)
         except requests.RequestException:
             self.job = None
             t = next(self.backoff)
@@ -703,9 +705,9 @@ class Worker(threading.Thread):
         logging.debug("Aborting job %s", self.job["work"]["id"])
 
         try:
-            response = requests.post(get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]),
-                                     data=json.dumps(self.make_request()),
-                                     timeout=HTTP_TIMEOUT)
+            response = self.http.post(get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]),
+                                      data=json.dumps(self.make_request()),
+                                      timeout=HTTP_TIMEOUT)
             if response.status_code == 204:
                 logging.info("Aborted job %s", self.job["work"]["id"])
             else:
