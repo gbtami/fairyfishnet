@@ -424,7 +424,6 @@ def setoption(p, name, value):
 
 def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None):
     send(p, "position fen %s moves %s" % (position, " ".join(moves)))
-    isready(p)
 
     builder = []
     builder.append("go")
@@ -459,7 +458,6 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None):
             bestmove = arg.split()[0]
             if bestmove and bestmove != "(none)":
                 info["bestmove"] = bestmove
-            isready(p)
             return info
         elif command == "info":
             arg = arg or ""
