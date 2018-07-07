@@ -41,7 +41,7 @@ setuptools.setup(
     url="https://github.com/niklasf/fishnet",
     py_modules=["fishnet"],
     test_suite="test",
-    install_requires=["requests"],
+    install_requires=["requests>=2,<3"],
     python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
