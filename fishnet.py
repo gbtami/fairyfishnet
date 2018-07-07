@@ -569,7 +569,7 @@ class ProgressReporter(threading.Thread):
                     time.sleep(60.0)
                 elif response.status_code != 204:
                     logging.error("Expected status 204 for progress report, got %d", response.status_code)
-            except Exception as err:
+            except requests.RequestException as err:
                 logging.warning("Could not send progress report (%s). Continuing.", err)
 
 
@@ -712,7 +712,7 @@ class Worker(threading.Thread):
                 logging.info("Aborted job %s", self.job["work"]["id"])
             else:
                 logging.error("Unexpected HTTP status for abort: %d", response.status_code)
-        except:
+        except requests.RequestException:
             logging.exception("Could not abort job. Continuing.")
 
         self.job = None
