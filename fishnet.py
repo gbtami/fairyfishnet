@@ -597,6 +597,10 @@ class Worker(threading.Thread):
         self.job = None
         self.backoff = start_backoff(self.conf)
 
+    def set_name(self, name):
+        self.name = name
+        self.progress_reporter.name = "%s (P)" % (name, )
+
     def stop(self):
         with self.status_lock:
             self.alive = False
@@ -1546,7 +1550,7 @@ def cmd_run(args):
 
     # Start all threads
     for i, worker in enumerate(workers):
-        worker.name = "><> %d" % (i + 1)
+        worker.set_name("><> %d" % (i + 1))
         worker.setDaemon(True)
         worker.start()
 
