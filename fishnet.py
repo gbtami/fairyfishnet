@@ -80,9 +80,17 @@ except ImportError:
     from pipes import quote as shell_quote
 
 try:
+    # Python 2
     input = raw_input
 except NameError:
     pass
+
+try:
+    # Python 3
+    DEAD_ENGINE_ERRORS = (EOFError, IOError, BrokenPipeError)
+except NameError:
+    # Python 2
+    DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
 __version__ = "1.15.11"
@@ -577,11 +585,12 @@ class Worker(threading.Thread):
         self.fatal_error = None
         self.finished = threading.Event()
         self.sleep = threading.Event()
-        self.status_lock = threading.Lock()
+        self.status_lock = threading.RLock()
 
         self.nodes = 0
         self.positions = 0
 
+        self.stockfish_lock = threading.RLock()
         self.stockfish = None
         self.stockfish_info = None
 
@@ -591,10 +600,7 @@ class Worker(threading.Thread):
     def stop(self):
         with self.status_lock:
             self.alive = False
-
-            if self.stockfish:
-                kill_process(self.stockfish)
-
+            self.kill_stockfish()
             self.sleep.set()
 
     def stop_soon(self):
@@ -620,20 +626,12 @@ class Worker(threading.Thread):
 
     def run_inner(self):
         try:
-            # Python 3
-            dead_engine_errors = (EOFError, IOError, BrokenPipeError)
-        except NameError:
-            # Python 2
-            dead_engine_errors = (EOFError, IOError)
-
-        try:
-            # Check if the engine is still alive and restart, if necessary
-            if not self.stockfish or self.stockfish.poll() is not None:
-                self.start_stockfish()
+            # Check if the engine is still alive and start, if necessary
+            self.start_stockfish()
 
             # Do the next work unit
             path, request = self.work()
-        except dead_engine_errors:
+        except DEAD_ENGINE_ERRORS:
             alive = self.is_alive()
             if alive:
                 t = next(self.backoff)
@@ -644,7 +642,7 @@ class Worker(threading.Thread):
 
             if alive:
                 self.sleep.wait(t)
-                kill_process(self.stockfish)
+                self.kill_stockfish()
 
             return
 
@@ -653,14 +651,11 @@ class Worker(threading.Thread):
             response = requests.post(get_endpoint(self.conf, path),
                                      json=request,
                                      timeout=HTTP_TIMEOUT)
-        except Exception:
+        except requests.RequestException:
             self.job = None
             t = next(self.backoff)
-            logging.exception("Backing off %0.1fs after exception in worker", t)
+            logging.exception("Backing off %0.1fs after failed request in worker", t)
             self.sleep.wait(t)
-
-            # If in doubt, restart engine
-            kill_process(self.stockfish)
         else:
             if response.status_code == 204:
                 self.job = None
@@ -716,10 +711,24 @@ class Worker(threading.Thread):
 
         self.job = None
 
+    def kill_stockfish(self):
+        with self.stockfish_lock:
+            if self.stockfish:
+                try:
+                    kill_process(self.stockfish)
+                except OSError:
+                    logging.exception("Failed to kill engine process.")
+                self.stockfish = None
+
     def start_stockfish(self):
-        # Start process
-        self.stockfish = open_process(get_stockfish_command(self.conf, False),
-                                      get_engine_dir(self.conf))
+        with self.stockfish_lock:
+            # Check if already running.
+            if self.stockfish and self.stockfish.poll() is None:
+                return
+
+            # Start process
+            self.stockfish = open_process(get_stockfish_command(self.conf, False),
+                                          get_engine_dir(self.conf))
 
         self.stockfish_info, _ = uci(self.stockfish)
         self.stockfish_info.pop("author", None)
