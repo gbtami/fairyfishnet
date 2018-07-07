@@ -597,7 +597,10 @@ class Worker(threading.Thread):
 
         self.job = None
         self.backoff = start_backoff(self.conf)
+
         self.http = requests.Session()
+        self.http.mount("http://", requests.adapters.HTTPAdapter(max_retries=1))
+        self.http.mount("https://", requests.adapters.HTTPAdapter(max_retries=1))
 
     def set_name(self, name):
         self.name = name
@@ -657,10 +660,10 @@ class Worker(threading.Thread):
             response = self.http.post(get_endpoint(self.conf, path),
                                       json=request,
                                       timeout=HTTP_TIMEOUT)
-        except requests.RequestException:
+        except requests.RequestException as err:
             self.job = None
             t = next(self.backoff)
-            logging.exception("Backing off %0.1fs after failed request in worker", t)
+            logging.error("Backing off %0.1fs after failed request (%s)", t, err)
             self.sleep.wait(t)
         else:
             if response.status_code == 204:
@@ -705,9 +708,9 @@ class Worker(threading.Thread):
         logging.debug("Aborting job %s", self.job["work"]["id"])
 
         try:
-            response = self.http.post(get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]),
-                                      data=json.dumps(self.make_request()),
-                                      timeout=HTTP_TIMEOUT)
+            response = requests.post(get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]),
+                                     data=json.dumps(self.make_request()),
+                                     timeout=HTTP_TIMEOUT)
             if response.status_code == 204:
                 logging.info("Aborted job %s", self.job["work"]["id"])
             else:
