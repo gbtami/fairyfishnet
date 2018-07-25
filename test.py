@@ -110,6 +110,33 @@ class WorkerTest(unittest.TestCase):
 
         self.assertEqual(result[4]["score"]["mate"], 0)
 
+    def test_analysis_contempt(self):
+        fishnet.setoption(self.worker.stockfish, "Threads", 1)
+
+        job = {
+            "work": {
+                "type": "analysis",
+                "id": "contempt 100",
+            },
+            "variant": "standard",
+            "position": STARTPOS,
+            "moves": "d2d4 d7d5",
+            "skipPositions": [0, 1],
+            "nodes": 1000,
+        }
+
+        fishnet.setoption(self.worker.stockfish, "Contempt", 100)
+
+        response = self.worker.analysis(job)
+        cp_100 = response["analysis"][2]["score"]["cp"]
+
+        job["work"]["id"] = "contempt 0"
+        fishnet.setoption(self.worker.stockfish, "Contempt", 0)
+        response = self.worker.analysis(job)
+        cp_0 = response["analysis"][2]["score"]["cp"]
+
+        self.assertEqual(cp_100, cp_0)
+
 
 class UnitTests(unittest.TestCase):
 
