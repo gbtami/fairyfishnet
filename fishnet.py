@@ -32,6 +32,7 @@ import contextlib
 import multiprocessing
 import threading
 import site
+import struct
 import sys
 import os
 import stat
@@ -894,7 +895,7 @@ class Worker(threading.Thread):
 
 def detect_cpu_capabilities():
     # Detects support for popcnt and pext instructions
-    modern, bmi2 = False, False
+    vendor, modern, bmi2 = "", False, False
 
     # Run cpuid in subprocess for robustness in case of segfaults
     cmd = []
@@ -925,6 +926,10 @@ def detect_cpu_capabilities():
         elif len(columns) == 5 and all(all(c in string.hexdigits for c in col) for col in columns):
             eax, a, b, c, d = [int(col, 16) for col in columns]
 
+            # vendor
+            if eax == 0:
+                vendor = struct.pack("III", b, d, c).decode("utf-8")
+
             # popcnt
             if eax == 1 and c & (1 << 23):
                 modern = True
@@ -940,14 +945,14 @@ def detect_cpu_capabilities():
     if process.returncode != 0:
         logging.error("cpuid exited with status code %d", process.returncode)
 
-    return modern, bmi2
+    return vendor, modern, bmi2
 
 
 def stockfish_filename():
     machine = platform.machine().lower()
 
-    modern, bmi2 = detect_cpu_capabilities()
-    if modern and bmi2:
+    vendor, modern, bmi2 = detect_cpu_capabilities()
+    if modern and "Intel" in vendor and bmi2:
         suffix = "-bmi2"
     elif modern:
         suffix = "-modern"
