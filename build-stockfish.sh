@@ -22,9 +22,11 @@ if [ -f /proc/cpuinfo ]; then
         EXE=stockfish-x86_64-modern
     fi
 
-    if grep "^flags" /proc/cpuinfo | grep bmi2 | grep -q popcnt ; then
-        ARCH=x86-64-bmi2
-        EXE=stockfish-x86_64-bmi2
+    if grep "^vendor_id" /proc/cpuinfo | grep -q Intel ; then
+        if grep "^flags" /proc/cpuinfo | grep bmi2 | grep -q popcnt ; then
+            ARCH=x86-64-bmi2
+            EXE=stockfish-x86_64-bmi2
+        fi
     fi
 fi
 
