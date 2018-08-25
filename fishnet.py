@@ -1242,7 +1242,7 @@ def configure(args):
     # Advanced options
     endpoint = args.endpoint or DEFAULT_ENDPOINT
     if config_input("Configure advanced options? (default: no) ", parse_bool, out):
-        endpoint = config_input("Fishnet API endpoint (default: %s): " % (endpoint, ), validate_endpoint, out)
+        endpoint = config_input("Fishnet API endpoint (default: %s): " % (endpoint, ), lambda inp: validate_endpoint(inp, endpoint), out)
 
     conf.set("Fishnet", "Endpoint", endpoint)
 
@@ -1388,9 +1388,9 @@ def validate_memory(memory, conf):
     return memory
 
 
-def validate_endpoint(endpoint):
+def validate_endpoint(endpoint, default=DEFAULT_ENDPOINT):
     if not endpoint or not endpoint.strip():
-        return DEFAULT_ENDPOINT
+        return default
 
     if not endpoint.endswith("/"):
         endpoint += "/"
