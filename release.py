@@ -51,7 +51,9 @@ def tag_and_push():
 
 def pypi():
     print("--- PYPI -------------------------------------------------------------")
-    system("python3 setup.py sdist upload")
+    system("python3 setup.py sdist bdist_wheel")
+    system("twine check dist/*")
+    system("twine upload --skip-existing --sign dist/*")
 
 
 if __name__ == "__main__":
