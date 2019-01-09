@@ -14,7 +14,7 @@ with open(os.path.join(os.path.dirname(__file__), "fishnet.py"), "rb") as f:
     # Trick: Strip imports of dependencies
     fishnet = {}
     code = f.read().decode("utf-8")
-    stripped_code = re.sub(r"^(\s*)import requests\s*$|REQUESTS_EXCEPTIONS = .*$", r"\1pass", code, flags=re.MULTILINE).encode("utf-8")
+    stripped_code = re.sub(r"^(\s*)(import requests\s*$|REQUESTS_EXCEPTIONS = .*$)", r"\1pass", code, flags=re.MULTILINE).encode("utf-8")
     eval(compile(stripped_code, "fishnet.py", "exec"), fishnet)
 
 
