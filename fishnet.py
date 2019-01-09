@@ -51,6 +51,8 @@ except ImportError:
     print("Try 'pip install requests' or install python-requests from your distro packages.", file=sys.stderr)
     print(file=sys.stderr)
     raise
+else:
+    REQUESTS_EXCEPTIONS = (requests.ConnectionError, requests.RequestException)
 
 if os.name == "posix" and sys.version_info[0] < 3:
     try:
@@ -92,8 +94,6 @@ try:
 except NameError:
     # Python 2
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
-
-REQUESTS_EXCEPTIONS = (requests.ConnectionError, requests.RequestException)
 
 
 __version__ = "1.15.14"
