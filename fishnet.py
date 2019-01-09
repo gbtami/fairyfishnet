@@ -93,6 +93,8 @@ except NameError:
     # Python 2
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
+REQUESTS_EXCEPTIONS = (requests.ConnectionError, requests.RequestException)
+
 
 __version__ = "1.15.14"
 
@@ -568,7 +570,7 @@ class ProgressReporter(threading.Thread):
                     time.sleep(60.0)
                 elif response.status_code != 204:
                     logging.error("Expected status 204 for progress report, got %d", response.status_code)
-            except requests.RequestException as err:
+            except REQUESTS_EXCEPTIONS as err:
                 logging.warning("Could not send progress report (%s). Continuing.", err)
 
 
@@ -659,7 +661,7 @@ class Worker(threading.Thread):
             response = self.http.post(get_endpoint(self.conf, path),
                                       json=request,
                                       timeout=HTTP_TIMEOUT)
-        except requests.RequestException as err:
+        except REQUESTS_EXCEPTIONS as err:
             self.job = None
             t = next(self.backoff)
             logging.error("Backing off %0.1fs after failed request (%s)", t, err)
@@ -714,7 +716,7 @@ class Worker(threading.Thread):
                 logging.info("Aborted job %s", self.job["work"]["id"])
             else:
                 logging.error("Unexpected HTTP status for abort: %d", response.status_code)
-        except requests.RequestException:
+        except REQUESTS_EXCEPTIONS:
             logging.exception("Could not abort job. Continuing.")
 
         self.job = None
