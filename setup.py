@@ -58,6 +58,7 @@ setuptools.setup(
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
         "Topic :: Games/Entertainment :: Board Games",
         "Topic :: Internet :: WWW/HTTP",
     ]
