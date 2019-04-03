@@ -37,6 +37,7 @@ setuptools.setup(
     author_email=fishnet["__email__"],
     description=fishnet["__doc__"].replace("\n", " ").strip(),
     long_description=read_description(),
+    long_description_content_type="text/x-rst",
     keywords="lichess.org chess stockfish uci",
     url="https://github.com/niklasf/fishnet",
     py_modules=["fishnet"],
