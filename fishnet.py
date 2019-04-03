@@ -51,8 +51,6 @@ except ImportError:
     print("Try 'pip install requests' or install python-requests from your distro packages.", file=sys.stderr)
     print(file=sys.stderr)
     raise
-else:
-    REQUESTS_EXCEPTIONS = (requests.ConnectionError, requests.RequestException)
 
 if os.name == "posix" and sys.version_info[0] < 3:
     try:
@@ -570,7 +568,7 @@ class ProgressReporter(threading.Thread):
                     time.sleep(60.0)
                 elif response.status_code != 204:
                     logging.error("Expected status 204 for progress report, got %d", response.status_code)
-            except REQUESTS_EXCEPTIONS as err:
+            except requests.RequestException as err:
                 logging.warning("Could not send progress report (%s). Continuing.", err)
 
 
@@ -661,7 +659,7 @@ class Worker(threading.Thread):
             response = self.http.post(get_endpoint(self.conf, path),
                                       json=request,
                                       timeout=HTTP_TIMEOUT)
-        except REQUESTS_EXCEPTIONS as err:
+        except requests.RequestException as err:
             self.job = None
             t = next(self.backoff)
             logging.error("Backing off %0.1fs after failed request (%s)", t, err)
@@ -716,7 +714,7 @@ class Worker(threading.Thread):
                 logging.info("Aborted job %s", self.job["work"]["id"])
             else:
                 logging.error("Unexpected HTTP status for abort: %d", response.status_code)
-        except REQUESTS_EXCEPTIONS:
+        except requests.RequestException:
             logging.exception("Could not abort job. Continuing.")
 
         self.job = None
@@ -1047,27 +1045,22 @@ def is_user_site_package():
 def update_self():
     # Ensure current instance is installed as a package
     if __package__ is None:
-        raise ConfigError("Not started as a package (python -m). Can not update using pip")
+        raise ConfigError("Not started as a package (python -m). Cannot update using pip")
 
     if all(dirname not in ["site-packages", "dist-packages"] for dirname in __file__.split(os.sep)):
-        raise ConfigError("Not installed as package (%s). Can not update using pip" % __file__)
+        raise ConfigError("Not installed as package (%s). Cannot update using pip" % __file__)
 
     logging.debug("Package: \"%s\", name: %s, loader: %s",
                   __package__, __name__, __loader__)
 
     # Ensure pip is available
     try:
-        from pip._internal import main as pip_main
-    except ImportError:
-        try:
-            from pip import main as pip_main
-        except ImportError as e:
-            if "IncompleteRead" in str(e):
-                # Version incompatible with requests:
-                # https://github.com/pypa/pip/commit/796320abac38410316067bbb9455007cc51079db
-                raise ConfigError("Auto update enabled, but pip >= 6.0 required")
-            else:
-                raise ConfigError("Auto update enabled, but pip not installed")
+        pip_info = subprocess.check_output([sys.executable, "-m", "pip", "--version"],
+                                           universal_newlines=True)
+    except OSError:
+        raise ConfigError("Auto update enabled, but cannot run pip")
+    else:
+        logging.debug("Pip: %s", pip_info.rstrip())
 
     # Ensure module file is going to be writable
     try:
@@ -1096,10 +1089,12 @@ def update_self():
     # Update
     if is_user_site_package():
         logging.info("$ pip install --user --upgrade %s", url)
-        ret = pip_main(["install", "--user", "--upgrade", url])
+        ret = subprocess.call([sys.executable, "-m", "pip", "install", "--user", "--upgrade", url],
+                              stdout=sys.stdout, stderr=sys.stderr)
     else:
         logging.info("$ pip install --upgrade %s", url)
-        ret = pip_main(["install", "--upgrade", url])
+        ret = subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", url],
+                              stdout=sys.stdout, stderr=sys.stderr)
     if ret != 0:
         logging.warning("Unexpected exit code for pip install: %d", ret)
         return ret
@@ -1385,7 +1380,7 @@ def validate_memory(memory, conf):
         raise ConfigError("Not enough memory for a minimum of %d x %d MB in hash tables" % (processes, HASH_MIN))
 
     if memory > processes * HASH_MAX:
-        raise ConfigError("Can not reasonably use more than %d x %d MB = %d MB for hash tables" % (processes, HASH_MAX, processes * HASH_MAX))
+        raise ConfigError("Cannot reasonably use more than %d x %d MB = %d MB for hash tables" % (processes, HASH_MAX, processes * HASH_MAX))
 
     return memory
 
