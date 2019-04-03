@@ -7,7 +7,12 @@ python:
  - "3.5"
  - "3.6"
  - "3.7"
- - "pypy3"
+matrix:
+  include:
+   - python: "pypy"
+     dist: trusty
+   - python: "pypy3"
+     dist: trusty
 
 env:
   global:
