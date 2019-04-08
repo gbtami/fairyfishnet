@@ -52,7 +52,7 @@ def tag_and_push():
 def pypi():
     print("--- PYPI -------------------------------------------------------------")
     system("rm -rf build")
-    system("python3 setup.py sdist")
+    system("python3 setup.py sdist bdist_wheel --universal")
     system("twine check dist/*")
     system("twine upload --skip-existing --sign dist/*")
 
