@@ -39,11 +39,11 @@ POST http://lichess.org/fishnet/acquire
   //   "level": 5 // 1 to 8
   // },
   "game_id": "abcdefgh", // optional
-  "position": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "position": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", // start position (X-FEN)
   "variant": "standard",
-  "moves": "e2e4 c7c5 c2c4 b8c6 g1e2 g8f6 b1c3 c6b4 g2g3 b4d3",
+  "moves": "e2e4 c7c5 c2c4 b8c6 g1e2 g8f6 b1c3 c6b4 g2g3 b4d3", // moves of the game (UCI)
   "nodes": 3500000, // optional limit
-  "skipPositions": [1, 5] // 0 is the first position
+  "skipPositions": [1, 4, 5] // 0 is the first position
 }
 ```
 
