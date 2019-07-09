@@ -1645,6 +1645,7 @@ def cmd_systemd(args):
         [Service]
         ExecStart={start}
         WorkingDirectory={cwd}
+        ReadWriteDirectories={cwd}
         User={user}
         Group={group}
         Nice=5
