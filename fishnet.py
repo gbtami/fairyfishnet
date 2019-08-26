@@ -997,6 +997,8 @@ def download_github_release(conf, release_page, filename):
     if response.status_code == 304:
         logging.info("Local %s is newer than release", filename)
         return filename
+    elif response.status_code != 200:
+        raise ConfigError("Failed to look up latest Stockfish release (status %d)" % (response.status_code, ))
 
     release = response.json()
 
