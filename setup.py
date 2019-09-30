@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# This file is part of the lichess.org fishnet client.
+# This file is part of the pychess-variants fairyfishnet client.
 # Copyright (C) 2016-2019 Niklas Fiekas <niklas.fiekas@backscattering.de>
 # Copyright (C) 2019 Bajusz Tamás <gbtami@gmail.com>
 # See LICENSE.txt for licensing information.

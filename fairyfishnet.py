@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# This file is part of the lichess.org fishnet client.
+# This file is part of the pychess-variants fairyfishnet client.
 # Copyright (C) 2016-2019 Niklas Fiekas <niklas.fiekas@backscattering.de>
 # Copyright (C) 2019 Bajusz Tamás <gbtami@gmail.com>
 # This program is free software: you can redistribute it and/or modify
@@ -94,10 +94,10 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.18"
+__version__ = "1.15.19"
 
-__author__ = "Niklas Fiekas"
-__email__ = "niklas.fiekas@backscattering.de"
+__author__ = "Bajusz Tamás"
+__email__ = "gbtami@gmail.com"
 __license__ = "GPLv3+"
 
 DEFAULT_ENDPOINT = "https://pychess-variants.herokuapp.com/fishnet/"
