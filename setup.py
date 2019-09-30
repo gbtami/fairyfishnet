@@ -3,6 +3,7 @@
 
 # This file is part of the lichess.org fishnet client.
 # Copyright (C) 2016-2019 Niklas Fiekas <niklas.fiekas@backscattering.de>
+# Copyright (C) 2019 Bajusz Tamás <gbtami@gmail.com>
 # See LICENSE.txt for licensing information.
 
 import setuptools
@@ -10,12 +11,12 @@ import re
 import os.path
 
 
-with open(os.path.join(os.path.dirname(__file__), "fishnet.py"), "rb") as f:
+with open(os.path.join(os.path.dirname(__file__), "fairyfishnet.py"), "rb") as f:
     # Trick: Strip imports of dependencies
     fishnet = {}
     code = f.read().decode("utf-8")
     stripped_code = re.sub(r"^(\s*)(import requests\s*$)", r"\1pass", code, flags=re.MULTILINE).encode("utf-8")
-    eval(compile(stripped_code, "fishnet.py", "exec"), fishnet)
+    eval(compile(stripped_code, "fairyfishnet.py", "exec"), fishnet)
 
 
 def read_description():
@@ -31,7 +32,7 @@ def read_description():
 
 
 setuptools.setup(
-    name="fishnet",
+    name="fairyfishnet",
     version=fishnet["__version__"],
     author=fishnet["__author__"],
     author_email=fishnet["__email__"],
@@ -39,8 +40,8 @@ setuptools.setup(
     long_description=read_description(),
     long_description_content_type="text/x-rst",
     keywords="lichess.org chess stockfish uci",
-    url="https://github.com/niklasf/fishnet",
-    py_modules=["fishnet"],
+    url="https://github.com/gbtami/fairyfishnet",
+    py_modules=["fairyfishnet"],
     test_suite="test",
     install_requires=["requests>=2,<3"],
     python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*",

@@ -1,8 +1,8 @@
-fishnet: distributed Stockfish analysis for lichess.org
-=======================================================
+fairyfishnet: distributed Fairy-Stockfish analysis for pychess-variants
+========================================================================
 
 .. image:: https://badge.fury.io/py/fishnet.svg
-    :target: https://pypi.python.org/pypi/fishnet
+    :target: https://pypi.python.org/pypi/fairyfishnet
 
 .. image:: https://travis-ci.org/niklasf/fishnet.svg?branch=master
     :target: https://travis-ci.org/niklasf/fishnet
@@ -13,8 +13,8 @@ fishnet: distributed Stockfish analysis for lichess.org
 Installation
 ------------
 
-1. Request your personal fishnet key: https://lichess.org/get-fishnet
-2. Install the fishnet client.
+1. Request your personal fairyfishnet key: https://pychess-variants.herokuapp.com
+2. Install the fairyfishnet client.
 
    **Via pip**
 
@@ -22,19 +22,19 @@ Installation
 
    ::
 
-       pip install --upgrade --user fishnet
+       pip install --upgrade --user fairyfishnet
 
    Example usage:
 
    ::
 
-       python -m fishnet --auto-update
+       python -m fairyfishnet --auto-update
 
    Optional: Generate a systemd service file:
 
    ::
 
-       python -m fishnet systemd
+       python -m fairyfishnet systemd
 
    **Via Docker**
 
@@ -46,26 +46,26 @@ Installation
 
        docker run mklemenz/fishnet --key MY_APIKEY --auto-update
 
-lichess.org custom Stockfish
-----------------------------
+pychess-variants custom Fairy-Stockfish
+---------------------------------------
 
-fishnet is using
-`lichess.org custom Stockfish <https://github.com/niklasf/Stockfish/tree/fishnet>`__
-by `@ddugovic <https://github.com/ddugovic/Stockfish>`_.
+fairyfishnet is using
+`Fairy-Stockfish <https://github.com/ianfab/Fairy-Stockfish>`__
+by `@ianfab <https://github.com/ianfab/Fairy-Stockfish>`_.
 
-You can build Stockfish yourself (for example with ``./build-stockfish.sh``)
-and provide the path using ``python -m fishnet --stockfish-command``. Otherwise
+You can build Fairy-Stockfish yourself (for example with ``./build-stockfish.sh``)
+and provide the path using ``python -m fairyfishnet --stockfish-command``. Otherwise
 a precompiled binary will be downloaded for you.
 
 Overview
 --------
 
-.. image:: https://raw.githubusercontent.com/niklasf/fishnet/master/doc/sequence-diagram.png
+.. image:: https://raw.githubusercontent.com/gbtami/fairyfishnet/master/doc/sequence-diagram.png
 
-See `protocol.md <https://github.com/niklasf/fishnet/blob/master/doc/protocol.md>`_ for details.
+See `protocol.md <https://github.com/gbtami/fairyfishnet/blob/master/doc/protocol.md>`_ for details.
 
 License
 -------
 
-fishnet is licensed under the GPLv3+ license. See LICENSE.txt for the full
+fairyfishnet is licensed under the GPLv3+ license. See LICENSE.txt for the full
 license text.

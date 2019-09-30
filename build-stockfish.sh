@@ -1,14 +1,14 @@
 #!/bin/sh
 
-echo "- Getting latest Stockfish ..."
+echo "- Getting latest Fairy-Stockfish ..."
 
-if [ -d Stockfish/src ]; then
-    cd Stockfish/src
+if [ -d Fairy-Stockfish/src ]; then
+    cd Fairy-Stockfish/src
     make clean > /dev/null
     git pull
 else
-    git clone --depth 1 https://github.com/niklasf/Stockfish.git --branch fishnet
-    cd Stockfish/src
+    git clone --depth 1 https://github.com/ianfab/Fairy-Stockfish.git
+    cd Fairy-Stockfish/src
 fi
 
 echo "- Determining CPU architecture ..."
@@ -30,8 +30,8 @@ if [ -f /proc/cpuinfo ]; then
     fi
 fi
 
-echo "- Building and profiling $EXE ... (patience advised)"
-make profile-build ARCH=$ARCH EXE=../../$EXE > /dev/null
+echo "- Building $EXE ... (patience advised)"
+make build ARCH=$ARCH EXE=../../$EXE largeboards=yes > /dev/null
 
 cd ../..
 echo "- Done!"
