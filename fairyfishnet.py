@@ -94,7 +94,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.19"
+__version__ = "1.15.20"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -1081,7 +1081,7 @@ def update_self():
                           "pip install --user")
 
     # Look up the latest version
-    result = requests.get("https://pypi.org/pypi/fairy-fishnet/json", timeout=HTTP_TIMEOUT).json()
+    result = requests.get("https://pypi.org/pypi/fairyfishnet/json", timeout=HTTP_TIMEOUT).json()
     latest_version = result["info"]["version"]
     url = result["releases"][latest_version][0]["url"]
     if latest_version == __version__:
@@ -1492,17 +1492,17 @@ def start_backoff(conf):
 
 def update_available():
     try:
-        result = requests.get("https://pypi.org/pypi/fairy-fishnet/json", timeout=HTTP_TIMEOUT).json()
+        result = requests.get("https://pypi.org/pypi/fairyfishnet/json", timeout=HTTP_TIMEOUT).json()
         latest_version = result["info"]["version"]
     except Exception:
         logging.exception("Failed to check for update on PyPI")
         return False
 
     if latest_version == __version__:
-        logging.info("[fairy-fishnet v%s] Client is up to date", __version__)
+        logging.info("[fairyfishnet v%s] Client is up to date", __version__)
         return False
     else:
-        logging.info("[fairy-fishnet v%s] Update available on PyPI: %s",
+        logging.info("[fairyfishnet v%s] Update available on PyPI: %s",
                      __version__, latest_version)
         return True
 
