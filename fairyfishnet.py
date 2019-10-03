@@ -94,7 +94,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.20"
+__version__ = "1.15.21"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -424,8 +424,8 @@ def setoption(p, name, value):
     send(p, "setoption name %s value %s" % (name, value))
 
 
-def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None):
-    send(p, "position fen %s moves %s" % (position, " ".join(moves)))
+def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, usi=False):
+    send(p, "position %s %s moves %s" % ("sfen" if usi else "fen", position, " ".join(moves)))
 
     builder = []
     builder.append("go")
@@ -523,6 +523,8 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None):
 
 def set_variant_options(p, variant):
     variant = variant.lower()
+
+    setoption(p, "Protocol", "usi" if "shogi" in variant else "uci")
 
     setoption(p, "UCI_Chess960", variant in ["fromposition", "chess960"])
 
@@ -824,7 +826,7 @@ class Worker(threading.Thread):
         start = time.time()
         part = go(self.stockfish, job["position"], moves,
                   movetime=movetime, clock=job["work"].get("clock"),
-                  depth=LVL_DEPTHS[lvl - 1])
+                  depth=LVL_DEPTHS[lvl - 1], usi="shogi" in variant)
         end = time.time()
 
         logging.log(PROGRESS, "Played move in %s (%s) with lvl %d: %0.3fs elapsed, depth %d",
@@ -873,7 +875,7 @@ class Worker(threading.Thread):
                         variant, self.job_name(job, ply))
 
             part = go(self.stockfish, job["position"], moves[0:ply],
-                      nodes=nodes, movetime=4000)
+                      nodes=nodes, movetime=4000, usi="shogi" in variant)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
                 logging.warning("Very low time reported: %d ms.", part["time"])
