@@ -87,6 +87,14 @@ except NameError:
     pass
 
 try:
+    import pyffish as sf
+    sf.set_option("VariantPath", "variants.ini")
+    sf_ok = True
+except ImportError:
+    print("No pyffish module installed!", file=sys.stderr)
+    sf_ok = False
+
+try:
     # Python 3
     DEAD_ENGINE_ERRORS = (EOFError, IOError, BrokenPipeError)
 except NameError:
@@ -94,7 +102,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.21"
+__version__ = "1.15.22"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -424,8 +432,8 @@ def setoption(p, name, value):
     send(p, "setoption name %s value %s" % (name, value))
 
 
-def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, usi=False):
-    send(p, "position %s %s moves %s" % ("sfen" if usi else "fen", position, " ".join(moves)))
+def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, variant=None):
+    send(p, "position %s %s moves %s" % ("sfen" if "shogi" in variant else "fen", position, " ".join(moves)))
 
     builder = []
     builder.append("go")
@@ -460,6 +468,18 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, us
             bestmove = arg.split()[0]
             if bestmove and bestmove != "(none)":
                 info["bestmove"] = bestmove
+
+            # Convert PV move list to SAN using pyffish
+            if sf_ok and nodes is not None and "pv" in info and info["pv"]:
+                try:
+                    fen = sf.get_fen(variant, position, moves)
+                    if "shogi" in variant:
+                        parts = fen.split()
+                        parts[1] = "w" if parts[1] == "b" else "b"
+                        fen = " ".join(parts)
+                    info["pv_san"] = " ".join(sf.get_san_moves(variant, fen, info["pv"].split()))
+                except Exception:
+                    logging.error("Failed converting PV moves to SAN")
             return info
         elif command == "info":
             arg = arg or ""
@@ -826,7 +846,7 @@ class Worker(threading.Thread):
         start = time.time()
         part = go(self.stockfish, job["position"], moves,
                   movetime=movetime, clock=job["work"].get("clock"),
-                  depth=LVL_DEPTHS[lvl - 1], usi="shogi" in variant)
+                  depth=LVL_DEPTHS[lvl - 1], variant=variant)
         end = time.time()
 
         logging.log(PROGRESS, "Played move in %s (%s) with lvl %d: %0.3fs elapsed, depth %d",
@@ -875,7 +895,7 @@ class Worker(threading.Thread):
                         variant, self.job_name(job, ply))
 
             part = go(self.stockfish, job["position"], moves[0:ply],
-                      nodes=nodes, movetime=4000, usi="shogi" in variant)
+                      nodes=nodes, movetime=4000, variant=variant)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
                 logging.warning("Very low time reported: %d ms.", part["time"])
