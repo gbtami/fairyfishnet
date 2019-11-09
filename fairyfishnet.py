@@ -102,7 +102,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.25"
+__version__ = "1.15.26"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -1336,7 +1336,7 @@ def validate_stockfish_command(stockfish_command, conf):
 
     logging.debug("Supported variants: %s", ", ".join(variants))
 
-    required_variants = set(["chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian", "shogi", "minishogi", "capablanca", "capahouse", "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse"])
+    required_variants = set(["chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian", "shogi", "minishogi", "capablanca", "capahouse", "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse", "xiangqi"])
     missing_variants = required_variants.difference(variants)
     if missing_variants:
         raise ConfigError("Ensure you are using pychess custom Fairy-Stockfish. "
