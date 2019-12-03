@@ -22,19 +22,19 @@ Installation
 
    ::
 
-       pip install --upgrade --user fairyfishnet
+       pip3 install --upgrade --user fairyfishnet
 
    Example usage:
 
    ::
 
-       python -m fairyfishnet --auto-update
+       python3 -m fairyfishnet --auto-update
 
    Optional: Generate a systemd service file:
 
    ::
 
-       python -m fairyfishnet systemd
+       python3 -m fairyfishnet systemd
 
    **Via Docker**
 
