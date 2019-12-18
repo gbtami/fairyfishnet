@@ -102,7 +102,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.27"
+__version__ = "1.15.28"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -541,12 +541,12 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
             logging.warning("Unexpected engine response to go: %s %s", command, arg)
 
 
-def set_variant_options(p, variant):
+def set_variant_options(p, variant, chess960):
     variant = variant.lower()
 
     setoption(p, "Protocol", "usi" if "shogi" in variant else "uci")
 
-    setoption(p, "UCI_Chess960", variant in ["fromposition", "chess960"])
+    setoption(p, "UCI_Chess960", chess960)
 
     if variant in ["standard", "fromposition", "chess960"]:
         setoption(p, "UCI_Variant", "chess")
@@ -830,12 +830,13 @@ class Worker(threading.Thread):
     def bestmove(self, job):
         lvl = job["work"]["level"]
         variant = job.get("variant", "standard")
+        chess960 = job.get("chess960", False)
         moves = job["moves"].split(" ")
 
         logging.debug("Playing %s (%s) with lvl %d",
                       self.job_name(job), variant, lvl)
 
-        set_variant_options(self.stockfish, job.get("variant", "standard"))
+        set_variant_options(self.stockfish, variant, chess960)
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl - 1])
         setoption(self.stockfish, "UCI_AnalyseMode", False)
         send(self.stockfish, "ucinewgame")
@@ -864,13 +865,14 @@ class Worker(threading.Thread):
 
     def analysis(self, job):
         variant = job.get("variant", "standard")
+        chess960 = job.get("chess960", False)
         moves = job["moves"].split(" ")
 
         result = self.make_request()
         result["analysis"] = [None for _ in range(len(moves) + 1)]
         start = last_progress_report = time.time()
 
-        set_variant_options(self.stockfish, variant)
+        set_variant_options(self.stockfish, variant, chess960)
         setoption(self.stockfish, "Skill Level", 20)
         setoption(self.stockfish, "UCI_AnalyseMode", True)
         send(self.stockfish, "ucinewgame")
