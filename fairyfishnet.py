@@ -102,7 +102,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.28"
+__version__ = "1.15.29"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -432,7 +432,7 @@ def setoption(p, name, value):
     send(p, "setoption name %s value %s" % (name, value))
 
 
-def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, variant=None):
+def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, variant=None, chess960=False):
     send(p, "position %s %s moves %s" % ("sfen" if "shogi" in variant else "fen", position, " ".join(moves)))
 
     builder = []
@@ -472,12 +472,12 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
             # Convert PV move list to SAN using pyffish
             if sf_ok and nodes is not None and "pv" in info and info["pv"]:
                 try:
-                    fen = sf.get_fen(variant, position, moves)
+                    fen = sf.get_fen(variant, position, moves, chess960)
                     if "shogi" in variant:
                         parts = fen.split()
                         parts[1] = "w" if parts[1] == "b" else "b"
                         fen = " ".join(parts)
-                    info["pv_san"] = " ".join(sf.get_san_moves(variant, fen, info["pv"].split()))
+                    info["pv_san"] = " ".join(sf.get_san_moves(variant, fen, info["pv"].split(), chess960))
                 except Exception:
                     logging.error("Failed converting PV moves to SAN")
             return info
@@ -847,7 +847,7 @@ class Worker(threading.Thread):
         start = time.time()
         part = go(self.stockfish, job["position"], moves,
                   movetime=movetime, clock=job["work"].get("clock"),
-                  depth=LVL_DEPTHS[lvl - 1], variant=variant)
+                  depth=LVL_DEPTHS[lvl - 1], variant=variant, chess960=chess960)
         end = time.time()
 
         logging.log(PROGRESS, "Played move in %s (%s) with lvl %d: %0.3fs elapsed, depth %d",
@@ -897,7 +897,7 @@ class Worker(threading.Thread):
                         variant, self.job_name(job, ply))
 
             part = go(self.stockfish, job["position"], moves[0:ply],
-                      nodes=nodes, movetime=4000, variant=variant)
+                      nodes=nodes, movetime=4000, variant=variant, chess960=chess960)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
                 logging.warning("Very low time reported: %d ms.", part["time"])
