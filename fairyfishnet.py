@@ -402,7 +402,7 @@ def uci(p):
                 for variant in arg.split(" ")[6:]:
                     if variant != "var":
                         variants.add(variant)
-        elif command == "Stockfish" and " by " in arg:
+        elif command == "Fairy-Stockfish" and " by " in arg:
             # Ignore identification line
             pass
         else:
@@ -550,10 +550,6 @@ def set_variant_options(p, variant, chess960):
 
     if variant in ["standard", "fromposition", "chess960"]:
         setoption(p, "UCI_Variant", "chess")
-    elif variant == "antichess":
-        setoption(p, "UCI_Variant", "giveaway")
-    elif variant == "threecheck":
-        setoption(p, "UCI_Variant", "3check")
     else:
         setoption(p, "UCI_Variant", variant)
 
