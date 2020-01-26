@@ -541,10 +541,10 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
             logging.warning("Unexpected engine response to go: %s %s", command, arg)
 
 
-def set_variant_options(p, variant, chess960):
+def set_variant_options(p, variant, chess960, protocol):
     variant = variant.lower()
 
-    setoption(p, "Protocol", "usi" if "shogi" in variant else "uci")
+    setoption(p, "Protocol", protocol)
 
     setoption(p, "UCI_Chess960", chess960)
 
@@ -832,10 +832,11 @@ class Worker(threading.Thread):
         logging.debug("Playing %s (%s) with lvl %d",
                       self.job_name(job), variant, lvl)
 
-        set_variant_options(self.stockfish, variant, chess960)
+        protocol = "usi" if "shogi" in variant else "uci"
+        set_variant_options(self.stockfish, variant, chess960, protocol)
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl - 1])
         setoption(self.stockfish, "UCI_AnalyseMode", False)
-        send(self.stockfish, "ucinewgame")
+        send(self.stockfish, protocol + "newgame")
         isready(self.stockfish)
 
         movetime = int(round(LVL_MOVETIMES[lvl - 1] / (self.threads * 0.9 ** (self.threads - 1))))
@@ -868,10 +869,11 @@ class Worker(threading.Thread):
         result["analysis"] = [None for _ in range(len(moves) + 1)]
         start = last_progress_report = time.time()
 
-        set_variant_options(self.stockfish, variant, chess960)
+        protocol = "usi" if "shogi" in variant else "uci"
+        set_variant_options(self.stockfish, variant, chess960, protocol)
         setoption(self.stockfish, "Skill Level", 20)
         setoption(self.stockfish, "UCI_AnalyseMode", True)
-        send(self.stockfish, "ucinewgame")
+        send(self.stockfish, protocol + "newgame")
         isready(self.stockfish)
 
         nodes = job.get("nodes") or 3500000
