@@ -1336,7 +1336,7 @@ def validate_stockfish_command(stockfish_command, conf):
 
     logging.debug("Supported variants: %s", ", ".join(variants))
 
-    required_variants = set(["chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian", "shogi", "minishogi", "capablanca", "capahouse", "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse", "xiangqi"])
+    required_variants = set(["chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian", "shogi", "minishogi", "kyotoshogi", "capablanca", "capahouse", "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse", "xiangqi", "minixiangqi", "shogun"])
     missing_variants = required_variants.difference(variants)
     if missing_variants:
         raise ConfigError("Ensure you are using pychess custom Fairy-Stockfish. "
