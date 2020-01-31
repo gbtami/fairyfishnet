@@ -89,6 +89,11 @@ except NameError:
 try:
     import pyffish as sf
     sf_ok = True
+    try:
+        sf.set_option("VariantPath", "variants.ini")
+    except Exception:
+        print("No variants.ini found.", file=sys.stderr)
+
 except ImportError:
     print("No pyffish module installed!", file=sys.stderr)
     sf_ok = False
@@ -101,7 +106,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.32"
+__version__ = "1.15.33"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -542,8 +547,6 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
 
 def set_variant_options(p, variant, chess960, protocol):
     variant = variant.lower()
-
-    sf.set_option("VariantPath", "variants.ini")
 
     setoption(p, "Protocol", protocol)
 
@@ -1951,6 +1954,8 @@ def create_variants_ini(args):
     ini_file = os.path.join(engine_dir, "variants.ini")
     print(ini_text, file=open(ini_file, "w"))
 
+    sf.set_option("VariantPath", "variants.ini")
+
 
 def main(argv):
     # Parse command line arguments
@@ -1988,11 +1993,11 @@ def main(argv):
 
     args = parser.parse_args(argv[1:])
 
-    create_variants_ini(args)
-
     # Setup logging
     setup_logging(args.verbose,
                   sys.stderr if args.command == "systemd" else sys.stdout)
+
+    create_variants_ini(args)
 
     # Show intro
     if args.command not in ["systemd", "cpuid"]:
