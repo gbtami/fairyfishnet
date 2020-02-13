@@ -45,7 +45,7 @@ class WorkerTest(unittest.TestCase):
                 "level": 8,
             },
             "game_id": "hgfedcba",
-            "variant": "standard",
+            "variant": "chess",
             "position": STARTPOS,
             "moves": "f2f3 e7e6 g2g4",
         }
@@ -62,7 +62,7 @@ class WorkerTest(unittest.TestCase):
             },
             "game_id": "ihihihih",
             "variant": "crazyhouse",
-            "position": "rnbqk1nr/ppp2ppp/3b4/3N4/4p1PP/5P2/PPPPP3/R1BQKBNR/P b KQkq - 9 5",
+            "position": "rnbqk1nr/ppp2ppp/3b4/3N4/4p1PP/5P2/PPPPP3/R1BQKBNR[P] b KQkq - 9 5",
             "moves": "d6g3",
         }
 
@@ -77,7 +77,7 @@ class WorkerTest(unittest.TestCase):
                 "level": 8,
             },
             "game_id": "c3c3c3c3",
-            "variant": "threecheck",
+            "variant": "3check",
             "position": "r1b1kbnr/pppp1ppp/2n2q2/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 4 4 +2+0",
             "moves": "f1c4 d7d6",
         }
@@ -92,7 +92,7 @@ class WorkerTest(unittest.TestCase):
                 "id": "12345678",
             },
             "game_id": "87654321",
-            "variant": "standard",
+            "variant": "chess",
             "position": STARTPOS,
             "moves": "f2f3 e7e6 g2g4 d8h4",
             "skipPositions": [1],
@@ -118,7 +118,7 @@ class WorkerTest(unittest.TestCase):
                 "type": "analysis",
                 "id": "contempt 100",
             },
-            "variant": "standard",
+            "variant": "chess",
             "position": STARTPOS,
             "moves": "d2d4 d7d5",
             "skipPositions": [0, 1],
