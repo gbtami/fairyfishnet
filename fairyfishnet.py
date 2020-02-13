@@ -125,9 +125,9 @@ STAT_INTERVAL = 60.0
 DEFAULT_CONFIG = "fishnet.ini"
 PROGRESS_REPORT_INTERVAL = 5.0
 CHECK_PYPI_CHANCE = 0.01
-LVL_SKILL = [0, 3, 6, 10, 14, 16, 18, 20]
-LVL_MOVETIMES = [50, 100, 150, 200, 300, 400, 500, 1000]
-LVL_DEPTHS = [1, 1, 2, 3, 5, 8, 13, 22]
+LVL_SKILL = [-4, 0, 3, 6, 10, 14, 16, 18, 20]
+LVL_MOVETIMES = [50, 50, 100, 150, 200, 300, 400, 500, 1000]
+LVL_DEPTHS = [1, 1, 1, 2, 3, 5, 8, 13, 22]
 
 
 def intro():
@@ -838,17 +838,17 @@ class Worker(threading.Thread):
 
         protocol = "usi" if "shogi" in variant else "uci"
         set_variant_options(self.stockfish, variant, chess960, protocol)
-        setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl - 1])
+        setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl])
         setoption(self.stockfish, "UCI_AnalyseMode", False)
         send(self.stockfish, protocol + "newgame")
         isready(self.stockfish)
 
-        movetime = int(round(LVL_MOVETIMES[lvl - 1] / (self.threads * 0.9 ** (self.threads - 1))))
+        movetime = int(round(LVL_MOVETIMES[lvl] / (self.threads * 0.9 ** (self.threads - 1))))
 
         start = time.time()
         part = go(self.stockfish, job["position"], moves,
                   movetime=movetime, clock=job["work"].get("clock"),
-                  depth=LVL_DEPTHS[lvl - 1], variant=variant, chess960=chess960)
+                  depth=LVL_DEPTHS[lvl], variant=variant, chess960=chess960)
         end = time.time()
 
         logging.log(PROGRESS, "Played move in %s (%s) with lvl %d: %0.3fs elapsed, depth %d",
