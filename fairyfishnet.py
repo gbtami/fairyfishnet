@@ -106,7 +106,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.34"
+__version__ = "1.15.35"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -437,7 +437,7 @@ def setoption(p, name, value):
 
 
 def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, variant=None, chess960=False):
-    send(p, "position %s %s moves %s" % ("sfen" if "shogi" in variant else "fen", position, " ".join(moves)))
+    send(p, "position fen %s moves %s" % (position, " ".join(moves)))
 
     builder = []
     builder.append("go")
@@ -477,10 +477,6 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
             if sf_ok and nodes is not None and "pv" in info and info["pv"]:
                 try:
                     fen = sf.get_fen(variant, position, moves, chess960)
-                    if "shogi" in variant:
-                        parts = fen.split()
-                        parts[1] = "w" if parts[1] == "b" else "b"
-                        fen = " ".join(parts)
                     info["pv_san"] = " ".join(sf.get_san_moves(variant, fen, info["pv"].split(), chess960))
                 except Exception:
                     logging.error("Failed converting PV moves to SAN")
@@ -545,10 +541,10 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
             logging.warning("Unexpected engine response to go: %s %s", command, arg)
 
 
-def set_variant_options(p, variant, chess960, protocol):
+def set_variant_options(p, variant, chess960):
     variant = variant.lower()
 
-    setoption(p, "Protocol", protocol)
+    setoption(p, "Protocol", "uci")
 
     setoption(p, "UCI_Chess960", chess960)
 
@@ -836,11 +832,10 @@ class Worker(threading.Thread):
         logging.debug("Playing %s (%s) with lvl %d",
                       self.job_name(job), variant, lvl)
 
-        protocol = "usi" if "shogi" in variant else "uci"
-        set_variant_options(self.stockfish, variant, chess960, protocol)
+        set_variant_options(self.stockfish, variant, chess960)
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl])
         setoption(self.stockfish, "UCI_AnalyseMode", False)
-        send(self.stockfish, protocol + "newgame")
+        send(self.stockfish, "ucinewgame")
         isready(self.stockfish)
 
         movetime = int(round(LVL_MOVETIMES[lvl] / (self.threads * 0.9 ** (self.threads - 1))))
@@ -873,11 +868,10 @@ class Worker(threading.Thread):
         result["analysis"] = [None for _ in range(len(moves) + 1)]
         start = last_progress_report = time.time()
 
-        protocol = "usi" if "shogi" in variant else "uci"
-        set_variant_options(self.stockfish, variant, chess960, protocol)
+        set_variant_options(self.stockfish, variant, chess960)
         setoption(self.stockfish, "Skill Level", 20)
         setoption(self.stockfish, "UCI_AnalyseMode", True)
-        send(self.stockfish, protocol + "newgame")
+        send(self.stockfish, "ucinewgame")
         isready(self.stockfish)
 
         nodes = job.get("nodes") or 3500000
