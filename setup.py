@@ -43,7 +43,7 @@ setuptools.setup(
     url="https://github.com/gbtami/fairyfishnet",
     py_modules=["fairyfishnet"],
     test_suite="test",
-    install_requires=["requests>=2,<3", "pyffish>=0.0.34"],
+    install_requires=["requests>=2,<3", "pyffish>=0.0.41"],
     python_requires=">=3.6",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
