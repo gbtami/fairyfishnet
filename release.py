@@ -28,7 +28,6 @@ def check_git():
 
 def test():
     print("--- TEST -------------------------------------------------------------")
-    system("python2 test.py")
     system("python3 test.py")
 
 
