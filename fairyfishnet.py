@@ -477,7 +477,8 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
             if sf_ok and nodes is not None and "pv" in info and info["pv"]:
                 try:
                     fen = sf.get_fen(variant, position, moves, chess960)
-                    info["pv_san"] = " ".join(sf.get_san_moves(variant, fen, info["pv"].split(), chess960))
+                    notation = sf.NOTATION_JANGGI if variant == "janggi" else sf.NOTATION_DEFAULT
+                    info["pv_san"] = " ".join(sf.get_san_moves(variant, fen, info["pv"].split(), chess960, notation))
                 except Exception:
                     logging.error("Failed converting PV moves to SAN")
             return info
