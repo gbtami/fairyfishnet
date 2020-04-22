@@ -106,7 +106,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.39"
+__version__ = "1.15.40"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -1335,7 +1335,7 @@ def validate_stockfish_command(stockfish_command, conf):
 
     logging.debug("Supported variants: %s", ", ".join(variants))
 
-    required_variants = set(["chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian", "shogi", "minishogi", "kyotoshogi", "capablanca", "capahouse", "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse", "xiangqi", "minixiangqi", "shogun", "janggi"])
+    required_variants = set(["chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian", "shogi", "minishogi", "kyotoshogi", "capablanca", "capahouse", "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse", "xiangqi", "minixiangqi", "shogun", "janggi", "makpong", "orda"])
     missing_variants = required_variants.difference(variants)
     if missing_variants:
         raise ConfigError("Ensure you are using pychess custom Fairy-Stockfish. "
@@ -1944,7 +1944,19 @@ def create_variants_ini(args):
     promotionZonePawnDrops = true
     whiteDropRegion = *1 *2 *3 *4 *5
     blackDropRegion = *4 *5 *6 *7 *8
-    immobilityIllegal = true""")
+    immobilityIllegal = true
+
+    # Asymmetric variant with one army using pieces that move like knights but attack like other pieces (kniroo and knibis)
+    [orda:chess]
+    startFen = lhaykahl/8/pppppppp/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1
+    centaur = h
+    knibis = a
+    kniroo = l
+    silver = y
+    promotionPieceTypes = qh
+    flagPiece = k
+    whiteFlag = *8
+    blackFlag = *1""")
 
     ini_file = os.path.join(engine_dir, "variants.ini")
     print(ini_text, file=open(ini_file, "w"))
