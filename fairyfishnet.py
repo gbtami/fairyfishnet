@@ -106,7 +106,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.43"
+__version__ = "1.15.44"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -1335,7 +1335,7 @@ def validate_stockfish_command(stockfish_command, conf):
 
     logging.debug("Supported variants: %s", ", ".join(variants))
 
-    required_variants = set(["chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian", "shogi", "minishogi", "kyotoshogi", "capablanca", "capahouse", "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse", "xiangqi", "minixiangqi", "shogun", "janggi", "makpong", "orda"])
+    required_variants = set(["chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian", "shogi", "minishogi", "kyotoshogi", "capablanca", "capahouse", "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse", "xiangqi", "minixiangqi", "shogun", "janggi", "makpong", "orda", "synochess"])
     missing_variants = required_variants.difference(variants)
     if missing_variants:
         raise ConfigError("Ensure you are using pychess custom Fairy-Stockfish. "
@@ -1954,6 +1954,21 @@ def create_variants_ini(args):
     kniroo = l
     silver = y
     promotionPieceTypes = qh
+    flagPiece = k
+    whiteFlag = *8
+    blackFlag = *1
+
+    [synochess:pocketknight]
+    janggiCannon = c
+    soldier = s
+    horse = h
+    fersAlfil = e
+    commoner = a
+    startFen = rneakenr/8/1c4c1/1ss2ss1/8/8/PPPPPPPP/RNBQKBNR[ss] w KQ - 0 1
+    stalemateValue = loss
+    perpetualCheckIllegal = true
+    flyingGeneral = true
+    blackDropRegion = *5
     flagPiece = k
     whiteFlag = *8
     blackFlag = *1""")
