@@ -93,10 +93,18 @@ try:
         sf.set_option("VariantPath", "variants.ini")
     except Exception:
         print("No variants.ini found.", file=sys.stderr)
+        raise
+
+    try:
+        print(sf.version())
+    except Exception:
+        print("fairyfishnet requires pyffish >=0.0.51", file=sys.stderr)
+        raise
 
 except ImportError:
     print("No pyffish module installed!", file=sys.stderr)
     sf_ok = False
+    raise
 
 try:
     # Python 3
@@ -106,7 +114,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.44"
+__version__ = "1.15.45"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
