@@ -114,7 +114,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.46"
+__version__ = "1.15.47"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -480,16 +480,8 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
             bestmove = arg.split()[0]
             if bestmove and bestmove != "(none)":
                 info["bestmove"] = bestmove
-
-            # Convert PV move list to SAN using pyffish
-            if sf_ok and nodes is not None and "pv" in info and info["pv"]:
-                try:
-                    fen = sf.get_fen(variant, position, moves, chess960)
-                    notation = sf.NOTATION_JANGGI if variant == "janggi" else sf.NOTATION_DEFAULT
-                    info["pv_san"] = " ".join(sf.get_san_moves(variant, fen, info["pv"].split(), chess960, notation))
-                except Exception:
-                    logging.error("Failed converting PV moves to SAN")
             return info
+
         elif command == "info":
             arg = arg or ""
 
