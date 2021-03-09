@@ -114,7 +114,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.47"
+__version__ = "1.15.48"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -548,6 +548,10 @@ def set_variant_options(p, variant, chess960):
     setoption(p, "Protocol", "uci")
 
     setoption(p, "UCI_Chess960", chess960)
+
+    eval_file = variant + ".nnue"
+    if os.path.isfile(eval_file):
+        setoption(p, "EvalFile", eval_file)
 
     if variant in ["standard", "fromposition", "chess960"]:
         setoption(p, "UCI_Variant", "chess")
