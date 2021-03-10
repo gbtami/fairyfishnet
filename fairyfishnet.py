@@ -43,6 +43,7 @@ import getpass
 import signal
 import ctypes
 import string
+import glob
 
 try:
     import requests
@@ -114,7 +115,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.48"
+__version__ = "1.15.49"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -785,6 +786,9 @@ class Worker(threading.Thread):
             for name, value in self.conf.items("Stockfish"):
                 self.stockfish_info["options"][name] = value
 
+        # Add .nnue file list
+        self.stockfish_info["nnue"] = glob.glob("*.nnue")
+
         # Set UCI options
         for name, value in self.stockfish_info["options"].items():
             setoption(self.stockfish, name, value)
@@ -1055,6 +1059,9 @@ def download_github_release(conf, release_page, filename):
     if sys.stderr.isatty():
         sys.stderr.write("\n")
         sys.stderr.flush()
+
+    if filename.endswith(".nnue"):
+        return filename
 
     # Make executable
     logging.info("chmod +x %s", filename)
@@ -1547,6 +1554,9 @@ def cmd_run(args):
         print("### Updating Stockfish ...")
         print()
         stockfish_command = get_stockfish_command(conf)
+
+    # Check .nnue updates (only for shogi at this moment)
+    download_github_release(conf, STOCKFISH_RELEASES, "shogi.nnue")
 
     print()
     print("### Checking configuration ...")
