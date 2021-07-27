@@ -99,7 +99,7 @@ try:
     try:
         print(sf.version())
     except Exception:
-        print("fairyfishnet requires pyffish >=0.0.51", file=sys.stderr)
+        print("fairyfishnet requires pyffish >=0.0.57", file=sys.stderr)
         raise
 
 except ImportError:
@@ -115,7 +115,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.50"
+__version__ = "1.15.51"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -1346,7 +1346,7 @@ def validate_stockfish_command(stockfish_command, conf):
 
     logging.debug("Supported variants: %s", ", ".join(variants))
 
-    required_variants = set(["chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian", "shogi", "minishogi", "kyotoshogi", "capablanca", "capahouse", "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse", "xiangqi", "minixiangqi", "shogun", "janggi", "makpong", "orda", "synochess"])
+    required_variants = set(["chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian", "shogi", "minishogi", "kyotoshogi", "capablanca", "capahouse", "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse", "xiangqi", "minixiangqi", "shogun", "janggi", "makpong", "orda", "synochess", "shinobi", "empire", "ordamirror"])
     missing_variants = required_variants.difference(variants)
     if missing_variants:
         raise ConfigError("Ensure you are using pychess custom Fairy-Stockfish. "
@@ -2034,7 +2034,7 @@ customPiece2 = c:mQcB
 customPiece3 = t:mQcR
 customPiece4 = d:mQcK
 soldier = s
-promotionPieceTypes = qne
+promotionPieceTypes = q
 startFen = rnbqkbnr/pppppppp/8/8/8/PPPSSPPP/8/TECDKCET w kq - 0 1
 stalemateValue = loss
 nFoldValue = loss
