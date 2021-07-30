@@ -115,7 +115,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.51"
+__version__ = "1.15.52"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2021,7 +2021,7 @@ centaur = h
 knibis = a
 kniroo = l
 customPiece1 = f:mQcN
-promotionPieceTypes = qh
+promotionPieceTypes = lhaf
 startFen = lhafkahl/8/pppppppp/8/8/PPPPPPPP/8/LHAFKAHL w - - 0 1
 flagPiece = k
 whiteFlag = *8
