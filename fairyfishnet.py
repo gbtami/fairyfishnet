@@ -43,7 +43,7 @@ import getpass
 import signal
 import ctypes
 import string
-import glob
+# import glob
 
 try:
     import requests
@@ -115,7 +115,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.15.52"
+__version__ = "1.16.00"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -550,9 +550,9 @@ def set_variant_options(p, variant, chess960):
 
     setoption(p, "UCI_Chess960", chess960)
 
-    eval_file = variant + ".nnue"
-    if os.path.isfile(eval_file):
-        setoption(p, "EvalFile", eval_file)
+#    eval_file = variant + ".nnue"
+#    if os.path.isfile(eval_file):
+#        setoption(p, "EvalFile", eval_file)
 
     if variant in ["standard", "fromposition", "chess960"]:
         setoption(p, "UCI_Variant", "chess")
@@ -787,7 +787,7 @@ class Worker(threading.Thread):
                 self.stockfish_info["options"][name] = value
 
         # Add .nnue file list
-        self.stockfish_info["nnue"] = glob.glob("*.nnue")
+#        self.stockfish_info["nnue"] = glob.glob("*.nnue")
 
         # Set UCI options
         for name, value in self.stockfish_info["options"].items():
@@ -1053,8 +1053,8 @@ def download_github_release(conf, release_page, filename):
 
             if sys.stderr.isatty():
                 sys.stderr.write("\rDownloading %s: %d/%d (%d%%)" % (
-                                    filename, progress, size,
-                                    progress * 100 / size))
+                    filename, progress, size,
+                    progress * 100 / size))
                 sys.stderr.flush()
     if sys.stderr.isatty():
         sys.stderr.write("\n")
@@ -1346,7 +1346,12 @@ def validate_stockfish_command(stockfish_command, conf):
 
     logging.debug("Supported variants: %s", ", ".join(variants))
 
-    required_variants = set(["chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian", "shogi", "minishogi", "kyotoshogi", "capablanca", "capahouse", "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse", "xiangqi", "minixiangqi", "shogun", "janggi", "makpong", "orda", "synochess", "shinobi", "empire", "ordamirror"])
+    required_variants = set([
+        "chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian",
+        "shogi", "minishogi", "kyotoshogi", "capablanca", "capahouse",
+        "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse",
+        "xiangqi", "minixiangqi", "shogun", "janggi", "makpong", "orda",
+        "synochess", "shinobi", "empire", "ordamirror", "torishogi"])
     missing_variants = required_variants.difference(variants)
     if missing_variants:
         raise ConfigError("Ensure you are using pychess custom Fairy-Stockfish. "
@@ -1556,7 +1561,7 @@ def cmd_run(args):
         stockfish_command = get_stockfish_command(conf)
 
     # Check .nnue updates (only for shogi at this moment)
-    download_github_release(conf, STOCKFISH_RELEASES, "shogi.nnue")
+#    download_github_release(conf, STOCKFISH_RELEASES, "shogi.nnue")
 
     print()
     print("### Checking configuration ...")
