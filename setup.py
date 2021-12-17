@@ -43,7 +43,7 @@ setuptools.setup(
     url="https://github.com/gbtami/fairyfishnet",
     py_modules=["fairyfishnet"],
     test_suite="test",
-    install_requires=["requests>=2,<3", "pyffish>=0.0.60"],
+    install_requires=["requests>=2,<3", "pyffish>=0.0.67"],
     python_requires=">=3.6",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -57,6 +57,7 @@ setuptools.setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Games/Entertainment :: Board Games",
         "Topic :: Internet :: WWW/HTTP",
     ]

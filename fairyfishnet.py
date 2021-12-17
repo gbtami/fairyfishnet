@@ -115,7 +115,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.1"
+__version__ = "1.16.2"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -1351,7 +1351,8 @@ def validate_stockfish_command(stockfish_command, conf):
         "shogi", "minishogi", "kyotoshogi", "capablanca", "capahouse",
         "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse",
         "xiangqi", "minixiangqi", "shogun", "janggi", "makpong", "orda",
-        "synochess", "shinobi", "empire", "ordamirror", "torishogi"])
+        "synochess", "shinobi", "empire", "ordamirror", "torishogi",
+        "gorogoroplus", "chak", "chennis"])
     missing_variants = required_variants.difference(variants)
     if missing_variants:
         raise ConfigError("Ensure you are using pychess custom Fairy-Stockfish. "
@@ -2047,6 +2048,71 @@ flagPiece = k
 whiteFlag = *8
 blackFlag = *1
 flyingGeneral = true
+
+[gorogoroplus:gorogoro]
+startFen = sgkgs/5/1ppp1/1PPP1/5/SGKGS[LNln] w 0 1
+lance = l
+shogiKnight = n
+promotedPieceType = l:g n:g
+
+[chak]
+maxRank = 9
+maxFile = 9
+rook = r
+knight = v
+centaur = j
+immobile = o
+customPiece1 = s:FvW
+customPiece2 = q:pQ
+customPiece3 = d:mQ2cQ2
+customPiece4 = p:fsmWfceF
+customPiece5 = k:WF
+customPiece6 = w:FvW
+startFen = rvsqkjsvr/4o4/p1p1p1p1p/9/9/9/P1P1P1P1P/4O4/RVSJKQSVR w - - 0 1
+mobilityRegionWhiteCustomPiece6 = *5 *6 *7 *8 *9
+mobilityRegionWhiteCustomPiece3 = *5 *6 *7 *8 *9
+mobilityRegionBlackCustomPiece6 = *1 *2 *3 *4 *5
+mobilityRegionBlackCustomPiece3 = *1 *2 *3 *4 *5
+promotionRank = 5
+promotionPieceTypes = -
+mandatoryPiecePromotion = true
+promotedPieceType = p:w k:d
+extinctionValue = loss
+extinctionPieceTypes = kd
+extinctionPseudoRoyal = true
+flagPiece = d
+whiteFlag = e8
+blackFlag = e2
+nMoveRule = 50
+nFoldRule = 3
+nFoldValue = draw
+stalemateValue = win
+
+[chennis]
+maxRank = 7
+maxFile = 7
+mobilityRegionWhiteKing = b1 c1 d1 e1 f1 b2 c2 d2 e2 f2 b3 c3 d3 e3 f3 b4 c4 d4 e4 f4
+mobilityRegionBlackKing = b4 c4 d4 e4 f4 b5 c5 d5 e5 f5 b6 c6 d6 e6 f6 b7 c7 d7 e7 f7
+customPiece1 = p:fmWfceF
+cannon = c
+commoner = m
+fers = f
+soldier = s
+king = k
+bishop = b
+knight = n
+rook = r
+promotionPieceTypes = -
+promotedPieceType = p:r f:c s:b m:n
+promotionRank = 1
+startFen = 1fkm3/1p1s3/7/7/7/3S1P1/3MKF1[] w - 0 1
+pieceDrops = true
+capturesToHand = true
+pieceDemotion = true
+mandatoryPiecePromotion = true
+dropPromoted = true
+castling = false
+stalemateValue = loss
 """)
 
     ini_file = os.path.join(engine_dir, "variants.ini")

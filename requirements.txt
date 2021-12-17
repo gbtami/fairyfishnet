@@ -1,2 +1,2 @@
-pyffish==0.0.60
+pyffish==0.0.67
 requests
