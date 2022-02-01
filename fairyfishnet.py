@@ -779,7 +779,6 @@ class Worker(threading.Thread):
         self.stockfish_info["options"] = {}
         self.stockfish_info["options"]["threads"] = str(self.threads)
         self.stockfish_info["options"]["hash"] = str(self.memory)
-        self.stockfish_info["options"]["analysis contempt"] = "Off"
 
         # Custom options
         if self.conf.has_section("Stockfish"):
@@ -1606,7 +1605,7 @@ def cmd_run(args):
         buckets[i % instances] += 1
 
     progress_reporter = ProgressReporter(len(buckets) + 4, conf)
-    progress_reporter.setDaemon(True)
+    progress_reporter.daemon = True
     progress_reporter.start()
 
     workers = [Worker(conf, bucket, memory // instances, progress_reporter) for bucket in buckets]
@@ -1614,7 +1613,7 @@ def cmd_run(args):
     # Start all threads
     for i, worker in enumerate(workers):
         worker.set_name("><> %d" % (i + 1))
-        worker.setDaemon(True)
+        worker.daemon = True
         worker.start()
 
     # Wait while the workers are running
