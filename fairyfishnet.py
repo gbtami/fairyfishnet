@@ -115,7 +115,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.2"
+__version__ = "1.16.3"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2011,6 +2011,7 @@ promotionPieceTypes = -
 promotedPieceType = p:c m:b h:n l:r
 mandatoryPiecePromotion = true
 stalemateValue = loss
+nFoldRule = 4
 perpetualCheckIllegal = true
 startFen = rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/LH1CK1HL[LHMMDJ] w kq - 0 1
 capturesToHand = false
