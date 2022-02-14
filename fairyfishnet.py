@@ -115,7 +115,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.3"
+__version__ = "1.16.4"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
