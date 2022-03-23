@@ -43,7 +43,6 @@ import getpass
 import signal
 import ctypes
 import string
-# import glob
 
 try:
     import requests
@@ -115,7 +114,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.4"
+__version__ = "1.16.5"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -137,6 +136,18 @@ CHECK_PYPI_CHANCE = 0.01
 LVL_SKILL = [-4, 0, 3, 6, 10, 14, 16, 18, 20]
 LVL_MOVETIMES = [50, 50, 100, 150, 200, 300, 400, 500, 1000]
 LVL_DEPTHS = [1, 1, 1, 2, 3, 5, 8, 13, 22]
+
+NNUE_NET = {
+    "atomic": "1656b556971c",
+    "capablanca": "e605d6d3dd31",
+    "crazyhouse": "f200ec88b240",
+    "janggi": "ffbf1d95cea2",
+    "makruk": "e14ecd7ae145",
+    "minishogi": "32efe2ac350b",
+    "seirawan": "d6ec9a356fa8",
+    "shogi": "878ca61334a7",
+    "xiangqi": "83f16c17fe26",
+}
 
 
 def intro():
@@ -550,9 +561,10 @@ def set_variant_options(p, variant, chess960):
 
     setoption(p, "UCI_Chess960", chess960)
 
-#    eval_file = variant + ".nnue"
-#    if os.path.isfile(eval_file):
-#        setoption(p, "EvalFile", eval_file)
+    if variant in NNUE_NET:
+        eval_file = "%s-%s.nnue" % (variant, NNUE_NET[variant])
+        if os.path.isfile(eval_file):
+            setoption(p, "EvalFile", eval_file)
 
     if variant in ["standard", "fromposition", "chess960"]:
         setoption(p, "UCI_Variant", "chess")
@@ -786,7 +798,7 @@ class Worker(threading.Thread):
                 self.stockfish_info["options"][name] = value
 
         # Add .nnue file list
-#        self.stockfish_info["nnue"] = glob.glob("*.nnue")
+        self.stockfish_info["nnue"] = ["%s-%s.nnue" % (v, NNUE_NET[v]) for v in NNUE_NET]
 
         # Set UCI options
         for name, value in self.stockfish_info["options"].items():
@@ -1058,9 +1070,6 @@ def download_github_release(conf, release_page, filename):
     if sys.stderr.isatty():
         sys.stderr.write("\n")
         sys.stderr.flush()
-
-    if filename.endswith(".nnue"):
-        return filename
 
     # Make executable
     logging.info("chmod +x %s", filename)
@@ -1376,6 +1385,14 @@ def parse_bool(inp, default=False):
         raise ConfigError("Not a boolean value: %s", inp)
 
 
+def validate_nnue():
+    nnue_link = "https://github.com/ianfab/Fairy-Stockfish/wiki/List-of-networks"
+    for variant in NNUE_NET:
+        nnue_file = "%s-%s.nnue" % (variant, NNUE_NET[variant])
+        if not os.path.isfile(nnue_file):
+            raise ConfigError("Missing nnue file: %s\nDownload it from %s" % (nnue_file, nnue_link))
+
+
 def validate_cores(cores):
     if not cores or cores.strip().lower() == "auto":
         return max(1, multiprocessing.cpu_count() - 1)
@@ -1560,8 +1577,8 @@ def cmd_run(args):
         print()
         stockfish_command = get_stockfish_command(conf)
 
-    # Check .nnue updates (only for shogi at this moment)
-#    download_github_release(conf, STOCKFISH_RELEASES, "shogi.nnue")
+    # Check .nnue files
+    validate_nnue()
 
     print()
     print("### Checking configuration ...")
