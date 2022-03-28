@@ -147,6 +147,7 @@ NNUE_NET = {
     "makruk": "e14ecd7ae145",
     "minishogi": "32efe2ac350b",
     "orda": "af8fab8f210b",
+    "ordamirror": "b432a42e3738",
     "seirawan": "d6ec9a356fa8",
     "shinobi": "4abe32d99161",
     "shogi": "878ca61334a7",
