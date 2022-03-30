@@ -159,6 +159,11 @@ NNUE_NET = {
     "xiangqi": "83f16c17fe26",
 }
 
+NNUE_ALIAS = {
+    "cambodian": "makruk",
+    "placement": "chess",
+}
+
 
 def intro():
     return r"""
@@ -571,8 +576,9 @@ def set_variant_options(p, variant, chess960):
 
     setoption(p, "UCI_Chess960", chess960)
 
-    if variant in NNUE_NET:
-        eval_file = "%s-%s.nnue" % (variant, NNUE_NET[variant])
+    if variant in NNUE_NET or variant in NNUE_ALIAS:
+        vari = NNUE_ALIAS[variant] if variant in NNUE_ALIAS else variant
+        eval_file = "%s-%s.nnue" % (vari, NNUE_NET[vari])
         if os.path.isfile(eval_file):
             setoption(p, "EvalFile", eval_file)
 
