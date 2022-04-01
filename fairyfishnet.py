@@ -147,6 +147,7 @@ NNUE_NET = {
     "janggi": "ffbf1d95cea2",
     "makruk": "e14ecd7ae145",
     "minishogi": "32efe2ac350b",
+    "nn": "3475407dc199",
     "orda": "af8fab8f210b",
     "ordamirror": "b432a42e3738",
     "seirawan": "d6ec9a356fa8",
@@ -161,7 +162,8 @@ NNUE_NET = {
 
 NNUE_ALIAS = {
     "cambodian": "makruk",
-    "placement": "chess",
+    "chess": "nn",
+    "placement": "nn",
 }
 
 
