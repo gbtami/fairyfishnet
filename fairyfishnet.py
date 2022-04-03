@@ -114,7 +114,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.6"
+__version__ = "1.16.7"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -157,7 +157,7 @@ NNUE_NET = {
     "sittuyin": "3c3ed74dbe54",
     "synochess": "42aaabb0581f",
     "torishogi": "0c3670e88a63",
-    "xiangqi": "83f16c17fe26",
+    "xiangqi": "28d6221e2440",
 }
 
 NNUE_ALIAS = {
