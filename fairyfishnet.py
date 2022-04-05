@@ -145,6 +145,7 @@ NNUE_NET = {
     "empire": "d14c0d04359e",
     "grand": "596776a80f03",
     "janggi": "ffbf1d95cea2",
+    "makpong": "75299b96ab1d",
     "makruk": "e14ecd7ae145",
     "minishogi": "32efe2ac350b",
     "nn": "46832cfbead3",
