@@ -138,6 +138,7 @@ LVL_MOVETIMES = [50, 50, 100, 150, 200, 300, 400, 500, 1000]
 LVL_DEPTHS = [1, 1, 1, 2, 3, 5, 8, 13, 22]
 
 NNUE_NET = {
+    "asean": "88c4f9118f34",
     "atomic": "1656b556971c",
     "capablanca": "e605d6d3dd31",
     "chak": "0dfa519b8ee7",
