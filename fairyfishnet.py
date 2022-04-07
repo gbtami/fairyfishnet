@@ -114,7 +114,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.7"
+__version__ = "1.16.8"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -139,7 +139,7 @@ LVL_DEPTHS = [1, 1, 1, 2, 3, 5, 8, 13, 22]
 
 NNUE_NET = {
     "asean": "88c4f9118f34",
-    "atomic": "1656b556971c",
+    "atomic": "4ecb2067c716",
     "capablanca": "e605d6d3dd31",
     "chak": "0dfa519b8ee7",
     "crazyhouse": "f0782c10a2d4",
