@@ -142,7 +142,7 @@ NNUE_NET = {
     "atomic": "4ecb2067c716",
     "capablanca": "e605d6d3dd31",
     "chak": "0dfa519b8ee7",
-    "crazyhouse": "f0782c10a2d4",
+    "crazyhouse": "ca0dab479c68",
     "empire": "d14c0d04359e",
     "grand": "596776a80f03",
     "hoppelpoppel": "ca81db235bbe",
