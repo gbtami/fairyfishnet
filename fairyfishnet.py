@@ -159,6 +159,7 @@ NNUE_NET = {
     "shinobi": "4abe32d99161",
     "shogi": "878ca61334a7",
     "shogun": "04b4fe4bbad7",
+    "shouse": "a9ca0fc73863",
     "sittuyin": "3c3ed74dbe54",
     "synochess": "42aaabb0581f",
     "torishogi": "0c3670e88a63",
