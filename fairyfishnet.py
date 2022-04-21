@@ -165,7 +165,7 @@ NNUE_NET = {
     "sittuyin": "3c3ed74dbe54",
     "synochess": "42aaabb0581f",
     "torishogi": "0c3670e88a63",
-    "xiangqi": "28d6221e2440",
+    "xiangqi": "bd62afd13f7c",
 }
 
 NNUE_ALIAS = {
