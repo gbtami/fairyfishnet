@@ -147,6 +147,7 @@ NNUE_NET = {
     "empire": "d14c0d04359e",
     "gorogoroplus": "7bc64726c1c1",
     "grand": "596776a80f03",
+    "grandhouse": "35c216476fc5",
     "hoppelpoppel": "ca81db235bbe",
     "janggi": "ffbf1d95cea2",
     "makpong": "75299b96ab1d",
