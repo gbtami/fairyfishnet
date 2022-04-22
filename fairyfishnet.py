@@ -143,6 +143,7 @@ NNUE_NET = {
     "capablanca": "f362875966da",
     "capahouse": "9410dee8f2a3",
     "chak": "0dfa519b8ee7",
+    "chennis": "88897e88b42a",
     "crazyhouse": "0adf5579efa2",
     "empire": "d14c0d04359e",
     "gorogoroplus": "7bc64726c1c1",
