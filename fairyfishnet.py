@@ -164,7 +164,7 @@ NNUE_NET = {
     "shogun": "04b4fe4bbad7",
     "shouse": "a9ca0fc73863",
     "sittuyin": "3c3ed74dbe54",
-    "synochess": "42aaabb0581f",
+    "synochess": "33c625f8ad3e",
     "torishogi": "0c3670e88a63",
     "xiangqi": "bd62afd13f7c",
 }
