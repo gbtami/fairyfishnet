@@ -140,7 +140,7 @@ LVL_DEPTHS = [1, 1, 1, 2, 3, 5, 8, 13, 22]
 NNUE_NET = {
     "asean": "88c4f9118f34",
     "atomic": "4ecb2067c716",
-    "capablanca": "e605d6d3dd31",
+    "capablanca": "f362875966da",
     "capahouse": "9410dee8f2a3",
     "chak": "0dfa519b8ee7",
     "crazyhouse": "0adf5579efa2",
