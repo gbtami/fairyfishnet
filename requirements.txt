@@ -1,2 +1,4 @@
 pyffish==0.0.71
+beautifulsoup4
+gdown
 requests

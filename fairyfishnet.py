@@ -44,6 +44,9 @@ import signal
 import ctypes
 import string
 
+from bs4 import BeautifulSoup
+import gdown
+
 try:
     import requests
 except ImportError:
@@ -114,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.11"
+__version__ = "1.16.12"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -138,35 +141,7 @@ LVL_MOVETIMES = [50, 50, 100, 150, 200, 300, 400, 500, 1000]
 LVL_DEPTHS = [1, 1, 1, 2, 3, 5, 8, 13, 22]
 
 NNUE_NET = {
-    "asean": "88c4f9118f34",
-    "atomic": "4ecb2067c716",
-    "capablanca": "f362875966da",
-    "capahouse": "9410dee8f2a3",
-    "chak": "0dfa519b8ee7",
-    "chennis": "88897e88b42a",
-    "crazyhouse": "0adf5579efa2",
-    "empire": "d14c0d04359e",
-    "gorogoroplus": "7bc64726c1c1",
-    "grand": "596776a80f03",
-    "grandhouse": "35c216476fc5",
-    "hoppelpoppel": "ca81db235bbe",
-    "janggi": "ffbf1d95cea2",
-    "makpong": "20d44213187f",
-    "makruk": "e14ecd7ae145",
-    "minishogi": "32efe2ac350b",
-    "minixiangqi": "e405be9a6bba",
     "nn": "46832cfbead3",
-    "orda": "af8fab8f210b",
-    "ordamirror": "b432a42e3738",
-    "seirawan": "11923f7962b3",
-    "shinobi": "4abe32d99161",
-    "shogi": "878ca61334a7",
-    "shogun": "04b4fe4bbad7",
-    "shouse": "a9ca0fc73863",
-    "sittuyin": "3c3ed74dbe54",
-    "synochess": "33c625f8ad3e",
-    "torishogi": "0c3670e88a63",
-    "xiangqi": "bd62afd13f7c",
 }
 
 NNUE_ALIAS = {
@@ -174,6 +149,44 @@ NNUE_ALIAS = {
     "chess": "nn",
     "placement": "nn",
 }
+
+required_variants = set([
+    "chess",
+    "crazyhouse",
+    "placement",
+    "atomic",
+    "makruk",
+    "makpong",
+    "cambodian",
+    "sittuyin",
+    "asean",
+    "shogi",
+    "minishogi",
+    "kyotoshogi",
+    "dobutsu",
+    "gorogoroplus",
+    "torishogi",
+    "xiangqi",
+    "manchu",
+    "janggi",
+    "minixiangqi",
+    "capablanca",
+    "capahouse",
+    "seirawan",
+    "shouse",
+    "grand",
+    "grandhouse",
+    "shogun",
+    "shako",
+    "hoppelpoppel",
+    "orda",
+    "synochess",
+    "shinobi",
+    "empire",
+    "ordamirror",
+    "chak",
+    "chennis",
+])
 
 
 def intro():
@@ -1381,13 +1394,6 @@ def validate_stockfish_command(stockfish_command, conf):
 
     logging.debug("Supported variants: %s", ", ".join(variants))
 
-    required_variants = set([
-        "chess", "crazyhouse", "placement", "makruk", "sittuyin", "cambodian",
-        "shogi", "minishogi", "kyotoshogi", "capablanca", "capahouse",
-        "seirawan", "shouse", "grand", "grandhouse", "gothic", "gothhouse",
-        "xiangqi", "minixiangqi", "shogun", "janggi", "makpong", "orda",
-        "synochess", "shinobi", "empire", "ordamirror", "torishogi",
-        "gorogoroplus", "chak", "chennis"])
     missing_variants = required_variants.difference(variants)
     if missing_variants:
         raise ConfigError("Ensure you are using pychess custom Fairy-Stockfish. "
@@ -1412,7 +1418,36 @@ def parse_bool(inp, default=False):
         raise ConfigError("Not a boolean value: %s", inp)
 
 
+def update_nnue():
+    url = "https://github.com/ianfab/Fairy-Stockfish/wiki/List-of-networks"
+    soup = BeautifulSoup(requests.get(url).text, 'html.parser')
+
+    for link in soup.find_all(href=re.compile("^https://drive.google.com/file")):
+        parts = link.text.split("-")
+        variant, nnue = parts[0], parts[1]
+        # remove .nnue suffix
+        if nnue.endswith(".nnue"):
+            nnue = nnue[:-5]
+
+        if variant in required_variants:
+            NNUE_NET[variant] = nnue
+
+            eval_file = "%s-%s.nnue" % (variant, NNUE_NET[variant])
+            if os.path.isfile(eval_file):
+                print("%s OK" % eval_file)
+            else:
+                print("%s downloading..." % eval_file)
+                drive_id = link.get('href').rstrip("/view").split("/")[-1]
+                gdown.download(id=drive_id, output=eval_file, quiet=False)
+
+                if not os.path.isfile(eval_file):
+                    print("Failed to download %s" % eval_file)
+                    sys.exit(0)
+
+
 def validate_nnue():
+    update_nnue()
+
     nnue_link = "https://github.com/ianfab/Fairy-Stockfish/wiki/List-of-networks"
     for variant in NNUE_NET:
         nnue_file = "%s-%s.nnue" % (variant, NNUE_NET[variant])
