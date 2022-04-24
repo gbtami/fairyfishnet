@@ -151,7 +151,7 @@ NNUE_NET = {
     "grandhouse": "35c216476fc5",
     "hoppelpoppel": "ca81db235bbe",
     "janggi": "ffbf1d95cea2",
-    "makpong": "75299b96ab1d",
+    "makpong": "20d44213187f",
     "makruk": "e14ecd7ae145",
     "minishogi": "32efe2ac350b",
     "minixiangqi": "e405be9a6bba",
