@@ -598,9 +598,9 @@ def set_variant_options(p, variant, chess960):
 
     setoption(p, "UCI_Chess960", chess960)
 
-    if (variant in NNUE_NET or variant in NNUE_ALIAS) and vari in NNUE_NET:
+    if variant in NNUE_NET or variant in NNUE_ALIAS:
         vari = NNUE_ALIAS[variant] if variant in NNUE_ALIAS else variant
-        eval_file = "%s-%s.nnue" % (vari, NNUE_NET[vari])
+        eval_file = "%s-%s.nnue" % (vari, NNUE_NET.get(vari, ""))
         if os.path.isfile(eval_file):
             setoption(p, "EvalFile", eval_file)
 
