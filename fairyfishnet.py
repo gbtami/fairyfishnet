@@ -140,9 +140,7 @@ LVL_SKILL = [-4, 0, 3, 6, 10, 14, 16, 18, 20]
 LVL_MOVETIMES = [50, 50, 100, 150, 200, 300, 400, 500, 1000]
 LVL_DEPTHS = [1, 1, 1, 2, 3, 5, 8, 13, 22]
 
-NNUE_NET = {
-    "nn": "46832cfbead3",
-}
+NNUE_NET = {}
 
 NNUE_ALIAS = {
     "cambodian": "makruk",
@@ -1436,13 +1434,44 @@ def update_nnue():
             if os.path.isfile(eval_file):
                 print("%s OK" % eval_file)
             else:
-                print("%s downloading..." % eval_file)
-                drive_id = link.get('href').rstrip("/view").split("/")[-1]
+                drive_id = link.get('href').split("/")[-2]
+                print("%s downloading drive id %s" % (eval_file, drive_id))
                 gdown.download(id=drive_id, output=eval_file, quiet=False)
 
                 if not os.path.isfile(eval_file):
                     print("Failed to download %s" % eval_file)
                     sys.exit(0)
+
+    # Standard chess stockfish nnue
+    link = soup.find(href=re.compile("^https://tests.stockfishchess.org/api/nn/"))
+    parts = link.text.split("-")
+    variant, nnue = parts[0], parts[1]
+    # remove .nnue suffix
+    if nnue.endswith(".nnue"):
+        nnue = nnue[:-5]
+    NNUE_NET["nn"] = nnue
+
+    eval_file = "%s-%s.nnue" % (variant, NNUE_NET[variant])
+    if os.path.isfile(eval_file):
+        print("%s OK" % eval_file)
+    else:
+        href = link.get("href")
+        print("%s downloading from %s" % (eval_file, href))
+        download = requests.get(href, headers={}, stream=True)
+        progress = 0
+        size = 46603 * 1024
+        with open(eval_file, 'wb') as fd:
+            for chunk in download.iter_content(chunk_size=1024):
+                fd.write(chunk)
+                progress += len(chunk)
+                if sys.stderr.isatty():
+                    sys.stderr.write("\rDownloading %s: %d/%d (%d%%)" % (
+                        eval_file, progress, size,
+                        progress * 100 / size))
+                    sys.stderr.flush()
+        if not os.path.isfile(eval_file):
+            print("Failed to download %s" % eval_file)
+            sys.exit(0)
 
 
 def validate_nnue():
