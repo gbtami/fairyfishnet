@@ -101,7 +101,7 @@ try:
     try:
         print(sf.version())
     except Exception:
-        print("fairyfishnet requires pyffish >=0.0.57", file=sys.stderr)
+        print("fairyfishnet requires pyffish", file=sys.stderr)
         raise
 
 except ImportError:
@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.15"
+__version__ = "1.16.16"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -591,14 +591,14 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
             logging.warning("Unexpected engine response to go: %s %s", command, arg)
 
 
-def set_variant_options(p, variant, chess960):
+def set_variant_options(p, variant, chess960, nnue):
     variant = variant.lower()
 
     setoption(p, "Protocol", "uci")
 
     setoption(p, "UCI_Chess960", chess960)
 
-    if variant in NNUE_NET or variant in NNUE_ALIAS:
+    if (variant in NNUE_NET or variant in NNUE_ALIAS) and nnue:
         vari = NNUE_ALIAS[variant] if variant in NNUE_ALIAS else variant
         eval_file = "%s-%s.nnue" % (vari, NNUE_NET.get(vari, ""))
         if os.path.isfile(eval_file):
@@ -886,11 +886,12 @@ class Worker(threading.Thread):
         variant = job.get("variant", "standard")
         chess960 = job.get("chess960", False)
         moves = job["moves"].split(" ")
+        nnue = job.get("nnue", True)
 
         logging.debug("Playing %s (%s) with lvl %d",
                       self.job_name(job), variant, lvl)
 
-        set_variant_options(self.stockfish, variant, chess960)
+        set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl])
         setoption(self.stockfish, "UCI_AnalyseMode", False)
         send(self.stockfish, "ucinewgame")
@@ -921,12 +922,13 @@ class Worker(threading.Thread):
         variant = job.get("variant", "standard")
         chess960 = job.get("chess960", False)
         moves = job["moves"].split(" ")
+        nnue = job.get("nnue", True)
 
         result = self.make_request()
         result["analysis"] = [None for _ in range(len(moves) + 1)]
         start = last_progress_report = time.time()
 
-        set_variant_options(self.stockfish, variant, chess960)
+        set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", 20)
         setoption(self.stockfish, "UCI_AnalyseMode", True)
         send(self.stockfish, "ucinewgame")
