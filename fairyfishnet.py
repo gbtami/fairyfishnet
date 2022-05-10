@@ -1037,7 +1037,6 @@ def detect_cpu_capabilities():
 
 def stockfish_filename():
     machine = platform.machine().lower()
-    logging.info("Engine platform:", machine, platform.platform())
 
     vendor, modern, bmi2 = detect_cpu_capabilities()
     if modern and "Intel" in vendor and bmi2:
