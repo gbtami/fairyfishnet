@@ -27,6 +27,7 @@ jobs:
 
     - name: Download Fairy-Stockfish
       run: |
+        cpuid
         curl -Lo stockfish-x86_64 https://github.com/gbtami/Fairy-Stockfish/releases/latest/download/stockfish-x86_64
         chmod +x stockfish-x86_64
 
