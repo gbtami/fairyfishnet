@@ -27,8 +27,8 @@ jobs:
 
     - name: Download Fairy-Stockfish
       run: |
-        curl -Lo fairy-stockfish https://github.com/ianfab/Fairy-Stockfish/releases/latest/download/fairy-stockfish-largeboard_x86-64
-        chmod +x fairy-stockfish
+        curl -Lo stockfish-x86_64-modern https://github.com/gbtami/Fairy-Stockfish/releases/latest/download/stockfish-x86_64-modern
+        chmod +x stockfish-x86_64-modern
 
     - name: Fairyfishnet Tests
       run: |
