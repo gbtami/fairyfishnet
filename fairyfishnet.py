@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.16"
+__version__ = "1.16.17"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -1422,7 +1422,9 @@ def update_nnue():
     url = "https://github.com/ianfab/Fairy-Stockfish/wiki/List-of-networks"
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
 
-    for link in soup.find_all(href=re.compile("^https://drive.google.com/file")):
+    # Example link
+    # <a href="https://drive.google.com/u/0/uc?id=1r5o5jboZRqND8picxuAbA0VXXMJM1HuS&amp;export=download" rel="nofollow">3check-313cc226a173.nnue</a>
+    for link in soup.find_all(href=re.compile("^https://drive.google.com/u/0/uc")):
         parts = link.text.split("-")
         variant, nnue = parts[0], parts[1]
         # remove .nnue suffix
@@ -1436,7 +1438,8 @@ def update_nnue():
             if os.path.isfile(eval_file):
                 print("%s OK" % eval_file)
             else:
-                drive_id = link.get('href').split("/")[-2]
+                href = link.get('href')
+                drive_id = urlparse.parse_qs(urlparse.urlparse(href).query)["id"][0]
                 print("%s downloading drive id %s" % (eval_file, drive_id))
                 gdown.download(id=drive_id, output=eval_file, quiet=False)
 
