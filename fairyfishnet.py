@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.17"
+__version__ = "1.16.18"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -1419,7 +1419,7 @@ def parse_bool(inp, default=False):
 
 
 def update_nnue():
-    url = "https://github.com/ianfab/Fairy-Stockfish/wiki/List-of-networks"
+    url = "https://github.com/fairy-stockfish/fairy-stockfish.github.io/blob/main/nnue.markdown"
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
 
     # Example link
