@@ -7,7 +7,7 @@ fairyfishnet: distributed Fairy-Stockfish analysis for pychess.org
 Installation
 ------------
 
-1. Request your personal fairyfishnet key on [pychess Discord](https://discord.gg/aPs8RKr)
+1. Request your personal fairyfishnet key on pychess Discord https://discord.gg/aPs8RKr
 2. Install the fairyfishnet client.
 
    **Via pip**
