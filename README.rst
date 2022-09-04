@@ -1,5 +1,5 @@
-fairyfishnet: distributed Fairy-Stockfish analysis for pychess-variants
-========================================================================
+fairyfishnet: distributed Fairy-Stockfish analysis for pychess.org
+==================================================================
 
 .. image:: https://badge.fury.io/py/fairyfishnet.svg
     :target: https://pypi.python.org/pypi/fairyfishnet
@@ -7,7 +7,7 @@ fairyfishnet: distributed Fairy-Stockfish analysis for pychess-variants
 Installation
 ------------
 
-1. Request your personal fairyfishnet key: https://pychess-variants.herokuapp.com
+1. Request your personal fairyfishnet key on [pychess Discord](https://discord.gg/aPs8RKr)
 2. Install the fairyfishnet client.
 
    **Via pip**
