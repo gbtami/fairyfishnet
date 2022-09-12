@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.19"
+__version__ = "1.16.20"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -593,8 +593,6 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
 
 def set_variant_options(p, variant, chess960, nnue):
     variant = variant.lower()
-
-    setoption(p, "Protocol", "uci")
 
     setoption(p, "UCI_Chess960", chess960)
 
