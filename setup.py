@@ -44,7 +44,7 @@ setuptools.setup(
     py_modules=["fairyfishnet"],
     test_suite="test",
     install_requires=[
-        "requests==2.28.1",
+        "requests==2.28.2",
         "pyffish==0.0.73",
         "gdown==4.5.3",
         "beautifulsoup4==4.11.1",
