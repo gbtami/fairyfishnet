@@ -47,7 +47,7 @@ setuptools.setup(
         "requests==2.28.1",
         "pyffish==0.0.73",
         "gdown==4.5.3",
-        "beautifulsoup4==4.11.1",
+        "beautifulsoup4==4.11.2",
     ],
     python_requires=">=3.6",
     classifiers=[
