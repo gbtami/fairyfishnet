@@ -44,12 +44,12 @@ setuptools.setup(
     py_modules=["fairyfishnet"],
     test_suite="test",
     install_requires=[
-        "requests==2.28.1",
-        "pyffish==0.0.73",
+        "requests==2.28.2",
+        "pyffish==0.0.77",
         "gdown==4.6.4",
         "beautifulsoup4==4.11.2",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Environment :: Console",
@@ -63,6 +63,7 @@ setuptools.setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Topic :: Games/Entertainment :: Board Games",
         "Topic :: Internet :: WWW/HTTP",
     ]
