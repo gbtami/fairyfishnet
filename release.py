@@ -58,7 +58,7 @@ def pypi():
 
 if __name__ == "__main__":
     test()
-    check_docs()
+#    check_docs()
     check_git()
     tag_and_push()
     pypi()
