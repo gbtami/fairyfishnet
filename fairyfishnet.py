@@ -185,6 +185,7 @@ required_variants = set([
     "chak",
     "chennis",
     "duck",
+    "spartan",
 ])
 
 
