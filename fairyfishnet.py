@@ -1424,7 +1424,7 @@ def update_nnue():
 
     # Example link
     # <a href="https://drive.google.com/u/0/uc?id=1r5o5jboZRqND8picxuAbA0VXXMJM1HuS&amp;export=download" rel="nofollow">3check-313cc226a173.nnue</a>
-    for link in soup.find_all(href=re.compile("^https://drive.google.com/u/0/uc")):
+    for link in soup.find_all(href=re.compile("https://drive.google.com/u/0/uc")):
         parts = link.text.split("-")
         variant, nnue = parts[0], parts[1]
         # remove .nnue suffix
@@ -1448,7 +1448,7 @@ def update_nnue():
                     sys.exit(0)
 
     # Standard chess stockfish nnue
-    link = soup.find(href=re.compile("^https://tests.stockfishchess.org/api/nn/"))
+    link = soup.find(href=re.compile("https://tests.stockfishchess.org/api/nn/"))
     parts = link.text.split("-")
     variant, nnue = parts[0], parts[1]
     # remove .nnue suffix
