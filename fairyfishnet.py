@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.25"
+__version__ = "1.16.26"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2062,17 +2062,27 @@ startFen = rnbqckabnr/pppppppppp/10/10/10/10/PPPPPPPPPP/RNBQCKABNR[] w KQkq - 0 
 pieceDrops = true
 capturesToHand = true
 
+# Hybrid variant of Embassy chess and crazyhouse, using Embassy as a template
+[embassyhouse:embassy]
+startFen = rnbqkcabnr/pppppppppp/10/10/10/10/PPPPPPPPPP/RNBQKCABNR[] w KQkq - 0 1
+pieceDrops = true
+capturesToHand = true
+
+[gorogoroplus:gorogoro]
+startFen = sgkgs/5/1ppp1/1PPP1/5/SGKGS[LNln] w 0 1
+lance = l
+shogiKnight = n
+promotedPieceType = l:g n:g
+
 [shogun:crazyhouse]
-variantTemplate = shogi
-pieceToCharTable = PNBR.F.....++++.+Kpnbr.f.....++++.+k
-pocketSize = 8
 startFen = rnb+fkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNB+FKBNR[] w KQkq - 0 1
 commoner = c
 centaur = g
 archbishop = a
 chancellor = m
 fers = f
-promotionRank = 6
+promotionRegionWhite = *6 *7 *8
+promotionRegionBlack = *3 *2 *1
 promotionLimit = g:1 a:1 m:1 q:1
 promotionPieceTypes = -
 promotedPieceType = p:c n:g b:a r:m f:q
@@ -2084,7 +2094,6 @@ blackDropRegion = *4 *5 *6 *7 *8
 immobilityIllegal = true
 
 [orda:chess]
-pieceToCharTable = PNBRQ..AH...........LKp...q..ah.y.........lk
 centaur = h
 knibis = a
 kniroo = l
@@ -2092,12 +2101,10 @@ silver = y
 promotionPieceTypes = qh
 startFen = lhaykahl/8/pppppppp/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1
 flagPiece = k
-whiteFlag = *8
-blackFlag = *1
+flagRegionWhite = *8
+flagRegionBlack = *1
 
 [synochess:pocketknight]
-pieceToCharTable = PNBRQAE...SCH........Kpnbrqae...sch........k
-pocketSize = 8
 janggiCannon = c
 soldier = s
 horse = h
@@ -2109,20 +2116,18 @@ perpetualCheckIllegal = true
 flyingGeneral = true
 blackDropRegion = *5
 flagPiece = k
-whiteFlag = *8
-blackFlag = *1
+flagRegionWhite = *8
+flagRegionBlack = *1
 
 [shinobi:crazyhouse]
-variantTemplate = shogi
-pieceToCharTable = PNBRQ.DJMLH.....CKpnbrq.djmlh.....ck
-pocketSize = 8
 commoner = c
 bers = d
 archbishop = j
 fers = m
 shogiKnight = h
 lance = l
-promotionRank = 7
+promotionRegionWhite = *7 *8
+promotionRegionBlack = *2 *1
 promotionPieceTypes = -
 promotedPieceType = p:c m:b h:n l:r
 mandatoryPiecePromotion = true
@@ -2134,11 +2139,34 @@ capturesToHand = false
 whiteDropRegion = *1 *2 *3 *4
 immobilityIllegal = true
 flagPiece = k
-whiteFlag = *8
-blackFlag = *1
+flagRegionWhite = *8
+flagRegionBlack = *1
+
+[shinobiplus:crazyhouse]
+commoner = c
+bers = d
+dragonHorse = s
+archbishop = j
+fers = m
+shogiKnight = h
+lance = l
+promotionRegionWhite = *7 *8
+promotionRegionBlack = *2 *1
+promotionPieceTypes = -
+promotedPieceType = p:c m:b h:n l:r
+mandatoryPiecePromotion = true
+stalemateValue = loss
+nFoldRule = 4
+perpetualCheckIllegal = true
+startFen = rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/4K3[JDSCLHM] w kq - 0 1
+capturesToHand = false
+whiteDropRegion = *1 *2 *3 *4
+immobilityIllegal = true
+flagPiece = k
+flagRegionWhite = *8
+flagRegionBlack = *1
 
 [ordamirror:chess]
-pieceToCharTable = P...Q..AH.F.........LKp...q..ah.f.........lk
 centaur = h
 knibis = a
 kniroo = l
@@ -2146,11 +2174,10 @@ customPiece1 = f:mQcN
 promotionPieceTypes = lhaf
 startFen = lhafkahl/8/pppppppp/8/8/PPPPPPPP/8/LHAFKAHL w - - 0 1
 flagPiece = k
-whiteFlag = *8
-blackFlag = *1
+flagRegionWhite = *8
+flagRegionBlack = *1
 
 [empire:chess]
-pieceToCharTable = PNBRQ.....ST.C.D.E...Kpnbrq.....st.c.d.e...k
 customPiece1 = e:mQcN
 customPiece2 = c:mQcB
 customPiece3 = t:mQcR
@@ -2161,15 +2188,9 @@ startFen = rnbqkbnr/pppppppp/8/8/8/PPPSSPPP/8/TECDKCET w kq - 0 1
 stalemateValue = loss
 nFoldValue = loss
 flagPiece = k
-whiteFlag = *8
-blackFlag = *1
+flagRegionWhite = *8
+flagRegionBlack = *1
 flyingGeneral = true
-
-[gorogoroplus:gorogoro]
-startFen = sgkgs/5/1ppp1/1PPP1/5/SGKGS[LNln] w 0 1
-lance = l
-shogiKnight = n
-promotedPieceType = l:g n:g
 
 [chak]
 maxRank = 9
@@ -2189,7 +2210,8 @@ mobilityRegionWhiteCustomPiece6 = *5 *6 *7 *8 *9
 mobilityRegionWhiteCustomPiece3 = *5 *6 *7 *8 *9
 mobilityRegionBlackCustomPiece6 = *1 *2 *3 *4 *5
 mobilityRegionBlackCustomPiece3 = *1 *2 *3 *4 *5
-promotionRank = 5
+promotionRegionWhite = *5 *6 *7 *8 *9
+promotionRegionBlack = *5 *4 *3 *2 *1
 promotionPieceTypes = -
 mandatoryPiecePromotion = true
 promotedPieceType = p:w k:d
@@ -2197,12 +2219,12 @@ extinctionValue = loss
 extinctionPieceTypes = kd
 extinctionPseudoRoyal = true
 flagPiece = d
-whiteFlag = e8
-blackFlag = e2
+flagRegionWhite = e8
+flagRegionBlack = e2
 nMoveRule = 50
 nFoldRule = 3
 nFoldValue = draw
-stalemateValue = win
+stalemateValue = loss
 
 [chennis]
 maxRank = 7
@@ -2220,7 +2242,8 @@ knight = n
 rook = r
 promotionPieceTypes = -
 promotedPieceType = p:r f:c s:b m:n
-promotionRank = 1
+promotionRegionWhite = *1 *2 *3 *4 *5 *6 *7
+promotionRegionBlack = *7 *6 *5 *4 *3 *2 *1
 startFen = 1fkm3/1p1s3/7/7/7/3S1P1/3MKF1[] w - 0 1
 pieceDrops = true
 capturesToHand = true
@@ -2231,8 +2254,10 @@ castling = false
 stalemateValue = loss
 
 # Mansindam (Pantheon tale)
+# A variant that combines drop rule and powerful pieces, and there is no draw
 [mansindam]
 variantTemplate = shogi
+pieceToCharTable = PNBR.Q.CMA.++++...++Kpnbr.q.cma.++++...++k
 maxFile = 9
 maxRank = 9
 pocketSize = 8
@@ -2254,7 +2279,8 @@ dragonHorse = h
 bers = t
 customPiece1 = i:BNW
 customPiece2 = s:RNF
-promotionRank = 7
+promotionRegionWhite = *7 *8 *9
+promotionRegionBlack = *3 *2 *1
 mandatoryPiecePromotion = true
 doubleStep = false
 castling = false
@@ -2264,8 +2290,8 @@ stalemateValue = loss
 nMoveRule = 0
 nFoldValue = loss
 flagPiece = k
-whiteFlag = *9
-blackFlag = *1
+flagRegionWhite = *9
+flagRegionBlack = *1
 immobilityIllegal = true
 """)
 
