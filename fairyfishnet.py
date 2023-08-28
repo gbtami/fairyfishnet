@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.26"
+__version__ = "1.16.27"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2186,7 +2186,7 @@ soldier = s
 promotionPieceTypes = q
 startFen = rnbqkbnr/pppppppp/8/8/8/PPPSSPPP/8/TECDKCET w kq - 0 1
 stalemateValue = loss
-nFoldValue = loss
+nFoldValue = win
 flagPiece = k
 flagRegionWhite = *8
 flagRegionBlack = *1
@@ -2288,7 +2288,7 @@ promotedPieceType = p:g n:e b:h r:t c:i m:s
 dropNoDoubled = p
 stalemateValue = loss
 nMoveRule = 0
-nFoldValue = loss
+nFoldValue = win
 flagPiece = k
 flagRegionWhite = *9
 flagRegionBlack = *1
