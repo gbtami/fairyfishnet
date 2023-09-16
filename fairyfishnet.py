@@ -1062,6 +1062,7 @@ def download_github_release(conf, release_page, filename):
     logging.info("Engine target path: %s", path)
 
     headers = {}
+    headers["User-Agent"] = "fairyfishnet"
 
     # Only update to newer versions
     try:
