@@ -1464,7 +1464,8 @@ def update_nnue():
     if os.path.isfile(eval_file):
         print("%s OK" % eval_file)
     else:
-        href = link.get("href").strip("\\\"")
+        # href = link.get("href").strip("\\\"")
+        href = "https://github.com/official-stockfish/networks/raw/master/%s" % eval_file
         print("%s downloading from %s" % (eval_file, href))
         download = requests.get(href, headers={"User-Agent": "fairyfishnet"}, stream=True)
         progress = 0
