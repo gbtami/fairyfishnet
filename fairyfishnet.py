@@ -1464,9 +1464,9 @@ def update_nnue():
     if os.path.isfile(eval_file):
         print("%s OK" % eval_file)
     else:
-        href = link.get("href")
+        href = link.get("href").strip("\\\"")
         print("%s downloading from %s" % (eval_file, href))
-        download = requests.get(href, headers={}, stream=True)
+        download = requests.get(href, headers={"User-Agent": "fairyfishnet"}, stream=True)
         progress = 0
         size = 46603 * 1024
         with open(eval_file, 'wb') as fd:
