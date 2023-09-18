@@ -1450,6 +1450,7 @@ def update_nnue():
                 if not os.path.isfile(eval_file):
                     print("Failed to download %s" % eval_file)
                     sys.exit(0)
+        time.sleep(2)
 
     # Standard chess stockfish nnue
     link = soup.find(href=re.compile("https://tests.stockfishchess.org/api/nn/"))
