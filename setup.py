@@ -45,7 +45,7 @@ setuptools.setup(
     test_suite="test",
     install_requires=[
         "requests==2.31.0",
-        "pyffish==0.0.78",
+        "pyffish==0.0.79",
         "gdown==4.7.1",
         "beautifulsoup4==4.12.2",
     ],
