@@ -1445,7 +1445,7 @@ def update_nnue():
                 href = link.get('href')
                 drive_id = urlparse.parse_qs(urlparse.urlparse(href).query)["id"][0]
                 print("%s downloading drive id %s" % (eval_file, drive_id))
-                gdown.download(id=drive_id, output=eval_file, quiet=False)
+                gdown.download(id=drive_id, output=eval_file, quiet=False, speed=2000*1024)
 
                 if not os.path.isfile(eval_file):
                     print("Failed to download %s" % eval_file)
