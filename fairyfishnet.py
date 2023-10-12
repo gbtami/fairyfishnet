@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.27"
+__version__ = "1.16.28"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -1445,12 +1445,13 @@ def update_nnue():
                 href = link.get('href')
                 drive_id = urlparse.parse_qs(urlparse.urlparse(href).query)["id"][0]
                 print("%s downloading drive id %s" % (eval_file, drive_id))
-                gdown.download(id=drive_id, output=eval_file, quiet=False, speed=2000*1024)
+                # Adding speed=2000*1024 limit to gdown() may help(?)
+                # workers running in the cloud (heroku.com or render.com)
+                gdown.download(id=drive_id, output=eval_file, quiet=False)
 
                 if not os.path.isfile(eval_file):
                     print("Failed to download %s" % eval_file)
                     sys.exit(0)
-        time.sleep(2)
 
     # Standard chess stockfish nnue
     link = soup.find(href=re.compile("https://tests.stockfishchess.org/api/nn/"))
@@ -2180,6 +2181,17 @@ flagPiece = k
 flagRegionWhite = *8
 flagRegionBlack = *1
 
+[khans:chess]
+centaur = h
+knibis = a
+kniroo = l
+customPiece1 = t:mNcK
+customPiece2 = s:mfhNcfW
+promotedPieceType = s:a
+mandatoryPiecePromotion = true
+stalemateValue = loss
+startFen = rnbqkbnr/pppppppp/8/8/8/8/SSSSSSSS/LHATKAHL w kq - 0 1
+
 [empire:chess]
 customPiece1 = e:mQcN
 customPiece2 = c:mQcB
@@ -2296,6 +2308,43 @@ flagPiece = k
 flagRegionWhite = *9
 flagRegionBlack = *1
 immobilityIllegal = true
+
+# Schism Chess. White = Byzantine/Eastern Army
+[schism:chess]
+#Empress
+chancellor = e
+#Varang - the middle two pawns
+soldier = v
+#Akritoi - the right set of pawns. Berolina
+customPiece1 = a:mfFcefWimfnA
+#Promoted varang - gains one movement in all four orthogonal directions
+customPiece2 = w:fsR2bW
+#Promoted akritoi - gains non-capture movement in all four diagonals (instead of just forwards) and can capture up to 2 squares forward
+customPiece3 = y:mFcfR2
+#Merc - the left set of pawns. Standard chess pawn
+customPiece4 = m:mfWcefFimfnD
+#Promoted merc - gains non-capture movement backwards as well and can capture up to 2 squares forward diagonally
+customPiece5 = f:mvWcfB2
+#Cataphract - Xiangqi horse that can also move/capture in the first orthogonal square of each direction.
+customPiece6 = c:WnN
+#Trebuchet - Janggi cannon that cannot reach the last rank. Promotes on capture.
+customPiece7 = t:pR
+#Mangonel - Promoted trebuchet that is a combo xiangqi and janggi cannon and can move anywhere.
+customPiece8 = g:pRmR
+#Eastern Bishop - A bishop that can *also* hop like a diagonal janggi cannon to move (but not capture).
+customPiece9 = z:BmpB
+promotionRegionWhite = *1 *2 *3 *4 *5 *6 *7 *8
+promotionRegionBlack = *1
+piecePromotionOnCapture = true
+promotedPieceType = t:g v:w a:y m:f
+mobilityRegionWhiteCustomPiece7 = *1 *2 *3 *4 *5 *6 *7
+# RULES: Stalemate = loss, campmate = win, generals cannot face each other
+stalemateValue = loss
+flyingGeneral = true
+flagPiece = k
+whiteFlag = *8
+blackFlag = *1
+startFen = rnbqkbnr/pppppppp/8/8/8/8/MMMVVAAA/TCZEKZCT w kq - 0 1
 """)
 
     ini_file = os.path.join(engine_dir, "variants.ini")
