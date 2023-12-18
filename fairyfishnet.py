@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.28"
+__version__ = "1.16.29"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -149,6 +149,7 @@ NNUE_ALIAS = {
 }
 
 required_variants = set([
+    "ataxx",
     "chess",
     "crazyhouse",
     "placement",
@@ -180,6 +181,7 @@ required_variants = set([
     "orda",
     "synochess",
     "shinobi",
+    "shinobiplus",
     "empire",
     "ordamirror",
     "chak",
