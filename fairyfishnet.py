@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.29"
+__version__ = "1.16.30"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2151,7 +2151,7 @@ flagRegionBlack = *1
 [shinobiplus:crazyhouse]
 commoner = c
 bers = d
-dragonHorse = s
+dragonHorse = f
 archbishop = j
 fers = m
 shogiKnight = h
@@ -2164,7 +2164,7 @@ mandatoryPiecePromotion = true
 stalemateValue = loss
 nFoldRule = 4
 perpetualCheckIllegal = true
-startFen = rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/4K3[JDSCLHM] w kq - 0 1
+startFen = rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/4K3[JDFCLHM] w kq - 0 1
 capturesToHand = false
 whiteDropRegion = *1 *2 *3 *4
 immobilityIllegal = true
