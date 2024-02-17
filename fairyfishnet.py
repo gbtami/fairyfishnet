@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.30"
+__version__ = "1.16.31"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -165,6 +165,7 @@ required_variants = set([
     "dobutsu",
     "gorogoroplus",
     "torishogi",
+    "cannonshogi",
     "xiangqi",
     "manchu",
     "janggi",
@@ -2079,6 +2080,30 @@ startFen = sgkgs/5/1ppp1/1PPP1/5/SGKGS[LNln] w 0 1
 lance = l
 shogiKnight = n
 promotedPieceType = l:g n:g
+
+[cannonshogi:shogi]
+# No Shogi pawn drop restrictions
+dropNoDoubled = -
+shogiPawnDropMateIllegal = false
+# Soldier is Janggi soldier
+soldier = p
+# Gold Cannon is exactly like Xiangqi cannon
+cannon = u
+# Silver Cannon moves and captures like Janggi cannon
+# Janggi cannons have this EXCEPTION:
+# The cannon cannot use another cannon as a screen. Additionally, it can't capture the opponent's cannons.
+# This is NOT exists here.
+customPiece1 = a:pR
+# Copper Cannon is diagonal Xiangqi cannon
+customPiece2 = c:mBcpB
+# Iron Cannon is diagonal Janggi cannon 
+customPiece3 = i:pB
+# Flying Silver/Gold Cannon 
+customPiece4 = w:mRpRmFpB2
+# Flying Copper/Iron Cannon 
+customPiece5 = f:mBpBmWpR2
+promotedPieceType = u:w a:w c:f i:f
+startFen = lnsgkgsnl/1rci1uab1/p1p1p1p1p/9/9/9/P1P1P1P1P/1BAU1ICR1/LNSGKGSNL[-] w 0 1
 
 [shogun:crazyhouse]
 startFen = rnb+fkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNB+FKBNR[] w KQkq - 0 1
