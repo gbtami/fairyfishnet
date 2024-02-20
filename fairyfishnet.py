@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.32"
+__version__ = "1.16.33"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -192,6 +192,7 @@ required_variants = set([
     "kingofthehill",
     "3check",
     "mansindam",
+    "habaneshogi",
 ])
 
 
@@ -2372,6 +2373,32 @@ flagPiece = k
 whiteFlag = *8
 blackFlag = *1
 startFen = rnbqkbnr/pppppppp/8/8/8/8/MMMVVAAA/TCZEKZCT w kq - 0 1
+
+[habaneshogi]
+maxRank = 8
+maxFile = 8
+king = k
+customPiece1  = a:fFsWbW
+customPiece2  = b:fKbK
+customPiece3  = c:fKsWbF
+customPiece4  = d:WfF
+customPiece5  = e:FsW
+customPiece6  = f:fWsWbF
+customPiece7  = g:fWbF
+customPiece8  = h:bWfF
+customPiece9  = i:fKbW
+customPiece10 = j:W
+customPiece11 = l:K
+customPiece12 = m:fKbF
+promotionRegionWhite = *7 *8
+promotionRegionBlack = *1 *2
+startFen = aemckdbf/ighjjhgi/8/8/8/8/IGHJJHGI/AEMCKDBF[-] w 0 1
+promotedPieceType = a:l b:l c:l d:l e:l f:l g:l h:l i:l j:l m:l
+capturesToHand = true
+pieceDrops = true
+perpetualCheckIllegal = true
+stalemateValue = loss
+mandatoryPiecePromotion = true
 """)
 
     ini_file = os.path.join(engine_dir, "variants.ini")
