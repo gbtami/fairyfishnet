@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.33"
+__version__ = "1.16.34"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2103,7 +2103,7 @@ customPiece3 = i:pB
 customPiece4 = w:mRpRmFpB2
 # Flying Copper/Iron Cannon 
 customPiece5 = f:mBpBmWpR2
-promotedPieceType = u:w a:w c:f i:f
+promotedPieceType = u:w a:w c:f i:f p:g
 startFen = lnsgkgsnl/1rci1uab1/p1p1p1p1p/9/9/9/P1P1P1P1P/1BAU1ICR1/LNSGKGSNL[-] w 0 1
 
 [shogun:crazyhouse]
