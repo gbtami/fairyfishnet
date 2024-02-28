@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.34"
+__version__ = "1.16.35"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -192,7 +192,7 @@ required_variants = set([
     "kingofthehill",
     "3check",
     "mansindam",
-    "habaneshogi",
+    "haganeshogi",
 ])
 
 
@@ -2374,7 +2374,7 @@ whiteFlag = *8
 blackFlag = *1
 startFen = rnbqkbnr/pppppppp/8/8/8/8/MMMVVAAA/TCZEKZCT w kq - 0 1
 
-[habaneshogi]
+[haganeshogi]
 maxRank = 8
 maxFile = 8
 king = k
