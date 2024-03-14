@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.35"
+__version__ = "1.16.36"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2215,10 +2215,14 @@ knibis = a
 kniroo = l
 customPiece1 = t:mNcK
 customPiece2 = s:mfhNcfW
-promotedPieceType = s:a
-mandatoryPiecePromotion = true
+promotionPawnTypesBlack = s
+promotionPieceTypesBlack = t
 stalemateValue = loss
-startFen = rnbqkbnr/pppppppp/8/8/8/8/SSSSSSSS/LHATKAHL w kq - 0 1
+nMoveRuleTypesBlack = s
+flagPiece = k
+flagRegionWhite = *8
+flagRegionBlack = *1
+startFen = lhatkahl/ssssssss/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1
 
 [empire:chess]
 customPiece1 = e:mQcN
