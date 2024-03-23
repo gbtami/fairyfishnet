@@ -1428,7 +1428,7 @@ def parse_bool(inp, default=False):
 
 def update_nnue():
     url = "https://github.com/fairy-stockfish/fairy-stockfish.github.io/blob/main/nnue.markdown"
-    soup = BeautifulSoup(requests.get(url).text, 'html.parser')
+    soup = BeautifulSoup(requests.get(url).text.encode().decode('unicode_escape'), 'html.parser')
 
     # Example link
     # <a href="https://drive.google.com/u/0/uc?id=1r5o5jboZRqND8picxuAbA0VXXMJM1HuS&amp;export=download" rel="nofollow">3check-313cc226a173.nnue</a>
