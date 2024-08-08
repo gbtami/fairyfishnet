@@ -2344,6 +2344,12 @@ flagRegionWhite = *9
 flagRegionBlack = *1
 immobilityIllegal = true
 
+[fogofwar:chess]
+king = -
+commoner = k
+extinctionValue = loss
+extinctionPieceTypes = k
+
 # Schism Chess. White = Byzantine/Eastern Army
 [schism:chess]
 #Empress
