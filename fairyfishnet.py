@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.40"
+__version__ = "1.16.41"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -1429,18 +1429,26 @@ def parse_bool(inp, default=False):
 
 
 def update_nnue():
-    url= "https://fairy-stockfish.github.io/nnue/"
+    url = "https://fairy-stockfish.github.io/nnue/"
 
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
 
     # Example link
     # <a href="https://drive.google.com/u/0/uc?id=1r5o5jboZRqND8picxuAbA0VXXMJM1HuS&amp;export=download" rel="nofollow">3check-313cc226a173.nnue</a>
     for link in soup.find_all(href=re.compile("https://drive.google.com/u/0/uc")):
-        parts = link.text.split("-")
-        variant, nnue = parts[0], parts[1]
+        try:
+            parts = link.text.split("-")
+            variant, nnue = parts[0], parts[1]
+        except IndexError:
+            print("Link not supported!")
+            print(link)
+            continue
+
         # remove .nnue suffix
         if nnue.endswith(".nnue"):
             nnue = nnue[:-5]
+        else:
+            continue
 
         if variant in required_variants:
             NNUE_NET[variant] = nnue
@@ -2100,11 +2108,11 @@ cannon = u
 customPiece1 = a:pR
 # Copper Cannon is diagonal Xiangqi cannon
 customPiece2 = c:mBcpB
-# Iron Cannon is diagonal Janggi cannon 
+# Iron Cannon is diagonal Janggi cannon
 customPiece3 = i:pB
-# Flying Silver/Gold Cannon 
+# Flying Silver/Gold Cannon
 customPiece4 = w:mRpRmFpB2
-# Flying Copper/Iron Cannon 
+# Flying Copper/Iron Cannon
 customPiece5 = f:mBpBmWpR2
 promotedPieceType = u:w a:w c:f i:f p:g
 startFen = lnsgkgsnl/1rci1uab1/p1p1p1p1p/9/9/9/P1P1P1P1P/1BAU1ICR1/LNSGKGSNL[-] w 0 1
