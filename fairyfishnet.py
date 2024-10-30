@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.41"
+__version__ = "1.16.42"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -195,6 +195,10 @@ required_variants = set([
     "haganeshogi",
     "dragon",
     "khans",
+    "antichess",
+    "racingkings",
+    "horde",
+    "shatranj",
 ])
 
 
