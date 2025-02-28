@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.42"
+__version__ = "1.16.43"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -898,6 +898,7 @@ class Worker(threading.Thread):
         lvl = job["work"]["level"]
         variant = job.get("variant", "standard")
         chess960 = job.get("chess960", False)
+        fen = job["position"]
         moves = job["moves"].split(" ")
         nnue = job.get("nnue", True)
 
@@ -913,7 +914,7 @@ class Worker(threading.Thread):
         movetime = int(round(LVL_MOVETIMES[lvl] / (self.threads * 0.9 ** (self.threads - 1))))
 
         start = time.time()
-        part = go(self.stockfish, job["position"], moves,
+        part = go(self.stockfish, fen, moves,
                   movetime=movetime, clock=job["work"].get("clock"),
                   depth=LVL_DEPTHS[lvl], variant=variant, chess960=chess960)
         end = time.time()
@@ -925,9 +926,20 @@ class Worker(threading.Thread):
         self.nodes += part.get("nodes", 0)
         self.positions += 1
 
+        sfen = False
+        show_promoted = variant in (
+            "makruk",
+            "makpong",
+            "cambodian",
+            "bughouse",
+            "supply",
+            "makbug",
+        )
+
         result = self.make_request()
         result["move"] = {
             "bestmove": part["bestmove"],
+            "fen": sf.get_fen(variant, fen, moves, chess960, sfen, show_promoted)
         }
         return result
 
