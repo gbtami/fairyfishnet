@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.43"
+__version__ = "1.16.44"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -935,11 +935,13 @@ class Worker(threading.Thread):
             "supply",
             "makbug",
         )
+        if len(job["moves"]) > 0:
+            fen = sf.get_fen(variant, fen, moves, chess960, sfen, show_promoted)
 
         result = self.make_request()
         result["move"] = {
             "bestmove": part["bestmove"],
-            "fen": sf.get_fen(variant, fen, moves, chess960, sfen, show_promoted)
+            "fen": fen
         }
         return result
 
