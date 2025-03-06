@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.44"
+__version__ = "1.16.45"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -606,6 +606,37 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
             logging.warning("Unexpected engine response to go: %s %s", command, arg)
 
 
+def file_of(piece: str, rank: str) -> int:
+    """
+    Returns the 0-based file of the specified piece in the rank.
+    Returns -1 if the piece is not in the rank.
+    """
+    pos = rank.find(piece)
+    if pos >= 0:
+        return sum(int(p) if p.isdigit() else 1 for p in rank[:pos])
+    else:
+        return -1
+
+
+def modded_variant(variant: str, chess960: bool, initial_fen: str) -> str:
+    """Some variants need to be treated differently by pyffish."""
+    if not chess960 and variant in ("capablanca", "capahouse") and initial_fen:
+        """
+        E-file king in a Capablanca/Capahouse variant.
+        The game will be treated as an Embassy game for the purpose of castling.
+        The king starts on the e-file if it is on the e-file in the starting rank and can castle.
+        """
+        parts = initial_fen.split()
+        ranks = parts[0].split("/")
+        if (
+            parts[2] != "-"
+            and (("K" in parts[2] or "Q" in parts[2]) and file_of("K", ranks[7]) == 4)
+            and (("k" in parts[2] or "q" in parts[2]) and file_of("k", ranks[0]) == 4)
+        ):
+            return "embassyhouse" if "house" in variant else "embassy"
+    return variant
+
+
 def set_variant_options(p, variant, chess960, nnue):
     variant = variant.lower()
 
@@ -905,6 +936,7 @@ class Worker(threading.Thread):
         logging.debug("Playing %s (%s) with lvl %d",
                       self.job_name(job), variant, lvl)
 
+        variant = modded_variant(variant, chess960, fen)
         set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl])
         setoption(self.stockfish, "UCI_AnalyseMode", False)
@@ -948,6 +980,7 @@ class Worker(threading.Thread):
     def analysis(self, job):
         variant = job.get("variant", "standard")
         chess960 = job.get("chess960", False)
+        fen = job["position"]
         moves = job["moves"].split(" ")
         nnue = job.get("nnue", True)
 
@@ -955,6 +988,7 @@ class Worker(threading.Thread):
         result["analysis"] = [None for _ in range(len(moves) + 1)]
         start = last_progress_report = time.time()
 
+        variant = modded_variant(variant, chess960, fen)
         set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", 20)
         setoption(self.stockfish, "UCI_AnalyseMode", True)
@@ -979,7 +1013,7 @@ class Worker(threading.Thread):
             logging.log(PROGRESS, "Analysing %s: %s",
                         variant, self.job_name(job, ply))
 
-            part = go(self.stockfish, job["position"], moves[0:ply],
+            part = go(self.stockfish, fen, moves[0:ply],
                       nodes=nodes, movetime=4000, variant=variant, chess960=chess960)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
