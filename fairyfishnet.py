@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.45"
+__version__ = "1.16.46"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -968,7 +968,10 @@ class Worker(threading.Thread):
             "makbug",
         )
         if len(job["moves"]) > 0:
-            fen = sf.get_fen(variant, fen, moves, chess960, sfen, show_promoted)
+            try:
+                fen = sf.get_fen(variant, fen, moves, chess960, sfen, show_promoted)
+            except Exception:
+                logging.error("sf.get_fen() failed on %s with moves %s", job["position"], job["moves"])
 
         result = self.make_request()
         result["move"] = {
