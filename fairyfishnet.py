@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.47"
+__version__ = "1.16.48"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2623,7 +2623,7 @@ extinctionPseudoRoyal = false
 extinctionPieceTypes = c
 extinctionPieceCount = 0
 
-[od_variant:chess]
+[battleofideologies:chess]
 customPiece1 = s:cFmW
 #black royal z (using pseudoroyal and extinction)
 customPiece2 = z:FD 
