@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.48"
+__version__ = "1.16.49"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2162,11 +2162,11 @@ cannon = u
 customPiece1 = a:pR
 # Copper Cannon is diagonal Xiangqi cannon
 customPiece2 = c:mBcpB
-# Iron Cannon is diagonal Janggi cannon 
+# Iron Cannon is diagonal Janggi cannon
 customPiece3 = i:pB
-# Flying Silver/Gold Cannon 
+# Flying Silver/Gold Cannon
 customPiece4 = w:mRpRmFpB2
-# Flying Copper/Iron Cannon 
+# Flying Copper/Iron Cannon
 customPiece5 = f:mBpBmWpR2
 promotedPieceType = u:w a:w c:f i:f p:g
 startFen = lnsgkgsnl/1rci1uab1/p1p1p1p1p/9/9/9/P1P1P1P1P/1BAU1ICR1/LNSGKGSNL[-] w 0 1
@@ -2525,11 +2525,11 @@ commoner = k
 bishop = b
 horse = n
 rook = r
-elephant = e
+customPiece2 = e:nAnD
 cannon = c
 customPiece1 = a:mBcpB
 
-startFen = 2rbe4/2can4/2k1k4/9/9/9/4K1K2/4NAC2/4EBR2[] w - 0 1
+startFen = 2bre4/2can4/2k1k4/9/9/9/4K1K2/4NAC2/4ERB2[] w - 0 1
 
 # Palace
 mobilityRegionBlackCommoner = c3 c4 c5 c6 c7 d3 d4 d5 d6 d7 e3 e4 e5 e6 e7 f3 f4 f5 f6 f7 g3 g4 g5 g6 g7
@@ -2626,8 +2626,8 @@ extinctionPieceCount = 0
 [battleofideologies:chess]
 customPiece1 = s:cFmW
 #black royal z (using pseudoroyal and extinction)
-customPiece2 = z:FD 
-customPiece3 = m:KN 
+customPiece2 = z:FD
+customPiece3 = m:KN
 customPiece4 = f:bWAD
 customPiece5 = e:cffNcbFfDfFW
 customPiece6 = x:bWFD
@@ -2644,7 +2644,7 @@ enPassantTypes = ps
 
 mobilityRegionBlackCustomPiece2 = *9 *8 *7 *6 *5 *2 *1
 mobilityRegionBlackCustomPiece3 = *9 *8 *7 *6 *5 *2 *1
-mobilityRegionBlackCustomPiece4 = *9 *8 *7 *6 *5 *2 *1 
+mobilityRegionBlackCustomPiece4 = *9 *8 *7 *6 *5 *2 *1
 mobilityRegionBlackCustomPiece5 = *9 *8 *7 *6 *5 *2 *1
 mobilityRegionBlackCustomPiece7 = *9 *8 *7 *6 *5 *2 *1
 
@@ -2657,7 +2657,7 @@ promotionRegionBlack = *5 *4 *3
 promotionRegionWhite = *9
 #black royal can promote
 promotedPieceType = z:x
-promotionLimit = s:9 
+promotionLimit = s:9
 mandatoryPawnPromotion = false
 mandatoryPiecePromotion = false
 pieceDemotion = true
@@ -2766,9 +2766,9 @@ materialCounting = blackdrawodds
 flyingGeneral = true
 
 [variant_000]
-#Description: the game is inspired by chess, xiangqi, and shogi (with few elements borrowed from janggi and makruk). 
-#The game is designed to have slow opening phrase but fast closing phrase with good region control being vital. 
-#There are 3 main regions in the game for each player (from white perspective): row 1,2,3 are home; row 4,5 are neutral; row 6,7,8 are away. 
+#Description: the game is inspired by chess, xiangqi, and shogi (with few elements borrowed from janggi and makruk).
+#The game is designed to have slow opening phrase but fast closing phrase with good region control being vital.
+#There are 3 main regions in the game for each player (from white perspective): row 1,2,3 are home; row 4,5 are neutral; row 6,7,8 are away.
 king = k:K
 customPiece1 = q:FWAND
 #defensive queen
@@ -2791,19 +2791,19 @@ customPiece9 = s:WfF
 maxRank = 8
 maxFile = 8
 startFen = rnbqkbnr/8/pppppppp/8/8/PPPPPPPP/8/RNBQKBNR[] w - - 0 1
-#game is setup exactly like in makruk with pawns arranged 1 row away from remaining pieces. 
+#game is setup exactly like in makruk with pawns arranged 1 row away from remaining pieces.
 mobilityRegionWhiteKing         = d1 d2 e1 e2
 mobilityRegionBlackKing         = d8 d7 e8 e7
-#king can only move 4 squares of palace inside home region. 
+#king can only move 4 squares of palace inside home region.
 mobilityRegionWhiteCustomPiece1 = *1 *2 *3
 mobilityRegionBlackCustomPiece1 = *8 *7 *6
 #queen can only move inside home region.
 promotionRegionWhite = *6 *7 *8
 promotionRegionBlack = *3 *2 *1
-#similar to makruk and shogi, promotion zone started in the sixth row. 
+#similar to makruk and shogi, promotion zone started in the sixth row.
 promotedPieceType = b:e n:h r:c p:s
 mandatoryPiecePromotion = true
-#unlike shogi but like chess or makruk, piece must promote when reaching away zone. as a result, technically no piece promote in last row.  
+#unlike shogi but like chess or makruk, piece must promote when reaching away zone. as a result, technically no piece promote in last row.
 perpetualCheckIllegal = true
 #follow xiangqi perpetual check rule
 doubleStep = false
@@ -2817,10 +2817,10 @@ blackDropRegion = *5 *4
 dropNoDoubled = p
 dropNoDoubledCount = 0
 #captured pieces (not pawn) can be dropped by capturing players; captured promoted pieces are dropped as normal piece (like in shogi).
-#however, pieces can only be dropped on neutral zone; also, piece can only be dropped to a square that are adjacent to friendly pieces (ataxx rule). 
+#however, pieces can only be dropped on neutral zone; also, piece can only be dropped to a square that are adjacent to friendly pieces (ataxx rule).
 nFoldValue = loss
-#not allow repeating 3 times. 
-#Tested on fairyground.vercel.app with 101 games of 60000ms+600ms (59300ms for white, tested before time control bug) gives results of 52-0-48 (with 1 timeout). 
+#not allow repeating 3 times.
+#Tested on fairyground.vercel.app with 101 games of 60000ms+600ms (59300ms for white, tested before time control bug) gives results of 52-0-48 (with 1 timeout).
 """)
 
     ini_file = os.path.join(engine_dir, "variants.ini")
