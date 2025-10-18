@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.51"
+__version__ = "1.16.52"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2442,37 +2442,25 @@ startFen = rnsmksnr/8/pppppppp/8/8/PPPPPPPP/8/RNSKMSNR[] w - - 0 1
 capturesToHand = false
 twoBoards = true
 
-# MARTIAL ARTS XIANGQI
+# Martial arts Xiangqi
 [xiangfu]
-
-# Board Parameters
 maxFile = 9
 maxRank = 9
-
-# Pieces
-
+startFen = 2rbm4/2cwn4/2+g1+g4/9/9/9/4+G1+G2/4NWC2/4MBR2[] w - 0 1
 commoner = k
-customPiece3 = g:Q1
 bishop = b
 horse = n
 rook = r
-customPiece2 = e:nAnD
 cannon = c
-customPiece1 = a:mBcpB
-
-startFen = 2rbe4/2can4/2+g1+g4/9/9/9/4+G1+G2/4NAC2/4EBR2[] w - 0 1
-
-# Palace
+customPiece1 = w:mBcpB
+customPiece2 = m:nAnD
+customPiece3 = g:Q1
 mobilityRegionBlackCommoner = c3 c4 c5 c6 c7 d3 d4 d5 d6 d7 e3 e4 e5 e6 e7 f3 f4 f5 f6 f7 g3 g4 g5 g6 g7
 mobilityRegionWhiteCommoner = c3 c4 c5 c6 c7 d3 d4 d5 d6 d7 e3 e4 e5 e6 e7 f3 f4 f5 f6 f7 g3 g4 g5 g6 g7
-
-# Drop Rules
 pieceDrops = true
 capturesToHand = true
 whiteDropRegion = *1 *2
 blackDropRegion = *8 *9
-
-# Royal piece rules
 extinctionPieceTypes = k
 extinctionPseudoRoyal = true
 dupleCheck = true
