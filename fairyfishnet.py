@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.52"
+__version__ = "1.16.53"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2467,6 +2467,49 @@ dupleCheck = true
 promotedPieceType = g:k
 promotionRegionWhite = -
 promotionRegionBlack = -
+
+[borderlands]
+maxFile = 9
+maxRank = 10
+# Non-promoting pieces.
+customPiece1 = c:K
+customPiece2 = g:K
+# Unpromoted pieces.
+customPiece3 = a:RcpR
+customPiece4 = s:BcpB
+customPiece5 = h:NF
+customPiece6 = e:ADW
+customPiece7 = m:F
+customPiece8 = f:W
+customPiece9 = w:fWfceFifmnD
+customPiece10 = l:KNAD
+# Promoted pieces.
+customPiece11 = b:RFcpR
+customPiece12 = d:BWcpB
+customPiece13 = i:NK
+customPiece14 = j:ADK
+customPiece15 = k:KNAD
+promotedPieceType = a:b s:d h:i e:j m:g f:g w:g l:k
+mandatoryPiecePromotion = true
+startFen = a2s1s2a/1checehc1/fw1wlw1wf/w1w1w1w1w/9/9/W1W1W1W1W/FW1WLW1WF/1CHECEHC1/A2S1S2A[MMmm] w - - 0 1
+mobilityRegionWhiteCustomPiece10 = *1 *2 *3 *4 *5 d7 f7 e9
+mobilityRegionBlackCustomPiece10 = *6 *7 *8 *9 *10 d4 f4 e2
+pieceDrops = true
+capturesToHand = false
+whiteDropRegion = *6 *7
+blackDropRegion = *4 *5
+promotionRegionWhite = *8 *9 *10
+promotionRegionBlack = *1 *2 *3
+doubleStepRegionWhite = *3
+doubleStepRegionBlack = *8
+nMoveRule = 40
+perpetualCheckIllegal = true
+moveRepetitionIllegal = true
+nFoldRule = 4
+extinctionValue = loss
+extinctionPseudoRoyal = false
+extinctionPieceTypes = c
+extinctionPieceCount = 0
 """)
 
     ini_file = os.path.join(engine_dir, "variants.ini")
