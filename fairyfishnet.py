@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.40"
+__version__ = "1.16.53"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -192,9 +192,12 @@ required_variants = set([
     "kingofthehill",
     "3check",
     "mansindam",
-    "haganeshogi",
     "dragon",
     "khans",
+    "antichess",
+    "racingkings",
+    "horde",
+    "shatranj",
 ])
 
 
@@ -602,6 +605,37 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
             logging.warning("Unexpected engine response to go: %s %s", command, arg)
 
 
+def file_of(piece: str, rank: str) -> int:
+    """
+    Returns the 0-based file of the specified piece in the rank.
+    Returns -1 if the piece is not in the rank.
+    """
+    pos = rank.find(piece)
+    if pos >= 0:
+        return sum(int(p) if p.isdigit() else 1 for p in rank[:pos])
+    else:
+        return -1
+
+
+def modded_variant(variant: str, chess960: bool, initial_fen: str) -> str:
+    """Some variants need to be treated differently by pyffish."""
+    if not chess960 and variant in ("capablanca", "capahouse") and initial_fen:
+        """
+        E-file king in a Capablanca/Capahouse variant.
+        The game will be treated as an Embassy game for the purpose of castling.
+        The king starts on the e-file if it is on the e-file in the starting rank and can castle.
+        """
+        parts = initial_fen.split()
+        ranks = parts[0].split("/")
+        if (
+            parts[2] != "-"
+            and (("K" in parts[2] or "Q" in parts[2]) and file_of("K", ranks[7]) == 4)
+            and (("k" in parts[2] or "q" in parts[2]) and file_of("k", ranks[0]) == 4)
+        ):
+            return "embassyhouse" if "house" in variant else "embassy"
+    return variant
+
+
 def set_variant_options(p, variant, chess960, nnue):
     variant = variant.lower()
 
@@ -894,12 +928,14 @@ class Worker(threading.Thread):
         lvl = job["work"]["level"]
         variant = job.get("variant", "standard")
         chess960 = job.get("chess960", False)
+        fen = job["position"]
         moves = job["moves"].split(" ")
         nnue = job.get("nnue", True)
 
         logging.debug("Playing %s (%s) with lvl %d",
                       self.job_name(job), variant, lvl)
 
+        variant = modded_variant(variant, chess960, fen)
         set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl])
         setoption(self.stockfish, "UCI_AnalyseMode", False)
@@ -909,7 +945,7 @@ class Worker(threading.Thread):
         movetime = int(round(LVL_MOVETIMES[lvl] / (self.threads * 0.9 ** (self.threads - 1))))
 
         start = time.time()
-        part = go(self.stockfish, job["position"], moves,
+        part = go(self.stockfish, fen, moves,
                   movetime=movetime, clock=job["work"].get("clock"),
                   depth=LVL_DEPTHS[lvl], variant=variant, chess960=chess960)
         end = time.time()
@@ -921,15 +957,32 @@ class Worker(threading.Thread):
         self.nodes += part.get("nodes", 0)
         self.positions += 1
 
+        sfen = False
+        show_promoted = variant in (
+            "makruk",
+            "makpong",
+            "cambodian",
+            "bughouse",
+            "supply",
+            "makbug",
+        )
+        if len(job["moves"]) > 0:
+            try:
+                fen = sf.get_fen(variant, fen, moves, chess960, sfen, show_promoted)
+            except Exception:
+                logging.error("sf.get_fen() failed on %s with moves %s", job["position"], job["moves"])
+
         result = self.make_request()
         result["move"] = {
             "bestmove": part["bestmove"],
+            "fen": fen
         }
         return result
 
     def analysis(self, job):
         variant = job.get("variant", "standard")
         chess960 = job.get("chess960", False)
+        fen = job["position"]
         moves = job["moves"].split(" ")
         nnue = job.get("nnue", True)
 
@@ -937,6 +990,7 @@ class Worker(threading.Thread):
         result["analysis"] = [None for _ in range(len(moves) + 1)]
         start = last_progress_report = time.time()
 
+        variant = modded_variant(variant, chess960, fen)
         set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", 20)
         setoption(self.stockfish, "UCI_AnalyseMode", True)
@@ -961,7 +1015,7 @@ class Worker(threading.Thread):
             logging.log(PROGRESS, "Analysing %s: %s",
                         variant, self.job_name(job, ply))
 
-            part = go(self.stockfish, job["position"], moves[0:ply],
+            part = go(self.stockfish, fen, moves[0:ply],
                       nodes=nodes, movetime=4000, variant=variant, chess960=chess960)
 
             if "mate" not in part["score"] and "time" in part and part["time"] < 100:
@@ -1429,18 +1483,26 @@ def parse_bool(inp, default=False):
 
 
 def update_nnue():
-    url= "https://fairy-stockfish.github.io/nnue/"
+    url = "https://fairy-stockfish.github.io/nnue/"
 
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
 
     # Example link
     # <a href="https://drive.google.com/u/0/uc?id=1r5o5jboZRqND8picxuAbA0VXXMJM1HuS&amp;export=download" rel="nofollow">3check-313cc226a173.nnue</a>
     for link in soup.find_all(href=re.compile("https://drive.google.com/u/0/uc")):
-        parts = link.text.split("-")
-        variant, nnue = parts[0], parts[1]
+        try:
+            parts = link.text.split("-")
+            variant, nnue = parts[0], parts[1]
+        except IndexError:
+            print("Link not supported!")
+            print(link)
+            continue
+
         # remove .nnue suffix
         if nnue.endswith(".nnue"):
             nnue = nnue[:-5]
+        else:
+            continue
 
         if variant in required_variants:
             NNUE_NET[variant] = nnue
@@ -2100,11 +2162,11 @@ cannon = u
 customPiece1 = a:pR
 # Copper Cannon is diagonal Xiangqi cannon
 customPiece2 = c:mBcpB
-# Iron Cannon is diagonal Janggi cannon 
+# Iron Cannon is diagonal Janggi cannon
 customPiece3 = i:pB
-# Flying Silver/Gold Cannon 
+# Flying Silver/Gold Cannon
 customPiece4 = w:mRpRmFpB2
-# Flying Copper/Iron Cannon 
+# Flying Copper/Iron Cannon
 customPiece5 = f:mBpBmWpR2
 promotedPieceType = u:w a:w c:f i:f p:g
 startFen = lnsgkgsnl/1rci1uab1/p1p1p1p1p/9/9/9/P1P1P1P1P/1BAU1ICR1/LNSGKGSNL[-] w 0 1
@@ -2138,6 +2200,21 @@ startFen = lhaykahl/8/pppppppp/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1
 flagPiece = k
 flagRegionWhite = *8
 flagRegionBlack = *1
+
+[khans:chess]
+centaur = h
+knibis = a
+kniroo = l
+customPiece1 = t:mNcK
+customPiece2 = s:mfhNcfW
+promotionPawnTypesBlack = s
+promotionPieceTypesBlack = t
+stalemateValue = loss
+nMoveRuleTypesBlack = s
+flagPiece = k
+flagRegionWhite = *8
+flagRegionBlack = *1
+startFen = lhatkahl/ssssssss/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1
 
 [synochess:pocketknight]
 janggiCannon = c
@@ -2211,21 +2288,6 @@ startFen = lhafkahl/8/pppppppp/8/8/PPPPPPPP/8/LHAFKAHL w - - 0 1
 flagPiece = k
 flagRegionWhite = *8
 flagRegionBlack = *1
-
-[khans:chess]
-centaur = h
-knibis = a
-kniroo = l
-customPiece1 = t:mNcK
-customPiece2 = s:mfhNcfW
-promotionPawnTypesBlack = s
-promotionPieceTypesBlack = t
-stalemateValue = loss
-nMoveRuleTypesBlack = s
-flagPiece = k
-flagRegionWhite = *8
-flagRegionBlack = *1
-startFen = lhatkahl/ssssssss/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1
 
 [empire:chess]
 customPiece1 = e:mQcN
@@ -2344,68 +2406,110 @@ flagRegionWhite = *9
 flagRegionBlack = *1
 immobilityIllegal = true
 
-# Schism Chess. White = Byzantine/Eastern Army
-[schism:chess]
-#Empress
-chancellor = e
-#Varang - the middle two pawns
-soldier = v
-#Akritoi - the right set of pawns. Berolina
-customPiece1 = a:mfFcefWimfnA
-#Promoted varang - gains one movement in all four orthogonal directions
-customPiece2 = w:fsR2bW
-#Promoted akritoi - gains non-capture movement in all four diagonals (instead of just forwards) and can capture up to 2 squares forward
-customPiece3 = y:mFcfR2
-#Merc - the left set of pawns. Standard chess pawn
-customPiece4 = m:mfWcefFimfnD
-#Promoted merc - gains non-capture movement backwards as well and can capture up to 2 squares forward diagonally
-customPiece5 = f:mvWcfB2
-#Cataphract - Xiangqi horse that can also move/capture in the first orthogonal square of each direction.
-customPiece6 = c:WnN
-#Trebuchet - Janggi cannon that cannot reach the last rank. Promotes on capture.
-customPiece7 = t:pR
-#Mangonel - Promoted trebuchet that is a combo xiangqi and janggi cannon and can move anywhere.
-customPiece8 = g:pRmR
-#Eastern Bishop - A bishop that can *also* hop like a diagonal janggi cannon to move (but not capture).
-customPiece9 = z:BmpB
-promotionRegionWhite = *1 *2 *3 *4 *5 *6 *7 *8
-promotionRegionBlack = *1
-piecePromotionOnCapture = true
-promotedPieceType = t:g v:w a:y m:f
-mobilityRegionWhiteCustomPiece7 = *1 *2 *3 *4 *5 *6 *7
-# RULES: Stalemate = loss, campmate = win, generals cannot face each other
-stalemateValue = loss
-flyingGeneral = true
-flagPiece = k
-whiteFlag = *8
-blackFlag = *1
-startFen = rnbqkbnr/pppppppp/8/8/8/8/MMMVVAAA/TCZEKZCT w kq - 0 1
+[fogofwar:chess]
+king = -
+commoner = k
+castlingKingPiece = k
+extinctionValue = loss
+extinctionPieceTypes = k
 
-[haganeshogi]
-maxRank = 8
-maxFile = 8
-king = k
-customPiece1  = a:fFsWbW
-customPiece2  = b:fKbK
-customPiece3  = c:fKsWbF
-customPiece4  = d:WfF
-customPiece5  = e:FsW
-customPiece6  = f:fWsWbF
-customPiece7  = g:fWbF
-customPiece8  = h:bWfF
-customPiece9  = i:fKbW
-customPiece10 = j:W
-customPiece11 = l:K
-customPiece12 = m:fKbF
-promotionRegionWhite = *7 *8
-promotionRegionBlack = *1 *2
-startFen = aemckdbf/ighjjhgi/8/8/8/8/IGHJJHGI/AEMCKDBF[-] w 0 1
-promotedPieceType = a:l b:l c:l d:l e:l f:l g:l h:l i:l j:l m:l
-capturesToHand = true
+# Hybrid variant of xiangqi and crazyhouse
+[xiangqihouse:xiangqi]
+startFen = rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR[] w - - 0 1
 pieceDrops = true
-perpetualCheckIllegal = true
-stalemateValue = loss
+capturesToHand = true
+dropChecks = false
+whiteDropRegion = *1 *2 *3 *4 *5
+blackDropRegion = *6 *7 *8 *9 *10
+mobilityRegionWhiteFers = d1 f1 e2 d3 f3
+mobilityRegionBlackFers = d8 f8 e9 d10 f10
+mobilityRegionWhiteElephant = c1 g1 a3 e3 i3 c5 g5
+mobilityRegionBlackElephant = c6 g6 a8 e8 i8 c10 g10
+mobilityRegionWhiteSoldier = a4 a5 c4 c5 e4 e5 g4 g5 i4 i5 *6 *7 *8 *9 *10
+mobilityRegionBlackSoldier = *1 *2 *3 *4 *5 a6 a7 c6 c7 e6 e7 g6 g7 i6 i7
+
+# Hybrid variant of makruk and crazyhouse
+[makrukhouse:makruk]
+startFen = rnsmksnr/8/pppppppp/8/8/PPPPPPPP/8/RNSKMSNR[] w - - 0 1
+pieceDrops = true
+capturesToHand = true
+firstRankPawnDrops = true
+promotionZonePawnDrops = true
+immobilityIllegal = true
+
+[makbug:makrukhouse]
+startFen = rnsmksnr/8/pppppppp/8/8/PPPPPPPP/8/RNSKMSNR[] w - - 0 1
+capturesToHand = false
+twoBoards = true
+
+# Martial arts Xiangqi
+[xiangfu]
+maxFile = 9
+maxRank = 9
+startFen = 2rbm4/2cwn4/2+g1+g4/9/9/9/4+G1+G2/4NWC2/4MBR2[] w - 0 1
+commoner = k
+bishop = b
+horse = n
+rook = r
+cannon = c
+customPiece1 = w:mBcpB
+customPiece2 = m:nAnD
+customPiece3 = g:Q1
+mobilityRegionBlackCommoner = c3 c4 c5 c6 c7 d3 d4 d5 d6 d7 e3 e4 e5 e6 e7 f3 f4 f5 f6 f7 g3 g4 g5 g6 g7
+mobilityRegionWhiteCommoner = c3 c4 c5 c6 c7 d3 d4 d5 d6 d7 e3 e4 e5 e6 e7 f3 f4 f5 f6 f7 g3 g4 g5 g6 g7
+pieceDrops = true
+capturesToHand = true
+whiteDropRegion = *1 *2
+blackDropRegion = *8 *9
+extinctionPieceTypes = k
+extinctionPseudoRoyal = true
+dupleCheck = true
+promotedPieceType = g:k
+promotionRegionWhite = -
+promotionRegionBlack = -
+
+[borderlands]
+maxFile = 9
+maxRank = 10
+# Non-promoting pieces.
+customPiece1 = c:K
+customPiece2 = g:K
+# Unpromoted pieces.
+customPiece3 = a:RcpR
+customPiece4 = s:BcpB
+customPiece5 = h:NF
+customPiece6 = e:ADW
+customPiece7 = m:F
+customPiece8 = f:W
+customPiece9 = w:fWfceFifmnD
+customPiece10 = l:KNAD
+# Promoted pieces.
+customPiece11 = b:RFcpR
+customPiece12 = d:BWcpB
+customPiece13 = i:NK
+customPiece14 = j:ADK
+customPiece15 = k:KNAD
+promotedPieceType = a:b s:d h:i e:j m:g f:g w:g l:k
 mandatoryPiecePromotion = true
+startFen = a2s1s2a/1checehc1/fw1wlw1wf/w1w1w1w1w/9/9/W1W1W1W1W/FW1WLW1WF/1CHECEHC1/A2S1S2A[MMmm] w - - 0 1
+mobilityRegionWhiteCustomPiece10 = *1 *2 *3 *4 *5 d7 f7 e9
+mobilityRegionBlackCustomPiece10 = *6 *7 *8 *9 *10 d4 f4 e2
+pieceDrops = true
+capturesToHand = false
+whiteDropRegion = *6 *7
+blackDropRegion = *4 *5
+promotionRegionWhite = *8 *9 *10
+promotionRegionBlack = *1 *2 *3
+doubleStepRegionWhite = *3
+doubleStepRegionBlack = *8
+nMoveRule = 40
+perpetualCheckIllegal = true
+moveRepetitionIllegal = true
+nFoldRule = 4
+extinctionValue = loss
+extinctionPseudoRoyal = false
+extinctionPieceTypes = c
+extinctionPieceCount = 0
 """)
 
     ini_file = os.path.join(engine_dir, "variants.ini")
