@@ -46,7 +46,7 @@ setuptools.setup(
     install_requires=[
         "requests==2.32.5",
         "pyffish==0.0.88",
-        "gdown==5.2.0",
+        "gdown==5.2.1",
         "beautifulsoup4==4.14.3",
     ],
     python_requires=">=3.7",
