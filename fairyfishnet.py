@@ -139,6 +139,7 @@ CHECK_PYPI_CHANCE = 0.01
 LVL_SKILL = [-4, 0, 3, 6, 10, 14, 16, 18, 20]
 LVL_MOVETIMES = [50, 50, 100, 150, 200, 300, 400, 500, 1000]
 LVL_DEPTHS = [1, 1, 1, 2, 3, 5, 8, 13, 22]
+ABORT_REASON_ENGINE_CRASH = "engine_crash"
 
 NNUE_NET = {}
 
@@ -764,14 +765,23 @@ class Worker(threading.Thread):
 
             # Do the next work unit
             path, request = self.work()
-        except DEAD_ENGINE_ERRORS:
+        except DEAD_ENGINE_ERRORS as err:
             alive = self.is_alive()
+            error = {
+                "reason": ABORT_REASON_ENGINE_CRASH,
+                "kind": err.__class__.__name__,
+            }
+            if self.stockfish:
+                returncode = self.stockfish.poll()
+                if returncode is not None:
+                    error["engine_returncode"] = returncode
             if alive:
                 t = next(self.backoff)
                 logging.exception("Engine process has died. Backing off %0.1fs", t)
 
-            # Abort current job
-            self.abort_job()
+            # Tell server this abort is from an engine crash so it can cap retries
+            # and avoid rescheduling the same crashing position forever.
+            self.abort_job(error=error)
 
             if alive:
                 self.sleep.wait(t)
@@ -825,15 +835,18 @@ class Worker(threading.Thread):
                 logging.error("Unexpected HTTP status for acquire: %d", response.status_code)
                 self.sleep.wait(t)
 
-    def abort_job(self):
+    def abort_job(self, error=None):
         if self.job is None:
             return
 
         logging.debug("Aborting job %s", self.job["work"]["id"])
+        request = self.make_request()
+        if error is not None:
+            request["error"] = error
 
         try:
             response = requests.post(get_endpoint(self.conf, "abort/%s" % self.job["work"]["id"]),
-                                     data=json.dumps(self.make_request()),
+                                     data=json.dumps(request),
                                      timeout=HTTP_TIMEOUT)
             if response.status_code == 204:
                 logging.info("Aborted job %s", self.job["work"]["id"])
