@@ -117,7 +117,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.56"
+__version__ = "1.16.57"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2503,9 +2503,9 @@ customPiece12 = d:BWcpB
 customPiece13 = i:NK
 customPiece14 = j:ADK
 customPiece15 = k:KNAD
-promotedPieceType = a:b s:d h:i e:j m:g f:g w:g l:k
+promotedPieceType = a:b s:d h:i e:j m:g f:g w:i l:k
 mandatoryPiecePromotion = true
-startFen = a2s1s2a/1checehc1/fw1wlw1wf/w1w1w1w1w/9/9/W1W1W1W1W/FW1WLW1WF/1CHECEHC1/A2S1S2A[MMmm] w - - 0 1
+startFen = a3s3a/1chesehc1/fw1wlw1wf/w1w1w1w1w/9/9/W1W1W1W1W/FW1WLW1WF/1CHESEHC1/A3S3A[MMmm] w - - 0 1
 mobilityRegionWhiteCustomPiece10 = *1 *2 *3 *4 *5 d7 f7 e9
 mobilityRegionBlackCustomPiece10 = *6 *7 *8 *9 *10 d4 f4 e2
 pieceDrops = true
