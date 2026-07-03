@@ -118,7 +118,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.61"
+__version__ = "1.16.62"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -387,6 +387,33 @@ def release_file_url(files):
         if file_info.get("packagetype") == "bdist_wheel":
             return file_info["url"]
     return files[0]["url"]
+
+
+def version_key(version):
+    parts = []
+    for part in re.split(r"[.+_-]", version):
+        match = re.match(r"(\d+)", part)
+        if not match:
+            break
+        parts.append(int(match.group(1)))
+    return tuple(parts)
+
+
+def is_newer_version(candidate, current):
+    candidate_key = version_key(candidate)
+    current_key = version_key(current)
+    if not candidate_key or not current_key:
+        logging.warning(
+            "Could not compare versions %s and %s; skipping auto update",
+            candidate,
+            current,
+        )
+        return False
+
+    width = max(len(candidate_key), len(current_key))
+    candidate_key += (0,) * (width - len(candidate_key))
+    current_key += (0,) * (width - len(current_key))
+    return candidate_key > current_key
 
 
 class UpdateRequired(Exception):
@@ -1287,10 +1314,18 @@ def update_self():
     response.raise_for_status()
     result = response_json(response, "PyPI fairyfishnet metadata")
     latest_version = result["info"]["version"]
-    url = release_file_url(result["releases"][latest_version])
     if latest_version == __version__:
         logging.info("Already up to date.")
         return 0
+    if not is_newer_version(latest_version, __version__):
+        logging.info(
+            "Ignoring PyPI fairyfishnet version %s because local version %s is newer",
+            latest_version,
+            __version__,
+        )
+        return 0
+
+    url = release_file_url(result["releases"][latest_version])
 
     # Wait
     t = random.random() * 15.0
@@ -1789,10 +1824,17 @@ def update_available():
     if latest_version == __version__:
         logging.info("[fairyfishnet v%s] Client is up to date", __version__)
         return False
-    else:
-        logging.info("[fairyfishnet v%s] Update available on PyPI: %s",
-                     __version__, latest_version)
-        return True
+    if not is_newer_version(latest_version, __version__):
+        logging.info(
+            "[fairyfishnet v%s] Ignoring older PyPI version: %s",
+            __version__,
+            latest_version,
+        )
+        return False
+
+    logging.info("[fairyfishnet v%s] Update available on PyPI: %s",
+                 __version__, latest_version)
+    return True
 
 
 def cmd_run(args):
