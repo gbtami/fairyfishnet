@@ -46,7 +46,7 @@ setuptools.setup(
     install_requires=[
         "requests==2.32.4; python_version < '3.9'",
         "requests==2.32.5; python_version >= '3.9'",
-        "pyffish==0.0.88",
+        "pyffish==0.0.89",
         "gdown==5.2.0",
         "beautifulsoup4==4.14.3",
     ],

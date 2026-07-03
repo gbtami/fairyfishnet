@@ -118,7 +118,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.59"
+__version__ = "1.16.60"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -353,6 +353,40 @@ def base_url(url):
 
 class ConfigError(Exception):
     pass
+
+
+class JsonResponseError(Exception):
+    pass
+
+
+def response_body_snippet(response, limit=300):
+    try:
+        text = response.text
+    except Exception:
+        return "<unreadable response body>"
+
+    text = text.replace("\r", "\\r").replace("\n", "\\n")
+    if len(text) > limit:
+        return text[:limit] + "..."
+    return text
+
+
+def response_json(response, context):
+    try:
+        return response.json()
+    except ValueError as err:
+        content_type = response.headers.get("Content-Type", "-")
+        raise JsonResponseError(
+            "%s returned invalid JSON (HTTP %s %s, content-type %s): %s"
+            % (context, response.status_code, response.reason, content_type, response_body_snippet(response))
+        ) from err
+
+
+def release_file_url(files):
+    for file_info in files:
+        if file_info.get("packagetype") == "bdist_wheel":
+            return file_info["url"]
+    return files[0]["url"]
 
 
 class UpdateRequired(Exception):
@@ -808,8 +842,15 @@ class Worker(threading.Thread):
                 self.sleep.wait(t)
             elif response.status_code == 202:
                 logging.debug("Got job: %s", response.text)
-                self.job = response.json()
-                self.backoff = start_backoff(self.conf)
+                try:
+                    self.job = response_json(response, "fishnet acquire")
+                except JsonResponseError as err:
+                    self.job = None
+                    t = next(self.backoff)
+                    logging.error("%s. Backing off %0.1fs", err, t)
+                    self.sleep.wait(t)
+                else:
+                    self.backoff = start_backoff(self.conf)
             elif 500 <= response.status_code <= 599:
                 self.job = None
                 t = next(self.backoff)
@@ -820,13 +861,13 @@ class Worker(threading.Thread):
                 t = next(self.backoff) + (60 if response.status_code == 429 else 0)
                 try:
                     logging.debug("Client error: HTTP %d %s: %s", response.status_code, response.reason, response.text)
-                    error = response.json()["error"]
+                    error = response_json(response, "fishnet client error response")["error"]
                     logging.error(error)
 
                     if "Please restart fishnet to upgrade." in error:
                         logging.error("Stopping worker for update.")
                         raise UpdateRequired()
-                except (KeyError, ValueError):
+                except (KeyError, ValueError, JsonResponseError):
                     logging.error("Client error: HTTP %d %s. Backing off %0.1fs. Request was: %s",
                                   response.status_code, response.reason, t, json.dumps(request))
                 self.sleep.wait(t)
@@ -1161,7 +1202,7 @@ def download_github_release(conf, release_page, filename):
     elif response.status_code != 200:
         raise ConfigError("Failed to look up latest Stockfish release (status %d)" % (response.status_code, ))
 
-    release = response.json()
+    release = response_json(response, "GitHub release lookup")
 
     logging.info("Latest release is tagged %s", release["tag_name"])
 
@@ -1242,9 +1283,11 @@ def update_self():
                           "pip install --user")
 
     # Look up the latest version
-    result = requests.get("https://pypi.org/pypi/fairyfishnet/json", timeout=HTTP_TIMEOUT).json()
+    response = requests.get("https://pypi.org/pypi/fairyfishnet/json", timeout=HTTP_TIMEOUT)
+    response.raise_for_status()
+    result = response_json(response, "PyPI fairyfishnet metadata")
     latest_version = result["info"]["version"]
-    url = result["releases"][latest_version][0]["url"]
+    url = release_file_url(result["releases"][latest_version])
     if latest_version == __version__:
         logging.info("Already up to date.")
         return 0
@@ -1735,7 +1778,9 @@ def start_backoff(conf):
 
 def update_available():
     try:
-        result = requests.get("https://pypi.org/pypi/fairyfishnet/json", timeout=HTTP_TIMEOUT).json()
+        response = requests.get("https://pypi.org/pypi/fairyfishnet/json", timeout=HTTP_TIMEOUT)
+        response.raise_for_status()
+        result = response_json(response, "PyPI fairyfishnet metadata")
         latest_version = result["info"]["version"]
     except Exception:
         logging.exception("Failed to check for update on PyPI")
@@ -2167,7 +2212,7 @@ def sync_variants_ini(conf, expected_sha256=None, required=False):
         if response.status_code == 404:
             raise ConfigError("Invalid or inactive fishnet key")
         response.raise_for_status()
-        payload = response.json()
+        payload = response_json(response, "fishnet variants.ini")
         ini_text = payload["variantsIni"]
         sha256 = payload.get("variantsSha256") or hashlib.sha256(ini_text.encode("utf-8")).hexdigest()
         if expected_sha256 and sha256 != expected_sha256:
