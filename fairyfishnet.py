@@ -118,7 +118,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.60"
+__version__ = "1.16.61"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -2198,14 +2198,22 @@ def write_variants_ini(conf, ini_text, sha256=None):
 
 
 def sync_variants_ini(conf, expected_sha256=None, required=False):
-    """Fetch the authoritative variants.ini from the pychess fishnet endpoint."""
+    """Fetch the server variants.ini only when a job explicitly requires it.
+
+    Older deployed pychess servers do not provide /fishnet/variants/<key>.  The
+    worker must therefore keep using its bundled variants.ini unless a newer
+    server sends a variantsSha256 value with a job.
+    """
 
     global VARIANTS_INI_SHA256
+    if not expected_sha256:
+        return VARIANTS_INI_SHA256
+    if expected_sha256 == VARIANTS_INI_SHA256:
+        return VARIANTS_INI_SHA256
+
     key = get_key(conf)
     if not key:
         return None
-    if expected_sha256 and expected_sha256 == VARIANTS_INI_SHA256:
-        return VARIANTS_INI_SHA256
 
     try:
         response = requests.get(get_endpoint(conf, "variants/%s" % key), timeout=HTTP_TIMEOUT)
@@ -2215,12 +2223,17 @@ def sync_variants_ini(conf, expected_sha256=None, required=False):
         payload = response_json(response, "fishnet variants.ini")
         ini_text = payload["variantsIni"]
         sha256 = payload.get("variantsSha256") or hashlib.sha256(ini_text.encode("utf-8")).hexdigest()
-        if expected_sha256 and sha256 != expected_sha256:
+        if sha256 != expected_sha256:
             logging.warning("Fetched variants.ini hash %s, but server job expected %s", sha256, expected_sha256)
         if sha256 != VARIANTS_INI_SHA256:
             write_variants_ini(conf, ini_text, sha256)
             logging.info("Updated variants.ini from server (%s)", sha256[:12])
         return VARIANTS_INI_SHA256
+    except JsonResponseError as err:
+        if required:
+            raise
+        logging.warning("Could not fetch variants.ini from server (%s); using local fallback if available.", err)
+        return None
     except Exception:
         if required:
             raise
@@ -2229,6 +2242,9 @@ def sync_variants_ini(conf, expected_sha256=None, required=False):
 
 
 def reload_engine_variants(p, conf, expected_sha256=None):
+    if not expected_sha256:
+        return VARIANTS_INI_SHA256
+
     previous_sha256 = VARIANTS_INI_SHA256
     current_sha256 = sync_variants_ini(conf, expected_sha256=expected_sha256, required=False)
     if current_sha256 and current_sha256 != previous_sha256 and p is not None:
@@ -2236,12 +2252,10 @@ def reload_engine_variants(p, conf, expected_sha256=None):
         isready(p)
     return current_sha256
 
+
 def create_variants_ini(args):
     conf = load_conf(args)
     engine_dir = get_engine_dir(conf)
-
-    if sync_variants_ini(conf):
-        return
 
     ini_text = textwrap.dedent("""\
 # Hybrid variant of Grand-chess and crazyhouse, using Grand-chess as a template
@@ -2676,7 +2690,11 @@ def main(argv):
     setup_logging(args.verbose,
                   sys.stderr if args.command == "systemd" else sys.stdout)
 
-    create_variants_ini(args)
+    # The cpuid subcommand is executed in a child process by detect_cpu_capabilities().
+    # Its stdout is parsed as machine-readable CPUID rows, so it must not do config
+    # loading, network I/O, engine setup, or logging to stdout before cmd_cpuid runs.
+    if args.command != "cpuid":
+        create_variants_ini(args)
 
     # Show intro
     if args.command not in ["systemd", "cpuid"]:
