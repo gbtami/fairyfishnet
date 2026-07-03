@@ -25,6 +25,7 @@ from __future__ import division
 import argparse
 import logging
 import json
+import hashlib
 import time
 import random
 import collections
@@ -117,7 +118,7 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.58"
+__version__ = "1.16.59"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -949,6 +950,7 @@ class Worker(threading.Thread):
         logging.debug("Playing %s (%s) with lvl %d",
                       self.job_name(job), variant, lvl)
 
+        reload_engine_variants(self.stockfish, self.conf, job.get("variantsSha256"))
         variant = modded_variant(variant, chess960, fen)
         set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl])
@@ -1004,6 +1006,7 @@ class Worker(threading.Thread):
         result["analysis"] = [None for _ in range(len(moves) + 1)]
         start = last_progress_report = time.time()
 
+        reload_engine_variants(self.stockfish, self.conf, job.get("variantsSha256"))
         variant = modded_variant(variant, chess960, fen)
         set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", 20)
@@ -2132,9 +2135,68 @@ def cmd_cpuid(argv):
                 print("%08x %08x %08x %08x %08x" % (eax, a, b, c, d))
 
 
+VARIANTS_INI_SHA256 = None
+
+
+def variants_ini_path(conf):
+    return os.path.join(get_engine_dir(conf), "variants.ini")
+
+
+def write_variants_ini(conf, ini_text, sha256=None):
+    global VARIANTS_INI_SHA256
+    ini_path = variants_ini_path(conf)
+    with open(ini_path, "w") as ini_file:
+        ini_file.write(ini_text)
+    VARIANTS_INI_SHA256 = sha256 or hashlib.sha256(ini_text.encode("utf-8")).hexdigest()
+    sf.set_option("VariantPath", "variants.ini")
+    return VARIANTS_INI_SHA256
+
+
+def sync_variants_ini(conf, expected_sha256=None, required=False):
+    """Fetch the authoritative variants.ini from the pychess fishnet endpoint."""
+
+    global VARIANTS_INI_SHA256
+    key = get_key(conf)
+    if not key:
+        return None
+    if expected_sha256 and expected_sha256 == VARIANTS_INI_SHA256:
+        return VARIANTS_INI_SHA256
+
+    try:
+        response = requests.get(get_endpoint(conf, "variants/%s" % key), timeout=HTTP_TIMEOUT)
+        if response.status_code == 404:
+            raise ConfigError("Invalid or inactive fishnet key")
+        response.raise_for_status()
+        payload = response.json()
+        ini_text = payload["variantsIni"]
+        sha256 = payload.get("variantsSha256") or hashlib.sha256(ini_text.encode("utf-8")).hexdigest()
+        if expected_sha256 and sha256 != expected_sha256:
+            logging.warning("Fetched variants.ini hash %s, but server job expected %s", sha256, expected_sha256)
+        if sha256 != VARIANTS_INI_SHA256:
+            write_variants_ini(conf, ini_text, sha256)
+            logging.info("Updated variants.ini from server (%s)", sha256[:12])
+        return VARIANTS_INI_SHA256
+    except Exception:
+        if required:
+            raise
+        logging.warning("Could not fetch variants.ini from server; using local fallback if available.", exc_info=True)
+        return None
+
+
+def reload_engine_variants(p, conf, expected_sha256=None):
+    previous_sha256 = VARIANTS_INI_SHA256
+    current_sha256 = sync_variants_ini(conf, expected_sha256=expected_sha256, required=False)
+    if current_sha256 and current_sha256 != previous_sha256 and p is not None:
+        setoption(p, "VariantPath", "variants.ini")
+        isready(p)
+    return current_sha256
+
 def create_variants_ini(args):
     conf = load_conf(args)
     engine_dir = get_engine_dir(conf)
+
+    if sync_variants_ini(conf):
+        return
 
     ini_text = textwrap.dedent("""\
 # Hybrid variant of Grand-chess and crazyhouse, using Grand-chess as a template
@@ -2526,10 +2588,7 @@ extinctionPieceTypes = c
 extinctionPieceCount = 0
 """)
 
-    ini_file = os.path.join(engine_dir, "variants.ini")
-    print(ini_text, file=open(ini_file, "w"))
-
-    sf.set_option("VariantPath", "variants.ini")
+    write_variants_ini(conf, ini_text)
 
 
 def main(argv):
