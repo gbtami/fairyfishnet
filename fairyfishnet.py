@@ -118,7 +118,11 @@ except NameError:
     DEAD_ENGINE_ERRORS = (EOFError, IOError)
 
 
-__version__ = "1.16.62"
+class EngineTimeout(Exception):
+    pass
+
+
+__version__ = "1.16.63"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -137,10 +141,15 @@ STAT_INTERVAL = 60.0
 DEFAULT_CONFIG = "fishnet.ini"
 PROGRESS_REPORT_INTERVAL = 5.0
 CHECK_PYPI_CHANCE = 0.01
+ENGINE_UCI_TIMEOUT = 20.0
+ENGINE_READY_TIMEOUT = 15.0
+ENGINE_GO_GRACE_TIMEOUT = 15.0
+ENGINE_GO_FALLBACK_TIMEOUT = 120.0
 LVL_SKILL = [-4, 0, 3, 6, 10, 14, 16, 18, 20]
 LVL_MOVETIMES = [50, 50, 100, 150, 200, 300, 400, 500, 1000]
 LVL_DEPTHS = [1, 1, 1, 2, 3, 5, 8, 13, 22]
 ABORT_REASON_ENGINE_CRASH = "engine_crash"
+ABORT_REASON_ENGINE_TIMEOUT = "engine_timeout"
 
 NNUE_NET = {}
 
@@ -499,9 +508,44 @@ def send(p, line):
     p.stdin.flush()
 
 
-def recv(p):
+def _readline_with_timeout(p, timeout):
+    if timeout is None:
+        return p.stdout.readline()
+
+    result = queue.Queue(maxsize=1)
+
+    def read_line():
+        try:
+            result.put((p.stdout.readline(), None))
+        except Exception as err:
+            result.put((None, err))
+
+    reader = threading.Thread(target=read_line)
+    reader.daemon = True
+    reader.start()
+
+    try:
+        line, error = result.get(True, max(0.0, timeout))
+    except queue.Empty:
+        raise EngineTimeout("Timed out waiting for engine output after %0.1fs" % timeout)
+
+    if error is not None:
+        raise error
+    return line
+
+
+def _time_left(deadline):
+    if deadline is None:
+        return None
+    return deadline - time.time()
+
+
+def recv(p, timeout=None):
     while True:
-        line = p.stdout.readline()
+        if timeout is not None and timeout <= 0:
+            raise EngineTimeout("Timed out waiting for engine output")
+
+        line = _readline_with_timeout(p, timeout)
         if line == "":
             raise EOFError()
 
@@ -513,22 +557,23 @@ def recv(p):
             return line
 
 
-def recv_uci(p):
-    command_and_args = recv(p).split(None, 1)
+def recv_uci(p, timeout=None):
+    command_and_args = recv(p, timeout=timeout).split(None, 1)
     if len(command_and_args) == 1:
         return command_and_args[0], ""
     elif len(command_and_args) == 2:
         return command_and_args
 
 
-def uci(p):
+def uci(p, timeout=ENGINE_UCI_TIMEOUT):
     send(p, "uci")
 
     engine_info = {}
     variants = set()
+    deadline = time.time() + timeout if timeout is not None else None
 
     while True:
-        command, arg = recv_uci(p)
+        command, arg = recv_uci(p, timeout=_time_left(deadline))
 
         if command == "uciok":
             return engine_info, variants
@@ -548,10 +593,11 @@ def uci(p):
             logging.warning("Unexpected engine response to uci: %s %s", command, arg)
 
 
-def isready(p):
+def isready(p, timeout=ENGINE_READY_TIMEOUT):
     send(p, "isready")
+    deadline = time.time() + timeout if timeout is not None else None
     while True:
-        command, arg = recv_uci(p)
+        command, arg = recv_uci(p, timeout=_time_left(deadline))
         if command == "readyok":
             break
         elif command == "info" and arg.startswith("string "):
@@ -571,7 +617,7 @@ def setoption(p, name, value):
     send(p, "setoption name %s value %s" % (name, value))
 
 
-def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, variant=None, chess960=False):
+def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, variant=None, chess960=False, timeout=None):
     send(p, "position fen %s moves %s" % (position, " ".join(moves)))
 
     builder = []
@@ -597,11 +643,18 @@ def go(p, position, moves, movetime=None, clock=None, depth=None, nodes=None, va
 
     send(p, " ".join(builder))
 
+    if timeout is None:
+        if movetime is not None:
+            timeout = movetime / 1000.0 + ENGINE_GO_GRACE_TIMEOUT
+        else:
+            timeout = ENGINE_GO_FALLBACK_TIMEOUT
+    deadline = time.time() + timeout if timeout is not None else None
+
     info = {}
     info["bestmove"] = None
 
     while True:
-        command, arg = recv_uci(p)
+        command, arg = recv_uci(p, timeout=_time_left(deadline))
 
         if command == "bestmove":
             bestmove = arg.split()[0]
@@ -827,27 +880,38 @@ class Worker(threading.Thread):
 
             # Do the next work unit
             path, request = self.work()
-        except DEAD_ENGINE_ERRORS as err:
+        except (DEAD_ENGINE_ERRORS, EngineTimeout) as err:
             alive = self.is_alive()
+            engine_timeout = isinstance(err, EngineTimeout)
             error = {
-                "reason": ABORT_REASON_ENGINE_CRASH,
+                "reason": ABORT_REASON_ENGINE_TIMEOUT if engine_timeout else ABORT_REASON_ENGINE_CRASH,
                 "kind": err.__class__.__name__,
             }
+            if str(err):
+                error["message"] = str(err)
             if self.stockfish:
                 returncode = self.stockfish.poll()
                 if returncode is not None:
                     error["engine_returncode"] = returncode
             if alive:
                 t = next(self.backoff)
-                logging.exception("Engine process has died. Backing off %0.1fs", t)
+                if engine_timeout:
+                    logging.exception("Engine process timed out. Backing off %0.1fs", t)
+                else:
+                    logging.exception("Engine process has died. Backing off %0.1fs", t)
 
-            # Tell server this abort is from an engine crash so it can cap retries
-            # and avoid rescheduling the same crashing position forever.
+            # Tell server this abort is from an engine failure so it can cap retries
+            # and avoid rescheduling the same crashing/hanging position forever.
             self.abort_job(error=error)
 
             if alive:
-                self.sleep.wait(t)
-                self.kill_stockfish()
+                if engine_timeout:
+                    # Kill immediately so the blocked stdout reader can unwind.
+                    self.kill_stockfish()
+                    self.sleep.wait(t)
+                else:
+                    self.sleep.wait(t)
+                    self.kill_stockfish()
 
             return
 
