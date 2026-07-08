@@ -122,7 +122,7 @@ class EngineTimeout(Exception):
     pass
 
 
-__version__ = "1.16.63"
+__version__ = "1.16.64"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -1082,7 +1082,12 @@ class Worker(threading.Thread):
         logging.debug("Playing %s (%s) with lvl %d",
                       self.job_name(job), variant, lvl)
 
-        reload_engine_variants(self.stockfish, self.conf, job.get("variantsSha256"))
+        reload_engine_variants(
+            self.stockfish,
+            self.conf,
+            job.get("variantsSha256"),
+            job.get("variantsScope") or variant,
+        )
         variant = modded_variant(variant, chess960, fen)
         set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl])
@@ -1138,7 +1143,12 @@ class Worker(threading.Thread):
         result["analysis"] = [None for _ in range(len(moves) + 1)]
         start = last_progress_report = time.time()
 
-        reload_engine_variants(self.stockfish, self.conf, job.get("variantsSha256"))
+        reload_engine_variants(
+            self.stockfish,
+            self.conf,
+            job.get("variantsSha256"),
+            job.get("variantsScope") or variant,
+        )
         variant = modded_variant(variant, chess960, fen)
         set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", 20)
@@ -2287,28 +2297,62 @@ def cmd_cpuid(argv):
 
 
 VARIANTS_INI_SHA256 = None
+VARIANTS_INI_FILENAME = "variants.ini"
 
 
-def variants_ini_path(conf):
-    return os.path.join(get_engine_dir(conf), "variants.ini")
+def _valid_variants_sha256(value):
+    return isinstance(value, str) and re.match(r"^[0-9a-f]{64}$", value) is not None
 
 
-def write_variants_ini(conf, ini_text, sha256=None):
-    global VARIANTS_INI_SHA256
-    ini_path = variants_ini_path(conf)
+def variants_ini_filename(sha256=None):
+    if _valid_variants_sha256(sha256):
+        return "variants-%s.ini" % sha256
+    return "variants.ini"
+
+
+def variants_ini_path(conf, sha256=None):
+    return os.path.join(get_engine_dir(conf), variants_ini_filename(sha256))
+
+
+def _set_pyffish_variant_path(path):
+    sf.set_option("VariantPath", path)
+
+
+def write_variants_ini(conf, ini_text, sha256=None, scoped=False):
+    global VARIANTS_INI_SHA256, VARIANTS_INI_FILENAME
+    payload_sha256 = sha256 or hashlib.sha256(ini_text.encode("utf-8")).hexdigest()
+    filename = variants_ini_filename(payload_sha256) if scoped else "variants.ini"
+    ini_path = os.path.join(get_engine_dir(conf), filename)
     with open(ini_path, "w") as ini_file:
         ini_file.write(ini_text)
-    VARIANTS_INI_SHA256 = sha256 or hashlib.sha256(ini_text.encode("utf-8")).hexdigest()
-    sf.set_option("VariantPath", "variants.ini")
+    VARIANTS_INI_SHA256 = payload_sha256
+    VARIANTS_INI_FILENAME = filename
+    _set_pyffish_variant_path(ini_path)
     return VARIANTS_INI_SHA256
 
 
-def sync_variants_ini(conf, expected_sha256=None, required=False):
-    """Fetch the server variants.ini only when a job explicitly requires it.
+def _load_cached_variants_ini(conf, expected_sha256):
+    global VARIANTS_INI_SHA256, VARIANTS_INI_FILENAME
+    if not _valid_variants_sha256(expected_sha256):
+        return None
+    filename = variants_ini_filename(expected_sha256)
+    ini_path = os.path.join(get_engine_dir(conf), filename)
+    if not os.path.exists(ini_path):
+        return None
+    VARIANTS_INI_SHA256 = expected_sha256
+    VARIANTS_INI_FILENAME = filename
+    _set_pyffish_variant_path(ini_path)
+    return VARIANTS_INI_SHA256
+
+
+def sync_variants_ini(conf, expected_sha256=None, required=False, variant=None):
+    """Fetch the per-work server variants.ini only when a job explicitly requires it.
 
     Older deployed pychess servers do not provide /fishnet/variants/<key>.  The
     worker must therefore keep using its bundled variants.ini unless a newer
-    server sends a variantsSha256 value with a job.
+    server sends a variantsSha256 value with a job.  Newer servers scope that
+    payload to the job's catalogued variant, so one bad custom section does not
+    become the global variants.ini for every future worker start.
     """
 
     global VARIANTS_INI_SHA256
@@ -2317,44 +2361,71 @@ def sync_variants_ini(conf, expected_sha256=None, required=False):
     if expected_sha256 == VARIANTS_INI_SHA256:
         return VARIANTS_INI_SHA256
 
+    current_sha256 = _load_cached_variants_ini(conf, expected_sha256)
+    if current_sha256:
+        return current_sha256
+
     key = get_key(conf)
     if not key:
         return None
 
+    params = {"sha256": expected_sha256}
+    if variant:
+        params["variant"] = variant
+
     try:
-        response = requests.get(get_endpoint(conf, "variants/%s" % key), timeout=HTTP_TIMEOUT)
+        response = requests.get(
+            get_endpoint(conf, "variants/%s" % key), params=params, timeout=HTTP_TIMEOUT
+        )
         if response.status_code == 404:
             raise ConfigError("Invalid or inactive fishnet key")
         response.raise_for_status()
         payload = response_json(response, "fishnet variants.ini")
         ini_text = payload["variantsIni"]
-        sha256 = payload.get("variantsSha256") or hashlib.sha256(ini_text.encode("utf-8")).hexdigest()
+        sha256 = payload.get("variantsSha256") or hashlib.sha256(
+            ini_text.encode("utf-8")
+        ).hexdigest()
         if sha256 != expected_sha256:
-            logging.warning("Fetched variants.ini hash %s, but server job expected %s", sha256, expected_sha256)
+            logging.warning(
+                "Fetched variants.ini hash %s, but server job expected %s",
+                sha256,
+                expected_sha256,
+            )
         if sha256 != VARIANTS_INI_SHA256:
-            write_variants_ini(conf, ini_text, sha256)
-            logging.info("Updated variants.ini from server (%s)", sha256[:12])
+            write_variants_ini(conf, ini_text, sha256, scoped=True)
+            logging.info("Updated scoped variants.ini from server (%s)", sha256[:12])
         return VARIANTS_INI_SHA256
     except JsonResponseError as err:
         if required:
             raise
-        logging.warning("Could not fetch variants.ini from server (%s); using local fallback if available.", err)
+        logging.warning(
+            "Could not fetch variants.ini from server (%s); using local fallback if available.",
+            err,
+        )
         return None
     except Exception:
         if required:
             raise
-        logging.warning("Could not fetch variants.ini from server; using local fallback if available.", exc_info=True)
+        logging.warning(
+            "Could not fetch variants.ini from server; using local fallback if available.",
+            exc_info=True,
+        )
         return None
 
 
-def reload_engine_variants(p, conf, expected_sha256=None):
+def reload_engine_variants(p, conf, expected_sha256=None, variant=None):
     if not expected_sha256:
         return VARIANTS_INI_SHA256
 
-    previous_sha256 = VARIANTS_INI_SHA256
-    current_sha256 = sync_variants_ini(conf, expected_sha256=expected_sha256, required=False)
-    if current_sha256 and current_sha256 != previous_sha256 and p is not None:
-        setoption(p, "VariantPath", "variants.ini")
+    current_sha256 = sync_variants_ini(
+        conf, expected_sha256=expected_sha256, required=False, variant=variant
+    )
+    if current_sha256 and p is not None:
+        # Always apply the currently selected scoped file. The engine process may
+        # have restarted after a crash while the Python-side sha256 cache stayed
+        # unchanged. In that case hash comparison alone would leave the fresh
+        # engine on its startup VariantPath.
+        setoption(p, "VariantPath", VARIANTS_INI_FILENAME)
         isready(p)
     return current_sha256
 
