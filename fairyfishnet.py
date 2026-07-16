@@ -122,7 +122,7 @@ class EngineTimeout(Exception):
     pass
 
 
-__version__ = "1.16.64"
+__version__ = "1.16.65"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -880,7 +880,7 @@ class Worker(threading.Thread):
 
             # Do the next work unit
             path, request = self.work()
-        except (DEAD_ENGINE_ERRORS, EngineTimeout) as err:
+        except DEAD_ENGINE_ERRORS + (EngineTimeout,) as err:
             alive = self.is_alive()
             engine_timeout = isinstance(err, EngineTimeout)
             error = {

@@ -146,6 +146,21 @@ class UnitTests(unittest.TestCase):
         self.assertEqual(fairyfishnet.parse_bool(""), False)
         self.assertEqual(fairyfishnet.parse_bool("", default=True), True)
 
+    def test_worker_recovers_from_dead_engine_error(self):
+        worker = object.__new__(fairyfishnet.Worker)
+        worker.start_stockfish = lambda: (_ for _ in ()).throw(EOFError())
+        worker.is_alive = lambda: False
+        worker.stockfish = None
+        aborted = []
+        worker.abort_job = lambda error=None: aborted.append(error)
+
+        worker.run_inner()
+
+        self.assertEqual(
+            aborted,
+            [{"reason": fairyfishnet.ABORT_REASON_ENGINE_CRASH, "kind": "EOFError"}],
+        )
+
 
 if __name__ == "__main__":
     if "-v" in sys.argv or "--verbose" in sys.argv:
