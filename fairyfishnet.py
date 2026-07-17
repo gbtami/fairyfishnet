@@ -23,6 +23,7 @@ from __future__ import print_function
 from __future__ import division
 
 import argparse
+import errno
 import logging
 import json
 import hashlib
@@ -122,7 +123,7 @@ class EngineTimeout(Exception):
     pass
 
 
-__version__ = "1.16.65"
+__version__ = "1.16.66"
 
 __author__ = "Bajusz Tamás"
 __email__ = "gbtami@gmail.com"
@@ -1072,6 +1073,16 @@ class Worker(threading.Thread):
         return "".join(builder)
 
     def bestmove(self, job):
+        variant = job.get("variant", "standard")
+        with use_engine_variants(
+            self.stockfish,
+            self.conf,
+            job.get("variantsSha256"),
+            job.get("variantsScope") or variant,
+        ) as variants_ini:
+            return self._bestmove(job, variants_ini)
+
+    def _bestmove(self, job, variants_ini):
         lvl = job["work"]["level"]
         variant = job.get("variant", "standard")
         chess960 = job.get("chess960", False)
@@ -1082,12 +1093,6 @@ class Worker(threading.Thread):
         logging.debug("Playing %s (%s) with lvl %d",
                       self.job_name(job), variant, lvl)
 
-        reload_engine_variants(
-            self.stockfish,
-            self.conf,
-            job.get("variantsSha256"),
-            job.get("variantsScope") or variant,
-        )
         variant = modded_variant(variant, chess960, fen)
         set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl])
@@ -1121,7 +1126,9 @@ class Worker(threading.Thread):
         )
         if len(job["moves"]) > 0:
             try:
-                fen = sf.get_fen(variant, fen, moves, chess960, sfen, show_promoted)
+                fen = pyffish_get_fen(
+                    variants_ini, variant, fen, moves, chess960, sfen, show_promoted
+                )
             except Exception:
                 logging.error("sf.get_fen() failed on %s with moves %s", job["position"], job["moves"])
 
@@ -1134,6 +1141,16 @@ class Worker(threading.Thread):
 
     def analysis(self, job):
         variant = job.get("variant", "standard")
+        with use_engine_variants(
+            self.stockfish,
+            self.conf,
+            job.get("variantsSha256"),
+            job.get("variantsScope") or variant,
+        ):
+            return self._analysis(job)
+
+    def _analysis(self, job):
+        variant = job.get("variant", "standard")
         chess960 = job.get("chess960", False)
         fen = job["position"]
         moves = job["moves"].split(" ")
@@ -1143,12 +1160,6 @@ class Worker(threading.Thread):
         result["analysis"] = [None for _ in range(len(moves) + 1)]
         start = last_progress_report = time.time()
 
-        reload_engine_variants(
-            self.stockfish,
-            self.conf,
-            job.get("variantsSha256"),
-            job.get("variantsScope") or variant,
-        )
         variant = modded_variant(variant, chess960, fen)
         set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", 20)
@@ -1964,6 +1975,9 @@ def cmd_run(args):
             print(" * %s = %s%s" % (name, value, hint))
         print()
 
+    cleanup_variants_ini_cache(conf)
+    last_variants_cleanup = time.time()
+
     print("### Starting workers ...")
     print()
 
@@ -2003,6 +2017,11 @@ def cmd_run(args):
                              sum(worker.positions for worker in workers),
                              int(sum(worker.nodes for worker in workers) / 1000 / 1000))
 
+                refresh_variants_ini_lease(conf)
+                if time.time() - last_variants_cleanup >= VARIANTS_CACHE_CLEANUP_INTERVAL:
+                    cleanup_variants_ini_cache(conf)
+                    last_variants_cleanup = time.time()
+
                 # Check for update
                 if random.random() <= CHECK_PYPI_CHANCE and update_available() and args.auto_update:
                     raise UpdateRequired()
@@ -2041,6 +2060,8 @@ def cmd_run(args):
         # Wait
         for worker in workers:
             worker.finished.wait()
+
+        clear_variants_ini_lease(conf)
 
     return 0
 
@@ -2296,8 +2317,21 @@ def cmd_cpuid(argv):
                 print("%08x %08x %08x %08x %08x" % (eax, a, b, c, d))
 
 
-VARIANTS_INI_SHA256 = None
-VARIANTS_INI_FILENAME = "variants.ini"
+VARIANTS_CACHE_MAX_FILES = 512
+VARIANTS_CACHE_MIN_AGE = 7 * 24 * 60 * 60
+VARIANTS_CACHE_CLEANUP_INTERVAL = 24 * 60 * 60
+VARIANTS_CACHE_LEASE_TTL = 15 * 60
+VARIANTS_CACHE_LOCK_STALE = 10
+VARIANTS_CACHE_FILE_RE = re.compile(r"^variants-([0-9a-f]{64})\.ini$")
+VARIANTS_CACHE_LEASE_RE = re.compile(
+    r"^\.fairyfishnet-variants-[0-9]+-[0-9a-f]+\.lease$"
+)
+VARIANTS_CACHE_THREAD_LOCK = threading.RLock()
+VARIANTS_LEASE_LOCK = threading.RLock()
+PYFFISH_VARIANT_LOCK = threading.RLock()
+ACTIVE_VARIANTS = collections.Counter()
+VARIANTS_LEASE_TOKEN = "%d-%x" % (os.getpid(), int(time.time() * 1000000))
+VariantsIni = collections.namedtuple("VariantsIni", "sha256 filename path")
 
 
 def _valid_variants_sha256(value):
@@ -2314,56 +2348,141 @@ def variants_ini_path(conf, sha256=None):
     return os.path.join(get_engine_dir(conf), variants_ini_filename(sha256))
 
 
-def _set_pyffish_variant_path(path):
-    sf.set_option("VariantPath", path)
+def default_variants_ini(conf):
+    return VariantsIni(None, "variants.ini", variants_ini_path(conf))
+
+
+def _variants_ini_entry(conf, sha256):
+    filename = variants_ini_filename(sha256)
+    return VariantsIni(sha256, filename, os.path.join(get_engine_dir(conf), filename))
+
+
+def _atomic_write_text(path, text):
+    temporary = "%s.tmp-%d-%d-%x" % (
+        path,
+        os.getpid(),
+        id(threading.current_thread()),
+        random.getrandbits(32),
+    )
+    try:
+        with open(temporary, "w") as output:
+            output.write(text)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, path)
+    finally:
+        try:
+            os.remove(temporary)
+        except OSError as err:
+            if err.errno != errno.ENOENT:
+                raise
+
+
+def _touch(path):
+    try:
+        os.utime(path, None)
+    except OSError as err:
+        if err.errno != errno.ENOENT:
+            raise
+
+
+@contextlib.contextmanager
+def _variants_cache_lock(conf, timeout=VARIANTS_CACHE_LOCK_STALE + 1.0):
+    lock_path = os.path.join(get_engine_dir(conf), ".fairyfishnet-variants-cache.lock")
+    lock_token = "%s-%x" % (VARIANTS_LEASE_TOKEN, random.getrandbits(64))
+    deadline = time.time() + timeout
+    acquired = False
+
+    with VARIANTS_CACHE_THREAD_LOCK:
+        while not acquired:
+            try:
+                descriptor = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            except OSError as err:
+                if err.errno != errno.EEXIST:
+                    raise
+
+                try:
+                    stale = time.time() - os.path.getmtime(lock_path) > VARIANTS_CACHE_LOCK_STALE
+                except OSError:
+                    stale = False
+
+                if stale:
+                    try:
+                        os.remove(lock_path)
+                    except OSError:
+                        pass
+                    continue
+
+                if time.time() >= deadline:
+                    raise IOError("Timed out waiting for variants.ini cache lock")
+                time.sleep(0.05)
+            else:
+                with os.fdopen(descriptor, "w") as lock_file:
+                    lock_file.write(lock_token)
+                acquired = True
+
+        try:
+            yield
+        finally:
+            try:
+                with open(lock_path) as lock_file:
+                    owner = lock_file.read()
+            except OSError:
+                owner = None
+            if owner == lock_token:
+                try:
+                    os.remove(lock_path)
+                except OSError as err:
+                    if err.errno != errno.ENOENT:
+                        logging.warning("Could not remove variants.ini cache lock: %s", err)
 
 
 def write_variants_ini(conf, ini_text, sha256=None, scoped=False):
-    global VARIANTS_INI_SHA256, VARIANTS_INI_FILENAME
     payload_sha256 = sha256 or hashlib.sha256(ini_text.encode("utf-8")).hexdigest()
-    filename = variants_ini_filename(payload_sha256) if scoped else "variants.ini"
-    ini_path = os.path.join(get_engine_dir(conf), filename)
-    with open(ini_path, "w") as ini_file:
-        ini_file.write(ini_text)
-    VARIANTS_INI_SHA256 = payload_sha256
-    VARIANTS_INI_FILENAME = filename
-    _set_pyffish_variant_path(ini_path)
-    return VARIANTS_INI_SHA256
+    entry = _variants_ini_entry(conf, payload_sha256) if scoped else default_variants_ini(conf)
+
+    with _variants_cache_lock(conf):
+        if not scoped or not os.path.exists(entry.path):
+            _atomic_write_text(entry.path, ini_text)
+        else:
+            _touch(entry.path)
+
+    if not scoped:
+        entry = VariantsIni(payload_sha256, entry.filename, entry.path)
+    return entry
 
 
 def _load_cached_variants_ini(conf, expected_sha256):
-    global VARIANTS_INI_SHA256, VARIANTS_INI_FILENAME
     if not _valid_variants_sha256(expected_sha256):
         return None
-    filename = variants_ini_filename(expected_sha256)
-    ini_path = os.path.join(get_engine_dir(conf), filename)
-    if not os.path.exists(ini_path):
-        return None
-    VARIANTS_INI_SHA256 = expected_sha256
-    VARIANTS_INI_FILENAME = filename
-    _set_pyffish_variant_path(ini_path)
-    return VARIANTS_INI_SHA256
+
+    entry = _variants_ini_entry(conf, expected_sha256)
+    with _variants_cache_lock(conf):
+        if not os.path.exists(entry.path):
+            return None
+        _touch(entry.path)
+    return entry
 
 
 def sync_variants_ini(conf, expected_sha256=None, required=False, variant=None):
-    """Fetch the per-work server variants.ini only when a job explicitly requires it.
+    """Return the immutable variants.ini cache entry required by a work unit.
 
-    Older deployed pychess servers do not provide /fishnet/variants/<key>.  The
-    worker must therefore keep using its bundled variants.ini unless a newer
-    server sends a variantsSha256 value with a job.  Newer servers scope that
-    payload to the job's catalogued variant, so one bad custom section does not
-    become the global variants.ini for every future worker start.
+    Older deployed pychess servers do not provide /fishnet/variants/<key>. The
+    worker therefore uses its bundled variants.ini unless a newer server sends
+    a variantsSha256 value with a job. Scoped payloads are content-addressed so
+    worker threads and separate fairyfishnet processes can safely share them.
     """
 
-    global VARIANTS_INI_SHA256
     if not expected_sha256:
-        return VARIANTS_INI_SHA256
-    if expected_sha256 == VARIANTS_INI_SHA256:
-        return VARIANTS_INI_SHA256
+        return default_variants_ini(conf)
 
-    current_sha256 = _load_cached_variants_ini(conf, expected_sha256)
-    if current_sha256:
-        return current_sha256
+    try:
+        cached = _load_cached_variants_ini(conf, expected_sha256)
+    except IOError as err:
+        logging.warning("Could not read variants.ini cache: %s", err)
+        cached = None
+    if cached:
+        return cached
 
     key = get_key(conf)
     if not key:
@@ -2391,10 +2510,9 @@ def sync_variants_ini(conf, expected_sha256=None, required=False, variant=None):
                 sha256,
                 expected_sha256,
             )
-        if sha256 != VARIANTS_INI_SHA256:
-            write_variants_ini(conf, ini_text, sha256, scoped=True)
-            logging.info("Updated scoped variants.ini from server (%s)", sha256[:12])
-        return VARIANTS_INI_SHA256
+        entry = write_variants_ini(conf, ini_text, sha256, scoped=True)
+        logging.info("Updated scoped variants.ini from server (%s)", sha256[:12])
+        return entry
     except JsonResponseError as err:
         if required:
             raise
@@ -2413,21 +2531,185 @@ def sync_variants_ini(conf, expected_sha256=None, required=False, variant=None):
         return None
 
 
-def reload_engine_variants(p, conf, expected_sha256=None, variant=None):
-    if not expected_sha256:
-        return VARIANTS_INI_SHA256
+def _variants_lease_path(conf):
+    return os.path.join(
+        get_engine_dir(conf), ".fairyfishnet-variants-%s.lease" % VARIANTS_LEASE_TOKEN
+    )
 
-    current_sha256 = sync_variants_ini(
+
+def _active_variants_for_engine_dir(engine_dir):
+    return sorted(
+        sha256
+        for (active_engine_dir, sha256), count in ACTIVE_VARIANTS.items()
+        if active_engine_dir == engine_dir and count > 0
+    )
+
+
+def _write_variants_lease(conf):
+    engine_dir = get_engine_dir(conf)
+    path = _variants_lease_path(conf)
+    active = _active_variants_for_engine_dir(engine_dir)
+    if active:
+        _atomic_write_text(path, "".join("%s\n" % sha256 for sha256 in active))
+    else:
+        try:
+            os.remove(path)
+        except OSError as err:
+            if err.errno != errno.ENOENT:
+                raise
+
+
+def _try_write_variants_lease(conf):
+    try:
+        _write_variants_lease(conf)
+    except OSError as err:
+        logging.warning("Could not update variants.ini cache lease: %s", err)
+
+
+def refresh_variants_ini_lease(conf):
+    with VARIANTS_LEASE_LOCK:
+        _try_write_variants_lease(conf)
+
+
+def clear_variants_ini_lease(conf):
+    engine_dir = get_engine_dir(conf)
+    with VARIANTS_LEASE_LOCK:
+        for key in list(ACTIVE_VARIANTS):
+            if key[0] == engine_dir:
+                del ACTIVE_VARIANTS[key]
+        _try_write_variants_lease(conf)
+
+
+@contextlib.contextmanager
+def active_variants_ini(conf, entry):
+    if entry is None or not _valid_variants_sha256(entry.sha256):
+        yield
+        return
+
+    key = (get_engine_dir(conf), entry.sha256)
+    with VARIANTS_LEASE_LOCK:
+        ACTIVE_VARIANTS[key] += 1
+        _try_write_variants_lease(conf)
+    try:
+        yield
+    finally:
+        with VARIANTS_LEASE_LOCK:
+            ACTIVE_VARIANTS[key] -= 1
+            if ACTIVE_VARIANTS[key] <= 0:
+                del ACTIVE_VARIANTS[key]
+            _try_write_variants_lease(conf)
+
+
+def _leased_variants_ini_hashes(engine_dir, now):
+    protected = set()
+    try:
+        names = os.listdir(engine_dir)
+    except OSError:
+        return protected
+
+    for name in names:
+        if VARIANTS_CACHE_LEASE_RE.match(name) is None:
+            continue
+        path = os.path.join(engine_dir, name)
+        try:
+            modified = os.path.getmtime(path)
+        except OSError:
+            continue
+        if now - modified > VARIANTS_CACHE_LEASE_TTL:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+            continue
+        try:
+            with open(path) as lease:
+                protected.update(
+                    line.strip() for line in lease if _valid_variants_sha256(line.strip())
+                )
+        except OSError:
+            continue
+    return protected
+
+
+
+def cleanup_variants_ini_cache(
+        conf, now=None, max_files=VARIANTS_CACHE_MAX_FILES,
+        min_age=VARIANTS_CACHE_MIN_AGE):
+    """Delete old, unused content-addressed variants.ini cache entries."""
+
+    now = time.time() if now is None else now
+    engine_dir = get_engine_dir(conf)
+    deleted = 0
+
+    try:
+        with _variants_cache_lock(conf):
+            protected = _leased_variants_ini_hashes(engine_dir, now)
+            with VARIANTS_LEASE_LOCK:
+                protected.update(_active_variants_for_engine_dir(engine_dir))
+            entries = []
+            for name in os.listdir(engine_dir):
+                match = VARIANTS_CACHE_FILE_RE.match(name)
+                if match is None:
+                    continue
+                path = os.path.join(engine_dir, name)
+                try:
+                    modified = os.path.getmtime(path)
+                except OSError:
+                    continue
+                entries.append((modified, match.group(1), path))
+
+            entries.sort(reverse=True)
+            for index, (modified, sha256, path) in enumerate(entries):
+                if index < max_files or sha256 in protected or now - modified < min_age:
+                    continue
+                try:
+                    os.remove(path)
+                    deleted += 1
+                except OSError as err:
+                    if err.errno != errno.ENOENT:
+                        logging.warning("Could not remove cached variants.ini %s: %s", path, err)
+    except IOError as err:
+        logging.warning("Skipping variants.ini cache cleanup: %s", err)
+        return 0
+
+    if deleted:
+        logging.info("Removed %d old cached variants.ini file(s)", deleted)
+    return deleted
+
+
+def _select_variants_ini(conf, expected_sha256=None, variant=None):
+    entry = sync_variants_ini(
         conf, expected_sha256=expected_sha256, required=False, variant=variant
     )
-    if current_sha256 and p is not None:
-        # Always apply the currently selected scoped file. The engine process may
-        # have restarted after a crash while the Python-side sha256 cache stayed
-        # unchanged. In that case hash comparison alone would leave the fresh
-        # engine on its startup VariantPath.
-        setoption(p, "VariantPath", VARIANTS_INI_FILENAME)
+    return entry or default_variants_ini(conf)
+
+
+def _apply_engine_variants(p, entry):
+    if p is not None:
+        # Always apply the exact entry selected for this work unit. Another
+        # worker thread may select a different hash at the same time.
+        setoption(p, "VariantPath", entry.filename)
         isready(p)
-    return current_sha256
+
+
+def reload_engine_variants(p, conf, expected_sha256=None, variant=None):
+    entry = _select_variants_ini(conf, expected_sha256, variant)
+    _apply_engine_variants(p, entry)
+    return entry
+
+
+@contextlib.contextmanager
+def use_engine_variants(p, conf, expected_sha256=None, variant=None):
+    entry = _select_variants_ini(conf, expected_sha256, variant)
+    with active_variants_ini(conf, entry):
+        _apply_engine_variants(p, entry)
+        yield entry
+
+
+def pyffish_get_fen(entry, variant, fen, moves, chess960, sfen, show_promoted):
+    with PYFFISH_VARIANT_LOCK:
+        sf.set_option("VariantPath", entry.path)
+        return sf.get_fen(variant, fen, moves, chess960, sfen, show_promoted)
 
 
 def create_variants_ini(args):

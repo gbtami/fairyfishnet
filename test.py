@@ -9,6 +9,9 @@ import fairyfishnet
 import unittest
 import sys
 import multiprocessing
+import os
+import tempfile
+import time
 
 try:
     import configparser
@@ -140,11 +143,103 @@ class WorkerTest(unittest.TestCase):
 
 class UnitTests(unittest.TestCase):
 
+    def variants_conf(self, engine_dir):
+        conf = configparser.ConfigParser()
+        conf.add_section("Fishnet")
+        conf.set("Fishnet", "EngineDir", engine_dir)
+        return conf
+
     def test_parse_bool(self):
         self.assertEqual(fairyfishnet.parse_bool("yes"), True)
         self.assertEqual(fairyfishnet.parse_bool("no"), False)
         self.assertEqual(fairyfishnet.parse_bool(""), False)
         self.assertEqual(fairyfishnet.parse_bool("", default=True), True)
+
+
+    def test_reload_engine_variants_uses_selected_cache_entry(self):
+        with tempfile.TemporaryDirectory() as engine_dir:
+            conf = self.variants_conf(engine_dir)
+            sha256 = "a" * 64
+            entry = fairyfishnet.write_variants_ini(
+                conf, "[custom]\n", sha256=sha256, scoped=True
+            )
+            calls = []
+            original_setoption = fairyfishnet.setoption
+            original_isready = fairyfishnet.isready
+            try:
+                fairyfishnet.setoption = lambda process, name, value: calls.append(
+                    (name, value)
+                )
+                fairyfishnet.isready = lambda process: None
+                selected = fairyfishnet.reload_engine_variants(
+                    object(), conf, expected_sha256=sha256
+                )
+            finally:
+                fairyfishnet.setoption = original_setoption
+                fairyfishnet.isready = original_isready
+
+            self.assertEqual(selected, entry)
+            self.assertEqual(calls, [("VariantPath", entry.filename)])
+
+    def test_cleanup_preserves_active_variants_ini(self):
+        with tempfile.TemporaryDirectory() as engine_dir:
+            conf = self.variants_conf(engine_dir)
+            now = time.time()
+            active = fairyfishnet.write_variants_ini(
+                conf, "[active]\n", sha256="a" * 64, scoped=True
+            )
+            inactive = fairyfishnet.write_variants_ini(
+                conf, "[inactive]\n", sha256="b" * 64, scoped=True
+            )
+            os.utime(active.path, (now - 100, now - 100))
+            os.utime(inactive.path, (now - 100, now - 100))
+
+            with fairyfishnet.active_variants_ini(conf, active):
+                deleted = fairyfishnet.cleanup_variants_ini_cache(
+                    conf, now=now, max_files=0, min_age=0
+                )
+                self.assertTrue(os.path.exists(active.path))
+                self.assertFalse(os.path.exists(inactive.path))
+
+            self.assertEqual(deleted, 1)
+
+    def test_cleanup_keeps_newest_cache_entries(self):
+        with tempfile.TemporaryDirectory() as engine_dir:
+            conf = self.variants_conf(engine_dir)
+            now = time.time()
+            older = fairyfishnet.write_variants_ini(
+                conf, "[older]\n", sha256="e" * 64, scoped=True
+            )
+            newer = fairyfishnet.write_variants_ini(
+                conf, "[newer]\n", sha256="f" * 64, scoped=True
+            )
+            os.utime(older.path, (now - 200, now - 200))
+            os.utime(newer.path, (now - 100, now - 100))
+
+            deleted = fairyfishnet.cleanup_variants_ini_cache(
+                conf, now=now, max_files=1, min_age=0
+            )
+
+            self.assertEqual(deleted, 1)
+            self.assertFalse(os.path.exists(older.path))
+            self.assertTrue(os.path.exists(newer.path))
+
+    def test_cleanup_keeps_recent_and_unscoped_files(self):
+        with tempfile.TemporaryDirectory() as engine_dir:
+            conf = self.variants_conf(engine_dir)
+            now = time.time()
+            recent = fairyfishnet.write_variants_ini(
+                conf, "[recent]\n", sha256="c" * 64, scoped=True
+            )
+            unscoped = fairyfishnet.write_variants_ini(conf, "[base]\n")
+
+            deleted = fairyfishnet.cleanup_variants_ini_cache(
+                conf, now=now, max_files=0, min_age=60
+            )
+
+            self.assertEqual(deleted, 0)
+            self.assertTrue(os.path.exists(recent.path))
+            self.assertTrue(os.path.exists(unscoped.path))
 
     def test_worker_recovers_from_dead_engine_error(self):
         worker = object.__new__(fairyfishnet.Worker)
