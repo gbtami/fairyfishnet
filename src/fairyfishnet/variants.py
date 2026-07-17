@@ -33,6 +33,8 @@ VARIANTS_CACHE_LEASE_RE = re.compile(r"^\.fairyfishnet-variants-[0-9]+-[0-9a-f]+
 VARIANTS_CACHE_THREAD_LOCK = threading.RLock()
 VARIANTS_LEASE_LOCK = threading.RLock()
 PYFFISH_VARIANT_LOCK = threading.RLock()
+PYFFISH_LOADED_VARIANTS_SHA256 = set()
+ENGINE_LOADED_VARIANTS_SHA256_ATTRIBUTE = "_fairyfishnet_loaded_variants_sha256"
 ACTIVE_VARIANTS = collections.Counter()
 VARIANTS_LEASE_TOKEN = "%d-%x" % (os.getpid(), int(time.time() * 1000000))
 VariantsIni = collections.namedtuple("VariantsIni", "sha256 filename path")
@@ -348,9 +350,23 @@ def cleanup_variants_ini_cache(conf, now=None, max_files=VARIANTS_CACHE_MAX_FILE
 
 
 def _apply_engine_variants(p, entry):
-    if p is not None:
-        setoption(p, "VariantPath", entry.filename)
-        isready(p)
+    """Load an exact variants file into one engine process at most once per hash."""
+
+    if p is None:
+        return
+    loaded_sha256 = getattr(p, ENGINE_LOADED_VARIANTS_SHA256_ATTRIBUTE, set())
+    if entry.sha256 in loaded_sha256:
+        return
+
+    setoption(p, "VariantPath", entry.filename)
+    isready(p)
+    try:
+        setattr(p, ENGINE_LOADED_VARIANTS_SHA256_ATTRIBUTE, loaded_sha256 | {entry.sha256})
+    except (AttributeError, TypeError):
+        # Tests and third-party process wrappers may not allow custom attributes.
+        # A real subprocess.Popen instance does, so production workers still avoid
+        # redundant VariantPath reloads.
+        pass
 
 
 def reload_engine_variants(p, conf, expected_sha256, variant=None):
@@ -369,5 +385,7 @@ def use_engine_variants(p, conf, expected_sha256, variant=None):
 
 def pyffish_get_fen(entry, variant, fen, moves, chess960, sfen, show_promoted):
     with PYFFISH_VARIANT_LOCK:
-        sf.set_option("VariantPath", entry.path)
+        if entry.sha256 not in PYFFISH_LOADED_VARIANTS_SHA256:
+            sf.set_option("VariantPath", entry.path)
+            PYFFISH_LOADED_VARIANTS_SHA256.add(entry.sha256)
         return sf.get_fen(variant, fen, moves, chess960, sfen, show_promoted)
