@@ -51,7 +51,7 @@ class WorkerTest(unittest.TestCase):
         job = {
             "work": {"type": "move", "id": "abcdefgh", "level": 8},
             "game_id": "hgfedcba",
-            "variant": "chess",
+            "variant": "fishnet-test",
             "variantsSha256": self.variants_sha256,
             "position": STARTPOS,
             "moves": "f2f3 e7e6 g2g4",
@@ -64,7 +64,6 @@ class WorkerTest(unittest.TestCase):
             "work": {"type": "move", "id": "hihihihi", "level": 1},
             "game_id": "ihihihih",
             "variant": "crazyhouse",
-            "variantsSha256": self.variants_sha256,
             "position": "rnbqk1nr/ppp2ppp/3b4/3N4/4p1PP/5P2/PPPPP3/R1BQKBNR[P] b KQkq - 9 5",
             "moves": "d6g3",
         }
@@ -76,7 +75,6 @@ class WorkerTest(unittest.TestCase):
             "work": {"type": "analysis", "id": "12345678"},
             "game_id": "87654321",
             "variant": "chess",
-            "variantsSha256": self.variants_sha256,
             "position": STARTPOS,
             "moves": "f2f3 e7e6 g2g4 d8h4",
             "skipPositions": [1],
@@ -94,7 +92,6 @@ class WorkerTest(unittest.TestCase):
         job = {
             "work": {"type": "analysis", "id": "contempt 100"},
             "variant": "chess",
-            "variantsSha256": self.variants_sha256,
             "position": STARTPOS,
             "moves": "d2d4 d7d5",
             "skipPositions": [0, 1],

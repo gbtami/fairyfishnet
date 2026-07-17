@@ -155,7 +155,7 @@ wheels = [
 
 [[package]]
 name = "fairyfishnet"
-version = "1.16.68"
+version = "1.16.69"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },

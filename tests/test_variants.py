@@ -50,6 +50,52 @@ def test_sync_requires_job_hash(tmp_path):
         variants.sync_variants_ini(conf, None)
 
 
+def test_builtin_variant_names_use_initial_pyffish_catalog(monkeypatch):
+    monkeypatch.setattr(variants, "BUILTIN_VARIANTS", frozenset(("chess", "crazyhouse")))
+    assert variants.is_builtin_variant("chess")
+    assert variants.is_builtin_variant("standard")
+    assert variants.is_builtin_variant("chess960")
+    assert variants.is_builtin_variant("CRAZYHOUSE")
+    assert not variants.is_builtin_variant("grandhouse")
+
+
+def test_use_engine_variants_skips_ini_for_builtin_variant(tmp_path, monkeypatch):
+    conf = make_conf(tmp_path)
+    monkeypatch.setattr(variants, "BUILTIN_VARIANTS", frozenset(("chess",)))
+    monkeypatch.setattr(
+        variants,
+        "sync_variants_ini",
+        lambda *args, **kwargs: pytest.fail("built-in variants must not fetch an INI"),
+    )
+
+    with variants.use_engine_variants(SimpleNamespace(), conf, None, "standard") as entry:
+        assert entry is None
+
+
+def test_use_engine_variants_requires_hash_for_custom_variant(tmp_path, monkeypatch):
+    conf = make_conf(tmp_path)
+    monkeypatch.setattr(variants, "BUILTIN_VARIANTS", frozenset(("chess",)))
+
+    with pytest.raises(VariantsIniError, match="non-built-in variant grandhouse"):
+        with variants.use_engine_variants(SimpleNamespace(), conf, None, "grandhouse"):
+            pass
+
+
+def test_use_engine_variants_ignores_server_hash_for_builtin_variant(tmp_path, monkeypatch):
+    conf = make_conf(tmp_path)
+    payload = "[server-rules]\n"
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    monkeypatch.setattr(variants, "BUILTIN_VARIANTS", frozenset(("chess",)))
+    monkeypatch.setattr(
+        variants,
+        "sync_variants_ini",
+        lambda *args, **kwargs: pytest.fail("built-in variants must ignore custom INI metadata"),
+    )
+
+    with variants.use_engine_variants(SimpleNamespace(), conf, digest, "chess") as entry:
+        assert entry is None
+
+
 def test_sync_uses_cached_entry_without_network(tmp_path, monkeypatch):
     conf = make_conf(tmp_path, Key="key", Endpoint="https://example.org/fishnet/")
     payload = "[cached]\n"
@@ -222,6 +268,15 @@ def test_pyffish_get_fen_loads_a_new_hash(tmp_path, monkeypatch):
         variants.pyffish_get_fen(entry, "custom", "fen", ["a1a2"], False, False, False)
 
     assert calls == [("VariantPath", entries[0].path), ("VariantPath", entries[1].path)]
+
+
+def test_pyffish_get_fen_uses_builtin_without_variant_path(monkeypatch):
+    set_option_calls = []
+    monkeypatch.setattr(variants.sf, "set_option", lambda name, value: set_option_calls.append((name, value)))
+    monkeypatch.setattr(variants.sf, "get_fen", lambda *args: "resulting-fen")
+
+    assert variants.pyffish_get_fen(None, "chess", "fen", ["e2e4"], False, False, False) == "resulting-fen"
+    assert set_option_calls == []
 
 
 def test_active_entry_is_protected_from_cleanup(tmp_path):

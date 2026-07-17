@@ -34,6 +34,7 @@ VARIANTS_CACHE_THREAD_LOCK = threading.RLock()
 VARIANTS_LEASE_LOCK = threading.RLock()
 PYFFISH_VARIANT_LOCK = threading.RLock()
 PYFFISH_LOADED_VARIANTS_SHA256 = set()
+BUILTIN_VARIANTS = frozenset(str(variant).lower() for variant in sf.variants())
 ENGINE_LOADED_VARIANTS_SHA256_ATTRIBUTE = "_fairyfishnet_loaded_variants_sha256"
 ACTIVE_VARIANTS = collections.Counter()
 VARIANTS_LEASE_TOKEN = "%d-%x" % (os.getpid(), int(time.time() * 1000000))
@@ -42,6 +43,19 @@ VariantsIni = collections.namedtuple("VariantsIni", "sha256 filename path")
 
 def _valid_variants_sha256(value):
     return isinstance(value, str) and re.match(r"^[0-9a-f]{64}$", value) is not None
+
+
+def _engine_variant_name(variant):
+    name = str(variant or "standard").lower()
+    if name in ("standard", "fromposition", "chess960"):
+        return "chess"
+    return name
+
+
+def is_builtin_variant(variant):
+    """Return whether a work unit can run without a server variants.ini."""
+
+    return _engine_variant_name(variant) in BUILTIN_VARIANTS
 
 
 def variants_ini_filename(sha256):
@@ -377,6 +391,16 @@ def reload_engine_variants(p, conf, expected_sha256, variant=None):
 
 @contextlib.contextmanager
 def use_engine_variants(p, conf, expected_sha256, variant=None):
+    if is_builtin_variant(variant):
+        yield None
+        return
+
+    if not expected_sha256:
+        raise VariantsIniError(
+            "Fishnet job for non-built-in variant %s did not provide variantsSha256"
+            % (variant or "<missing>")
+        )
+
     entry = sync_variants_ini(conf, expected_sha256, variant)
     with active_variants_ini(conf, entry):
         _apply_engine_variants(p, entry)
@@ -385,7 +409,7 @@ def use_engine_variants(p, conf, expected_sha256, variant=None):
 
 def pyffish_get_fen(entry, variant, fen, moves, chess960, sfen, show_promoted):
     with PYFFISH_VARIANT_LOCK:
-        if entry.sha256 not in PYFFISH_LOADED_VARIANTS_SHA256:
+        if entry is not None and entry.sha256 not in PYFFISH_LOADED_VARIANTS_SHA256:
             sf.set_option("VariantPath", entry.path)
             PYFFISH_LOADED_VARIANTS_SHA256.add(entry.sha256)
         return sf.get_fen(variant, fen, moves, chess960, sfen, show_promoted)

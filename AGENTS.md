@@ -79,9 +79,9 @@ The package root is not a service locator or public implementation API. Import f
 
 ## Protocol and server authority
 
-The pychess server is the sole authority for site and user-defined variant rules. Every move or analysis job must include `variantsSha256`; fairyfishnet downloads `/fishnet/variants/<key>` on a cache miss and verifies both the response hash and the actual content hash.
+The pychess server is the sole authority for site and user-defined variant rules. Jobs for Fairy-Stockfish built-in variants omit custom-rule metadata. Jobs that need custom rules include `variantsSha256`; fairyfishnet downloads `/fishnet/variants/<key>` on a cache miss and verifies both the response hash and the actual content hash.
 
-Never add pychess site rules to the fairyfishnet package. Never silently substitute bundled, newer, different-scope, or stale variant rules. If the exact payload cannot be obtained or verified, abort that work unit with the structured variants-unavailable reason.
+Capture the built-in variant catalog from `pyffish.variants()` before loading any custom INI. Never add pychess site rules to the fairyfishnet package. Never silently substitute bundled, newer, different-scope, or stale variant rules. If a non-built-in job lacks its exact payload, or the payload cannot be obtained or verified, abort that work unit with the structured variants-unavailable reason.
 
 Protocol changes must be coordinated with the server. Preserve JSON field names, accepted HTTP statuses, retry/backoff semantics, and progress/abort behavior unless the task explicitly changes the protocol. Use `response_json()` for contextual invalid-JSON errors and bounded response snippets rather than dumping arbitrary response bodies.
 
