@@ -1,0 +1,10 @@
+.git
+.github
+.venv
+__pycache__
+*.py[cod]
+build
+dist
+fishnet.ini
+stockfish-*
+Stockfish

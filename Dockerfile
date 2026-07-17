@@ -1,9 +1,10 @@
 FROM python:slim
 
-LABEL maintainer "Manuel Klemenz <manuel.klemenz@gmail.com>"
+LABEL maintainer="Manuel Klemenz <manuel.klemenz@gmail.com>"
+
+COPY --from=ghcr.io/astral-sh/uv:0.11.29 /uv /uvx /bin/
 
 WORKDIR /tmp/fishnet/
-RUN pip install dumb-init && \
-    pip install fairyfishnet
+RUN uv pip install --system dumb-init fairyfishnet
 
 ENTRYPOINT ["dumb-init", "--", "python", "-m", "fairyfishnet", "--no-conf"]

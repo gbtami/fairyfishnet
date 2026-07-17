@@ -1,0 +1,102 @@
+[build-system]
+requires = ["uv_build>=0.10.0,<0.12"]
+build-backend = "uv_build"
+
+[project]
+name = "fairyfishnet"
+version = "1.16.66"
+description = "Distributed Fairy-Stockfish analysis for pychess.org"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE.txt"]
+authors = [
+    { name = "Bajusz Tamás", email = "gbtami@gmail.com" },
+]
+keywords = ["chess", "fairy-stockfish", "fishnet", "pychess", "uci"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Games/Entertainment :: Board Games",
+    "Topic :: Internet :: WWW/HTTP",
+]
+dependencies = [
+    "beautifulsoup4==4.14.3",
+    "gdown==5.2.0",
+    "pyffish==0.0.89",
+    "requests==2.32.4; python_version < '3.9'",
+    "requests==2.32.5; python_version >= '3.9'",
+]
+
+[project.urls]
+Homepage = "https://github.com/gbtami/fairyfishnet"
+Documentation = "https://github.com/gbtami/fairyfishnet/blob/master/README.md"
+Issues = "https://github.com/gbtami/fairyfishnet/issues"
+Repository = "https://github.com/gbtami/fairyfishnet"
+
+[project.scripts]
+fairyfishnet = "fairyfishnet:entrypoint"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.405,<2",
+    "pytest>=8.3,<8.4",
+    "ruff>=0.12.4,<1",
+]
+
+[tool.uv.build-backend]
+source-include = [
+    ".github/**",
+    ".python-version",
+    "Dockerfile",
+    "ENGINES.md",
+    "build-stockfish.sh",
+    "doc/**",
+    "scripts/**",
+    "tests/**",
+    "uv.lock",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "engine: downloads or launches Fairy-Stockfish for integration testing",
+]
+
+[tool.ruff]
+target-version = "py38"
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["E402"]
+
+[tool.pyright]
+include = ["src", "tests", "scripts"]
+exclude = [".venv", "build", "dist"]
+pythonVersion = "3.8"
+typeCheckingMode = "basic"
+reportMissingImports = false
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+reportUnknownLambdaType = false
+reportUnknownParameterType = false
+reportUntypedFunctionDecorator = false
