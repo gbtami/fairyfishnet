@@ -54,7 +54,7 @@ fairyfishnet = "fairyfishnet.cli:entrypoint"
 dev = [
     "pyright>=1.1.405,<2",
     "pytest>=8.3,<8.4",
-    "ruff>=0.12.4,<1",
+    "ruff>=0.15.22,<1",
 ]
 
 [tool.uv.build-backend]
