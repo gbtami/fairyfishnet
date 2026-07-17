@@ -16,6 +16,10 @@ class ConfigError(Exception):
     pass
 
 
+class VariantsIniError(Exception):
+    pass
+
+
 class JsonResponseError(Exception):
     pass
 

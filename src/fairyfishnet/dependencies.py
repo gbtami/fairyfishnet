@@ -22,12 +22,6 @@ try:
     sf_ok = True
     if "cpuid" not in sys.argv[1:]:
         try:
-            sf.set_option("VariantPath", "variants.ini")
-        except Exception:
-            print("No variants.ini found.", file=sys.stderr)
-            raise
-
-        try:
             print(sf.version())
         except Exception:
             print("fairyfishnet requires pyffish", file=sys.stderr)

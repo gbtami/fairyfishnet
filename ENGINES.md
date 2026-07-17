@@ -17,7 +17,7 @@ Ruff and Pyright are both configured to evaluate the source as Python 3.8.
 - `config.py` owns configuration files, prompts, validation, and normalized accessors.
 - `engine.py` owns subprocess lifecycle and UCI request/response handling.
 - `worker.py` owns server work units and per-worker engine execution.
-- `variants.py` owns the generated default `variants.ini`, scoped definitions, leases, and cleanup.
+- `variants.py` owns server-provided `variants.ini` downloads, content-addressed cache entries, leases, and cleanup.
 - `downloads.py` owns CPU-specific engine selection, downloads, PyPI checks, and self-update.
 - `cpuid.py` contains the isolated low-level CPUID implementation.
 - `http_utils.py`, `logging_utils.py`, `constants.py`, and `errors.py` contain low-dependency shared helpers.
@@ -42,6 +42,11 @@ At minimum, preserve coverage for:
 
 Tests must not depend on execution order or a shared `EngineDir`. Use temporary directories and monkeypatch the symbol in the module that owns the implementation.
 
+
+The pychess server is the sole authority for site and user-defined variant rules. Every move or analysis job must include `variantsSha256`; fairyfishnet downloads `/fishnet/variants/<key>` on a cache miss and verifies both the response hash and the actual content hash. Never add pychess site rules to the fairyfishnet package. If the exact payload cannot be obtained, abort that work unit rather than loading a different or stale file.
+
+Startup engine validation uses a temporary synthetic `[fishnet-smoke:chess]` definition. It checks custom INI loading without coupling a fairyfishnet release to the current pychess variant catalog. Legacy `VariantPath` entries in `fishnet.ini` are ignored because the worker owns this option per work unit.
+
 ## Engine process invariants
 
 Each `Worker` owns its Fairy-Stockfish subprocess. Never share a subprocess between worker threads.
@@ -64,7 +69,7 @@ Preserve these rules:
 4. Serialize pyffish `VariantPath` changes because pyffish stores that option globally in-process.
 5. Mark an entry active for the complete engine job and publish the process lease before it can be cleaned.
 6. Cleanup may delete only exact scoped-cache filenames that are old, outside the retained newest set, and absent from all live leases.
-7. Never delete the unscoped `variants.ini` or unrelated `.ini` files.
+7. Never delete unrelated `.ini` files; only exact `variants-<sha256>.ini` cache entries are managed.
 
 Any cache-policy change needs tests for active entries, recent entries, retained newest entries, and unrelated files.
 
@@ -110,4 +115,4 @@ For concurrency or cache work, also reason explicitly about:
 - multiple fairyfishnet processes sharing an `EngineDir`;
 - process termination while a job or atomic write is in progress;
 - a server retry delivering the same variant hash;
-- switching back from a scoped variant file to the bundled `variants.ini`.
+- a job missing its required hash, an unavailable exact server payload, or a server hash mismatch.

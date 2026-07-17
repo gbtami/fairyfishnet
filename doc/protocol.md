@@ -41,11 +41,27 @@ POST http://lichess.org/fishnet/acquire
   "game_id": "abcdefgh", // optional
   "position": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", // start position (X-FEN)
   "variant": "standard",
+  "variantsSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "variantsScope": "standard",
   "moves": "e2e4 c7c5 c2c4 b8c6 g1e2 g8f6 b1c3 c6b4 g2g3 b4d3", // moves of the game (UCI)
   "nodes": 3500000, // optional limit
   "skipPositions": [1, 4, 5] // 0 is the first position
 }
 ```
+
+
+Variant rules
+-------------
+
+Every accepted work unit includes the SHA-256 of the exact `variants.ini` payload required for that job. On a cache miss the client requests it from the same server:
+
+```
+GET /fishnet/variants/{apikey}?sha256={variantsSha256}&variant={variantsScope}
+```
+
+A successful response contains `variantsIni`, the matching `variantsSha256`, and optionally `variantsScope`. The client verifies the declared hash and the UTF-8 content hash before atomically caching the file as `variants-<sha256>.ini`. The client must abort the work unit if the hash is missing, the exact payload is unavailable (`409 Conflict`), or any hash differs. It must never substitute a bundled or newer rules file.
+
+The server is the source of truth for both site variants and user-defined variants. Adding or editing INI-only site rules therefore requires a pychess deployment, not a fairyfishnet package release.
 
 Client runs Stockfish and sends the analysis to server.
 The client can optionally report progress to the server, by sending null for

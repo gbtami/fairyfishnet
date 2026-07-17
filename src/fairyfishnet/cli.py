@@ -54,7 +54,6 @@ from .variants import (
     VARIANTS_CACHE_CLEANUP_INTERVAL,
     cleanup_variants_ini_cache,
     clear_variants_ini_lease,
-    create_variants_ini,
     refresh_variants_ini_lease,
 )
 from .worker import ProgressReporter, Worker
@@ -404,12 +403,6 @@ def main(argv):
 
     # Setup logging
     setup_logging(args.verbose, sys.stderr if args.command == "systemd" else sys.stdout)
-
-    # The cpuid subcommand is executed in a child process by detect_cpu_capabilities().
-    # Its stdout is parsed as machine-readable CPUID rows, so it must not do config
-    # loading, network I/O, engine setup, or logging to stdout before cmd_cpuid runs.
-    if args.command != "cpuid":
-        create_variants_ini(args)
 
     # Show intro
     if args.command not in ["systemd", "cpuid"]:

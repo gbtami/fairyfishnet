@@ -17,6 +17,7 @@ from .config import get_endpoint, get_engine_dir, get_key, get_stockfish_command
 from .constants import (
     ABORT_REASON_ENGINE_CRASH,
     ABORT_REASON_ENGINE_TIMEOUT,
+    ABORT_REASON_VARIANTS_UNAVAILABLE,
     HTTP_TIMEOUT,
     LVL_DEPTHS,
     LVL_MOVETIMES,
@@ -37,7 +38,7 @@ from .engine import (
     setoption,
     uci,
 )
-from .errors import DEAD_ENGINE_ERRORS, EngineTimeout, JsonResponseError, UpdateRequired
+from .errors import DEAD_ENGINE_ERRORS, EngineTimeout, JsonResponseError, UpdateRequired, VariantsIniError
 from .http_utils import base_url, response_json
 from .logging_utils import PROGRESS
 from .variants import pyffish_get_fen, use_engine_variants
@@ -151,6 +152,16 @@ class Worker(threading.Thread):
 
             # Do the next work unit
             path, request = self.work()
+        except VariantsIniError as err:
+            error = {
+                "reason": ABORT_REASON_VARIANTS_UNAVAILABLE,
+                "kind": err.__class__.__name__,
+                "message": str(err),
+            }
+            logging.error("Could not load the exact variants.ini required by the job: %s", err)
+            self.abort_job(error=error)
+            self.sleep.wait(next(self.backoff))
+            return
         except DEAD_ENGINE_ERRORS + (EngineTimeout,) as err:
             alive = self.is_alive()
             engine_timeout = isinstance(err, EngineTimeout)

@@ -12,6 +12,7 @@ import os
 import random
 import re
 import sys
+import tempfile
 import urllib.parse as urlparse
 
 import gdown
@@ -28,7 +29,8 @@ from .constants import (
     MAX_BACKOFF,
     MAX_FIXED_BACKOFF,
     NNUE_NET,
-    required_variants,
+    nnue_variants,
+    required_engine_variants,
 )
 from .dependencies import requests
 from .engine import kill_process, open_process, setoption, uci
@@ -69,6 +71,11 @@ def load_conf(args):
         conf.set("Fishnet", "FixedBackoff", str(args.fixed_backoff))
     for option_name, option_value in args.setoption:
         conf.set("Stockfish", option_name.lower(), option_value)
+
+    # VariantPath is selected per work unit from the server-provided content hash.
+    # Ignore the legacy generated option when reading older configuration files.
+    if conf.has_option("Stockfish", "VariantPath"):
+        conf.remove_option("Stockfish", "VariantPath")
 
     logging.getLogger().addFilter(CensorLogFilter(conf_get(conf, "Key")))
 
@@ -122,6 +129,9 @@ def configure(args):
         with open(config_file, "w"):
             pass
         os.remove(config_file)
+
+    if conf.has_option("Stockfish", "VariantPath"):
+        conf.remove_option("Stockfish", "VariantPath")
 
     # Stockfish working directory
     engine_dir = config_input(
@@ -183,9 +193,6 @@ def configure(args):
     conf.set("Fishnet", "Key", key)
     logging.getLogger().addFilter(CensorLogFilter(key))
 
-    # Grandhouse is user defined variant
-    conf.set("Stockfish", "VariantPath", "variants.ini")
-
     # Confirm
     print(file=out)
     while not config_input(
@@ -219,27 +226,43 @@ def validate_stockfish_command(stockfish_command, conf):
 
     stockfish_command = stockfish_command.strip()
     engine_dir = get_engine_dir(conf)
+    smoke_path = None
+    process = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            prefix=".fairyfishnet-variant-smoke-",
+            suffix=".ini",
+            dir=engine_dir,
+            delete=False,
+        ) as smoke_file:
+            smoke_file.write("[fishnet-smoke:chess]\n")
+            smoke_path = smoke_file.name
 
-    # Ensure the required options are supported
-    process = open_process(stockfish_command, engine_dir)
-    _, variants = uci(process)
+        process = open_process(stockfish_command, engine_dir)
+        _, variants = uci(process)
+        missing_variants = required_engine_variants.difference(variants)
+        if missing_variants:
+            raise ConfigError(
+                "Ensure you are using pychess custom Fairy-Stockfish. "
+                "Unsupported built-in variants: %s" % ", ".join(sorted(missing_variants))
+            )
 
-    # Grandhouse is user defined variant
-    setoption(process, "VariantPath", "variants.ini")
-    _, variants = uci(process)
+        setoption(process, "VariantPath", os.path.basename(smoke_path))
+        _, variants = uci(process)
+        if "fishnet-smoke" not in variants:
+            raise ConfigError("Fairy-Stockfish does not support loading custom variants.ini files")
 
-    kill_process(process)
-
-    logging.debug("Supported variants: %s", ", ".join(variants))
-
-    missing_variants = required_variants.difference(variants)
-    if missing_variants:
-        raise ConfigError(
-            "Ensure you are using pychess custom Fairy-Stockfish. "
-            "Unsupported variants: %s" % ", ".join(missing_variants)
-        )
-
-    return stockfish_command
+        logging.debug("Supported built-in variants: %s", ", ".join(variants))
+        return stockfish_command
+    finally:
+        if process is not None:
+            kill_process(process)
+        if smoke_path is not None:
+            try:
+                os.remove(smoke_path)
+            except OSError:
+                pass
 
 
 def parse_bool(inp, default=False):
@@ -280,7 +303,7 @@ def update_nnue():
         else:
             continue
 
-        if variant in required_variants:
+        if variant in nnue_variants:
             NNUE_NET[variant] = nnue
 
             eval_file = "%s-%s.nnue" % (variant, NNUE_NET[variant])

@@ -121,3 +121,58 @@ def test_start_backoff_incremental_caps(monkeypatch):
     observed = [next(values) for _ in range(int(config.MAX_BACKOFF) + 3)]
     assert observed[:3] == [0.5, 1.0, 1.5]
     assert observed[-1] == config.MAX_BACKOFF / 2
+
+
+def test_load_conf_ignores_legacy_variant_path(tmp_path):
+    config_file = tmp_path / "fishnet.ini"
+    config_file.write_text(
+        "[Fishnet]\nEngineDir = %s\n\n[Stockfish]\nVariantPath = variants.ini\nHash = 64\n" % tmp_path
+    )
+
+    class Args:
+        no_conf = False
+        conf = str(config_file)
+        engine_dir = None
+        stockfish_command = None
+        key = None
+        cores = None
+        memory = None
+        threads = None
+        endpoint = None
+        fixed_backoff = None
+        setoption = []
+
+    conf = config.load_conf(Args())
+    assert not conf.has_option("Stockfish", "VariantPath")
+    assert conf.get("Stockfish", "Hash") == "64"
+
+
+def test_validate_stockfish_command_checks_builtin_and_custom_variant_support(tmp_path, monkeypatch):
+    conf = make_conf(tmp_path)
+    process = object()
+    supported = set(config.required_engine_variants)
+    calls = []
+    responses = iter((({}, supported), ({}, supported | {"fishnet-smoke"})))
+    monkeypatch.setattr(config, "open_process", lambda command, engine_dir: process)
+    monkeypatch.setattr(config, "uci", lambda current: next(responses))
+    monkeypatch.setattr(config, "setoption", lambda current, name, value: calls.append((name, value)))
+    monkeypatch.setattr(config, "kill_process", lambda current: calls.append(("kill", current)))
+
+    assert config.validate_stockfish_command("./stockfish", conf) == "./stockfish"
+    assert calls[0][0] == "VariantPath"
+    assert calls[0][1].startswith(".fairyfishnet-variant-smoke-")
+    assert calls[-1] == ("kill", process)
+    assert not list(tmp_path.glob(".fairyfishnet-variant-smoke-*.ini"))
+
+
+def test_validate_stockfish_command_rejects_engine_without_custom_ini_support(tmp_path, monkeypatch):
+    conf = make_conf(tmp_path)
+    supported = set(config.required_engine_variants)
+    responses = iter((({}, supported), ({}, supported)))
+    monkeypatch.setattr(config, "open_process", lambda command, engine_dir: object())
+    monkeypatch.setattr(config, "uci", lambda current: next(responses))
+    monkeypatch.setattr(config, "setoption", lambda *args: None)
+    monkeypatch.setattr(config, "kill_process", lambda current: None)
+
+    with pytest.raises(ConfigError, match="does not support loading"):
+        config.validate_stockfish_command("./stockfish", conf)

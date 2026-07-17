@@ -1,7 +1,8 @@
 import configparser
 
 import fairyfishnet.worker as worker_module
-from fairyfishnet.constants import ABORT_REASON_ENGINE_CRASH
+from fairyfishnet.constants import ABORT_REASON_ENGINE_CRASH, ABORT_REASON_VARIANTS_UNAVAILABLE
+from fairyfishnet.errors import VariantsIniError
 from fairyfishnet.worker import Worker
 
 
@@ -58,3 +59,27 @@ def test_worker_recovers_from_dead_engine_error():
     worker.abort_job = lambda error=None: aborted.append(error)
     worker.run_inner()
     assert aborted == [{"reason": ABORT_REASON_ENGINE_CRASH, "kind": "EOFError"}]
+
+
+def test_worker_aborts_job_when_exact_variants_payload_is_unavailable():
+    worker = make_worker()
+    worker.start_stockfish = lambda: None
+    worker.work = lambda: (_ for _ in ()).throw(VariantsIniError("missing payload"))
+
+    def zero_backoff():
+        while True:
+            yield 0.0
+
+    worker.backoff = zero_backoff()
+    aborted = []
+    worker.abort_job = lambda error=None: aborted.append(error)
+
+    worker.run_inner()
+
+    assert aborted == [
+        {
+            "reason": ABORT_REASON_VARIANTS_UNAVAILABLE,
+            "kind": "VariantsIniError",
+            "message": "missing payload",
+        }
+    ]

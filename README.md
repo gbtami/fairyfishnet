@@ -104,7 +104,7 @@ src/fairyfishnet/cli.py        argument parsing, commands, signals, and worker o
 src/fairyfishnet/config.py     configuration loading and validation
 src/fairyfishnet/engine.py     subprocess management and the UCI protocol
 src/fairyfishnet/worker.py     job acquisition, move generation, and analysis
-src/fairyfishnet/variants.py   generated variants.ini and scoped cache lifecycle
+src/fairyfishnet/variants.py   server variants.ini download and scoped cache lifecycle
 src/fairyfishnet/downloads.py  engine downloads and self-update handling
 src/fairyfishnet/cpuid.py      low-level CPU capability probing
 src/fairyfishnet/http_utils.py HTTP and release-version helpers
