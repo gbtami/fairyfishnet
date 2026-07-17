@@ -38,7 +38,7 @@ dependencies = [
     "gdown==5.2.2",
     "pyffish==0.0.89",
     "requests==2.32.4; python_version < '3.9'",
-    "requests==2.32.5; python_version >= '3.9'",
+    "requests==2.34.2; python_version >= '3.9'",
 ]
 
 [project.urls]
