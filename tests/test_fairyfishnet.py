@@ -5,6 +5,7 @@
 # Copyright (C) 2016-2019 Niklas Fiekas <niklas.fiekas@backscattering.de>
 # See LICENSE.txt for licensing information.
 
+import argparse
 import configparser
 import multiprocessing
 import os
@@ -28,6 +29,14 @@ class WorkerTest(unittest.TestCase):
         conf = configparser.ConfigParser()
         conf.add_section("Fishnet")
         conf.set("Fishnet", "EngineDir", cls.engine_dir.name)
+
+        args = argparse.Namespace(
+            no_conf=True,
+            conf=None,
+            engine_dir=cls.engine_dir.name,
+            setoption=[],
+        )
+        fairyfishnet.create_variants_ini(args)
         fairyfishnet.get_stockfish_command(conf, update=True)
 
     @classmethod
