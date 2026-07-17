@@ -22,12 +22,23 @@ STARTPOS = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 @pytest.mark.engine
 class WorkerTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.engine_dir = tempfile.TemporaryDirectory()
+        conf = configparser.ConfigParser()
+        conf.add_section("Fishnet")
+        conf.set("Fishnet", "EngineDir", cls.engine_dir.name)
+        fairyfishnet.get_stockfish_command(conf, update=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.engine_dir.cleanup()
+
     def setUp(self):
         conf = configparser.ConfigParser()
         conf.add_section("Fishnet")
         conf.set("Fishnet", "Key", "testkey")
-
-        fairyfishnet.get_stockfish_command(conf, update=True)
+        conf.set("Fishnet", "EngineDir", self.engine_dir.name)
 
         self.worker = fairyfishnet.Worker(conf, threads=multiprocessing.cpu_count(), memory=32, progress_reporter=None)
         self.worker.start_stockfish()
