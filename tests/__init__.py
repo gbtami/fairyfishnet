@@ -1,0 +1,1 @@
+"""fairyfishnet test suite."""

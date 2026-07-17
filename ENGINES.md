@@ -10,15 +10,37 @@ Do not introduce syntax or standard-library APIs that require Python 3.9 or newe
 
 Ruff and Pyright are both configured to evaluate the source as Python 3.8.
 
-## Source map
+## Source map and dependency direction
 
-- `src/fairyfishnet/__init__.py` contains the worker implementation, protocol client, UCI helpers, engine download logic, dynamic variant cache, and CLI.
-- `src/fairyfishnet/__main__.py` supports `python -m fairyfishnet`.
-- `tests/test_fairyfishnet.py` contains both fast unit tests and slower engine-backed tests.
-- `build-stockfish.sh` builds the project-specific Fairy-Stockfish binary.
-- `doc/protocol.md` documents communication with the pychess server.
+- `src/fairyfishnet/__init__.py` exposes package metadata only. Import implementation objects from their owning modules.
+- `cli.py` owns argument parsing, commands, signals, and long-running orchestration.
+- `config.py` owns configuration files, prompts, validation, and normalized accessors.
+- `engine.py` owns subprocess lifecycle and UCI request/response handling.
+- `worker.py` owns server work units and per-worker engine execution.
+- `variants.py` owns the generated default `variants.ini`, scoped definitions, leases, and cleanup.
+- `downloads.py` owns CPU-specific engine selection, downloads, PyPI checks, and self-update.
+- `cpuid.py` contains the isolated low-level CPUID implementation.
+- `http_utils.py`, `logging_utils.py`, `constants.py`, and `errors.py` contain low-dependency shared helpers.
+- `tests/` mirrors these boundaries; engine-backed tests live separately in `test_engine_integration.py`.
 
-The package remains intentionally monolithic for now. Large refactors should first extract well-defined boundaries without changing protocol behavior.
+Prefer dependencies flowing from orchestration toward lower-level modules: `cli` → `worker` → `engine`, with `config` and `variants` as explicit collaborators. Avoid importing `cli` or `worker` from lower-level modules. When a configuration helper needs download functionality, use a narrow local import rather than creating a module import cycle.
+
+The package root is not a service locator or public implementation API. Import functions and classes from their owning modules, such as `fairyfishnet.engine`, `fairyfishnet.variants`, or `fairyfishnet.worker`.
+
+## Unit-test expectations
+
+Every behavioral fix should add a focused unit test whenever the engine or network can be replaced with a small fake. Keep the `engine` marker only for tests that truly need a Fairy-Stockfish executable.
+
+At minimum, preserve coverage for:
+
+- configuration parsing, defaults, bounds, and error messages;
+- HTTP invalid-JSON and update-version decisions;
+- UCI option selection and variant-name transformations;
+- worker request shape, job routing, and engine-crash recovery;
+- scoped variant cache hits, downloads, atomic writes, active leases, and cleanup;
+- the intentionally small package-root metadata API.
+
+Tests must not depend on execution order or a shared `EngineDir`. Use temporary directories and monkeypatch the symbol in the module that owns the implementation.
 
 ## Engine process invariants
 

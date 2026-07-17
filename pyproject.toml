@@ -48,7 +48,7 @@ Issues = "https://github.com/gbtami/fairyfishnet/issues"
 Repository = "https://github.com/gbtami/fairyfishnet"
 
 [project.scripts]
-fairyfishnet = "fairyfishnet:entrypoint"
+fairyfishnet = "fairyfishnet.cli:entrypoint"
 
 [dependency-groups]
 dev = [

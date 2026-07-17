@@ -99,15 +99,21 @@ uv lock
 ### Repository layout
 
 ```text
-src/fairyfishnet/       application package and CLI entry point
-tests/                  unit and engine integration tests
-scripts/                release and maintenance helpers
-doc/                    fishnet protocol documentation
-pyproject.toml          package metadata and tool configuration
-ENGINES.md              engine-specific contributor and agent guidance
+src/fairyfishnet/__init__.py   package metadata only
+src/fairyfishnet/cli.py        argument parsing, commands, signals, and worker orchestration
+src/fairyfishnet/config.py     configuration loading and validation
+src/fairyfishnet/engine.py     subprocess management and the UCI protocol
+src/fairyfishnet/worker.py     job acquisition, move generation, and analysis
+src/fairyfishnet/variants.py   generated variants.ini and scoped cache lifecycle
+src/fairyfishnet/downloads.py  engine downloads and self-update handling
+src/fairyfishnet/cpuid.py      low-level CPU capability probing
+src/fairyfishnet/http_utils.py HTTP and release-version helpers
+tests/                         focused unit tests and engine integration tests
+scripts/                       release and maintenance helpers
+doc/                           fishnet protocol documentation
 ```
 
-Tests marked `engine` download or launch Fairy-Stockfish and are therefore slower and require network access on a clean checkout.
+The fast suite is intentionally split by subsystem, so a regression normally points to the module that owns the behavior. Tests marked `engine` download or launch Fairy-Stockfish and are therefore slower and require network access on a clean checkout.
 
 ## Protocol
 
