@@ -397,8 +397,7 @@ def use_engine_variants(p, conf, expected_sha256, variant=None):
 
     if not expected_sha256:
         raise VariantsIniError(
-            "Fishnet job for non-built-in variant %s did not provide variantsSha256"
-            % (variant or "<missing>")
+            "Fishnet job for non-built-in variant %s did not provide variantsSha256" % (variant or "<missing>")
         )
 
     entry = sync_variants_ini(conf, expected_sha256, variant)
