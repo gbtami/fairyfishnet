@@ -6,12 +6,12 @@ The project is a production worker that executes untrusted network jobs through 
 
 ## Start here
 
-The repository uses a `src/` layout, uv, pytest, Ruff, and Pyright. Python 3.8 is the compatibility floor even when development or CI runs on a newer interpreter.
+The repository uses a `src/` layout, uv, pytest, Ruff, and Pyright. Python 3.10 is the compatibility floor even when development or CI runs on a newer interpreter.
 
 Create the locked environment with the oldest supported Python:
 
 ```console
-uv sync --locked --python 3.8
+uv sync --locked --python 3.10
 ```
 
 During development, run the narrowest relevant test first, for example:
@@ -30,7 +30,7 @@ uv run ruff format --check .
 uv run pyright
 ```
 
-Also run `uv lock --check --python 3.8` and `uv build` when changing packaging, dependencies, supported Python versions, entry points, or release-related files. Run `uv run pytest -m engine` when the change affects engine startup, UCI behavior, downloaded engine selection, custom variant loading, or integration-test expectations. Engine tests may download or launch Fairy-Stockfish and can require network access on a clean checkout.
+Also run `uv lock --check --python 3.10` and `uv build` when changing packaging, dependencies, supported Python versions, entry points, or release-related files. Run `uv run pytest -m engine` when the change affects engine startup, UCI behavior, downloaded engine selection, custom variant loading, or integration-test expectations. Engine tests may download or launch Fairy-Stockfish and can require network access on a clean checkout.
 
 ## Working rules
 
@@ -48,13 +48,10 @@ Also run `uv lock --check --python 3.8` and `uv build` when changing packaging, 
 
 ## Python compatibility and style
 
-Python 3.8 is the oldest supported interpreter. Ruff and Pyright are both configured to evaluate the source as Python 3.8.
+Python 3.10 is the oldest supported interpreter. Ruff and Pyright are both configured to evaluate the source as Python 3.10.
 
-Do not introduce syntax or standard-library APIs that require Python 3.9 or newer. In particular, avoid:
+Do not introduce syntax or standard-library APIs that require Python 3.11 or newer. In particular, avoid:
 
-- built-in generic annotations such as `list[str]`;
-- PEP 604 unions such as `A | B`;
-- structural pattern matching;
 - `tomllib` without a compatibility dependency.
 
 Follow the existing style rather than modernizing nearby code incidentally. Keep imports compatible with the `src/` layout and import implementation objects from their owning modules.
