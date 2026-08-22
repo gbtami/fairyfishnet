@@ -4,7 +4,7 @@
 
 Distributed [Fairy-Stockfish](https://github.com/ianfab/Fairy-Stockfish) analysis for [pychess.org](https://www.pychess.org/).
 
-fairyfishnet requires Python 3.8 or newer.
+fairyfishnet requires Python 3.10 or newer.
 
 ## Installation
 
@@ -64,7 +64,7 @@ The repository uses a `src/` package layout and keeps tests under `tests/`.
 Create the locked development environment using the oldest supported Python:
 
 ```console
-uv sync --locked --python 3.8
+uv sync --locked --python 3.10
 ```
 
 Run the fast tests and quality checks:
@@ -74,7 +74,7 @@ uv run pytest -m "not engine"
 uv run ruff check .
 uv run ruff format --check .
 uv run pyright
-uv lock --check --python 3.8
+uv lock --check --python 3.10
 uv build
 ```
 

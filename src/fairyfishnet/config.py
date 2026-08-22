@@ -15,8 +15,8 @@ import sys
 import tempfile
 import urllib.parse as urlparse
 
-import gdown
 from bs4 import BeautifulSoup
+from gdown.download import download as gdown_download
 
 from .constants import (
     DEFAULT_CONFIG,
@@ -317,7 +317,7 @@ def update_nnue():
                 print("%s downloading drive id %s" % (eval_file, drive_id))
                 # Adding speed=2000*1024 limit to gdown() may help(?)
                 # workers running in the cloud (heroku.com or render.com)
-                gdown.download(id=drive_id, output=eval_file, quiet=False)
+                gdown_download(id=drive_id, output=eval_file, quiet=False)
 
                 if not os.path.isfile(eval_file):
                     print("Failed to download %s" % eval_file)

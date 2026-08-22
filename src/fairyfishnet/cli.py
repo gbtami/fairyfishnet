@@ -16,6 +16,7 @@ import signal
 import sys
 import textwrap
 import time
+from importlib.metadata import version as distribution_version
 from shlex import quote as shell_quote
 
 from .config import (
@@ -46,7 +47,6 @@ from .constants import (
     __version__,
 )
 from .cpuid import cmd_cpuid
-from .dependencies import requests
 from .downloads import update_available, update_self
 from .errors import ConfigError, Shutdown, ShutdownSoon, UpdateRequired
 from .logging_utils import intro, setup_logging
@@ -110,7 +110,7 @@ def cmd_run(args):
     print()
     print("### Checking configuration ...")
     print()
-    print("Python:           %s (with requests %s)" % (platform.python_version(), requests.__version__))
+    print("Python:           %s (with requests %s)" % (platform.python_version(), distribution_version("requests")))
     print("EngineDir:        %s" % get_engine_dir(conf))
     print("StockfishCommand: %s" % stockfish_command)
     print("Key:              %s" % (("*" * len(get_key(conf))) or "(none)"))
