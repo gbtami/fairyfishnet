@@ -180,6 +180,24 @@ def is_user_site_package():
     return os.path.abspath(__file__).startswith(os.path.join(user_site, ""))
 
 
+def _replace_process(executable, argv):
+    logging.debug("Restarting with executable: %s", executable)
+    if os.name == "nt":
+        # Windows has no true exec. Its CRT overlay starts a new process and
+        # terminates this one, which lets the invoking shell return while the
+        # replacement still owns the console. Keep this process alive until the
+        # replacement exits. Popen also quotes argument lists correctly for
+        # Windows paths and arguments containing spaces.
+        raise SystemExit(subprocess.call(argv, executable=executable, cwd=os.getcwd()))
+
+    os.execv(executable, argv)
+
+
+def _respawn_self():
+    argv = [sys.executable, "-m", "fairyfishnet"] + sys.argv[1:]
+    _replace_process(sys.executable, argv)
+
+
 def update_self():
     # Ensure current instance is installed as a package
     if __package__ is None:
@@ -266,11 +284,7 @@ def update_self():
     time.sleep(t)
 
     # Respawn through the stable package name after moving to a package layout.
-    argv = [sys.executable, "-m", "fairyfishnet"] + sys.argv[1:]
-
-    logging.debug("Restarting with execv: %s, argv: %s", sys.executable, " ".join(argv))
-
-    os.execv(sys.executable, argv)
+    _respawn_self()
 
 
 def update_available():
