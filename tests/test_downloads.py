@@ -22,3 +22,37 @@ def test_stockfish_filename_windows(monkeypatch):
     monkeypatch.setattr(downloads, "detect_cpu_capabilities", lambda: ("", False, False))
     monkeypatch.setattr(downloads.os, "name", "nt")
     assert downloads.stockfish_filename() == "stockfish-windows-amd64.exe"
+
+
+def test_stockfish_filename_macos_apple_silicon_skips_cpuid(monkeypatch):
+    monkeypatch.setattr(downloads.platform, "machine", lambda: "arm64")
+    monkeypatch.setattr(downloads.sys, "platform", "darwin")
+    monkeypatch.setattr(
+        downloads,
+        "detect_cpu_capabilities",
+        lambda: (_ for _ in ()).throw(AssertionError("macOS must not run CPUID")),
+    )
+    assert downloads.stockfish_filename() == "stockfish-osx-arm64"
+
+
+def test_stockfish_filename_macos_x86_64_skips_unused_cpuid(monkeypatch):
+    monkeypatch.setattr(downloads.platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(downloads.sys, "platform", "darwin")
+    monkeypatch.setattr(
+        downloads,
+        "detect_cpu_capabilities",
+        lambda: (_ for _ in ()).throw(AssertionError("macOS filenames do not use CPUID features")),
+    )
+    assert downloads.stockfish_filename() == "stockfish-osx-x86_64"
+
+
+def test_stockfish_filename_linux_arm_skips_cpuid(monkeypatch):
+    monkeypatch.setattr(downloads.platform, "machine", lambda: "aarch64")
+    monkeypatch.setattr(downloads.os, "name", "posix")
+    monkeypatch.setattr(downloads.sys, "platform", "linux")
+    monkeypatch.setattr(
+        downloads,
+        "detect_cpu_capabilities",
+        lambda: (_ for _ in ()).throw(AssertionError("non-x86 platforms must not run CPUID")),
+    )
+    assert downloads.stockfish_filename() == "stockfish-aarch64"

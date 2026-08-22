@@ -24,6 +24,8 @@ from .engine import open_process
 from .errors import ConfigError
 from .http_utils import is_newer_version, release_file_url, response_json
 
+X86_MACHINES = frozenset(("amd64", "x86_64", "x86", "i386", "i686"))
+
 
 def detect_cpu_capabilities():
     # Detects support for popcnt and pext instructions
@@ -83,18 +85,21 @@ def detect_cpu_capabilities():
 def stockfish_filename():
     machine = platform.machine().lower()
 
-    vendor, modern, bmi2 = detect_cpu_capabilities()
-    if modern and "Intel" in vendor and bmi2:
-        suffix = "-bmi2"
-    elif modern:
-        suffix = "-modern"
-    else:
-        suffix = ""
+    # macOS binaries do not use x86 feature suffixes, and CPUID is not
+    # available on ARM or other non-x86 architectures.
+    if os.name == "os2" or sys.platform == "darwin":
+        return "stockfish-osx-%s" % machine
+
+    suffix = ""
+    if machine in X86_MACHINES:
+        vendor, modern, bmi2 = detect_cpu_capabilities()
+        if modern and "Intel" in vendor and bmi2:
+            suffix = "-bmi2"
+        elif modern:
+            suffix = "-modern"
 
     if os.name == "nt":
         return "stockfish-windows-%s%s.exe" % (machine, suffix)
-    elif os.name == "os2" or sys.platform == "darwin":
-        return "stockfish-osx-%s" % machine
     elif os.name == "posix":
         return "stockfish-%s%s" % (machine, suffix)
 
