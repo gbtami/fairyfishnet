@@ -49,6 +49,37 @@ docker build -t fairyfishnet .
 docker run --rm fairyfishnet --key MY_API_KEY --auto-update
 ```
 
+## Resource allocation
+
+The `[Fishnet]` section of `fishnet.ini` controls how the selected logical CPU cores and engine hash memory are divided among Fairy-Stockfish processes:
+
+```ini
+[Fishnet]
+Cores = 4
+Threads = 2
+Memory = 256
+```
+
+- `Cores` is the total number of engine threads. `auto` uses all but one logical CPU, while `all` uses every logical CPU reported by Python.
+- `Threads` is a hint for the number of threads per engine process. Its default is 3, or fewer when fewer cores are selected.
+- `Memory` is the total Fairy-Stockfish transposition-table (UCI `Hash`) budget in MB across all engine processes. It is not a limit for total process RAM and is not calculated from available system memory.
+
+The number of engine processes is `max(1, Cores // Threads)`. All selected cores are then distributed as evenly as possible among those processes, so the actual thread count can be slightly higher than the `Threads` hint. `Memory = auto` assigns 256 MB of hash per process. A manual value is divided among the processes and must provide each one between 16 and 512 MB of hash.
+
+For example, an 8-thread machine with `Cores = auto` selects 7 cores:
+
+| `Threads` | Engine processes | Actual engine threads | `Memory = auto` |
+| --- | ---: | --- | ---: |
+| `auto` or `3` | 2 | 4 + 3 | 512 MB total |
+| `2` | 3 | 3 + 2 + 2 | 768 MB total |
+| `1` | 7 | 1 each | 1792 MB total |
+
+The example configuration above starts two 2-thread engines and gives each engine 128 MB of hash. Operating-system memory usage will be higher because each process also uses memory for the engine, NNUE networks, thread state, and other data. More pages may become resident while an engine is searching.
+
+Fewer threads per process allow more concurrent jobs and generally favor total queue throughput. More threads per process reduce concurrency but can lower the latency of an individual job. fairyfishnet uses this static allocation for its lifetime; it does not dynamically move cores between busy and idle engines.
+
+The equivalent command-line options are `--cores`, `--threads-per-process`, and `--memory`.
+
 ## Fairy-Stockfish
 
 fairyfishnet uses the pychess-variants build of [Fairy-Stockfish](https://github.com/ianfab/Fairy-Stockfish).
