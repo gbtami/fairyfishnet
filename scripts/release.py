@@ -25,7 +25,7 @@ def check_project():
     run("uv", "run", "pytest")
     run("uv", "run", "ruff", "check", ".")
     run("uv", "run", "ruff", "format", "--check", ".")
-    run("uv", "run", "pyright")
+    run("uv", "run", "pyrefly", "check")
     run("uv", "lock", "--check", "--python", sys.executable)
     run("uv", "build")
 

@@ -104,7 +104,7 @@ Run the fast tests and quality checks:
 uv run pytest -m "not engine"
 uv run ruff check .
 uv run ruff format --check .
-uv run pyright
+uv run pyrefly check
 uv lock --check --python 3.10
 uv build
 ```
@@ -160,7 +160,7 @@ Set `UV_PUBLISH_TOKEN`, then run:
 uv run python scripts/release.py
 ```
 
-The release helper runs tests, Ruff, Pyright, builds distributions, verifies a clean Git tree, creates the version tag, pushes it, and publishes with uv.
+The release helper runs tests, Ruff, Pyrefly, builds distributions, verifies a clean Git tree, creates the version tag, pushes it, and publishes with uv.
 
 ## License
 

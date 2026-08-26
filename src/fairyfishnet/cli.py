@@ -164,6 +164,7 @@ def cmd_run(args):
         worker.start()
 
     # Wait while the workers are running
+    handler = None
     try:
         # Let SIGTERM and SIGINT gracefully terminate the program
         handler = SignalHandler()
@@ -217,7 +218,8 @@ def cmd_run(args):
             logging.info("\n\n### Update required!")
         raise
     finally:
-        handler.ignore = True
+        if handler is not None:
+            handler.ignore = True
 
         # Stop workers
         for worker in workers:

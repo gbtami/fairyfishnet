@@ -6,7 +6,7 @@ The project is a production worker that executes untrusted network jobs through 
 
 ## Start here
 
-The repository uses a `src/` layout, uv, pytest, Ruff, and Pyright. Python 3.10 is the compatibility floor even when development or CI runs on a newer interpreter.
+The repository uses a `src/` layout, uv, pytest, Ruff, and Pyrefly. Python 3.10 is the compatibility floor even when development or CI runs on a newer interpreter.
 
 Create the locked environment with the oldest supported Python:
 
@@ -27,7 +27,7 @@ Before handing off a normal code change, run:
 uv run pytest -m "not engine"
 uv run ruff check .
 uv run ruff format --check .
-uv run pyright
+uv run pyrefly check
 ```
 
 Also run `uv lock --check --python 3.10` and `uv build` when changing packaging, dependencies, supported Python versions, entry points, or release-related files. Run `uv run pytest -m engine` when the change affects engine startup, UCI behavior, downloaded engine selection, custom variant loading, or integration-test expectations. Engine tests may download or launch Fairy-Stockfish and can require network access on a clean checkout.
@@ -48,7 +48,7 @@ Also run `uv lock --check --python 3.10` and `uv build` when changing packaging,
 
 ## Python compatibility and style
 
-Python 3.10 is the oldest supported interpreter. Ruff and Pyright are both configured to evaluate the source as Python 3.10.
+Python 3.10 is the oldest supported interpreter. Ruff and Pyrefly are both configured to evaluate the source as Python 3.10.
 
 Do not introduce syntax or standard-library APIs that require Python 3.11 or newer. In particular, avoid:
 

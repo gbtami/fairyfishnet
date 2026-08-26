@@ -49,7 +49,7 @@ fairyfishnet = "fairyfishnet.cli:entrypoint"
 
 [dependency-groups]
 dev = [
-    "pyright>=1.1.411,<2",
+    "pyrefly>=1.2.0,<2",
     "pytest>=9.1.1,<10",
     "ruff>=0.16.4,<1",
 ]
@@ -84,16 +84,19 @@ select = ["E4", "E7", "E9", "F", "I"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["E402"]
 
-[tool.pyright]
-include = ["src", "tests", "scripts"]
-exclude = [".venv", "build", "dist"]
-pythonVersion = "3.10"
-typeCheckingMode = "basic"
-reportMissingImports = false
-reportMissingTypeStubs = false
-reportUnknownMemberType = false
-reportUnknownVariableType = false
-reportUnknownArgumentType = false
-reportUnknownLambdaType = false
-reportUnknownParameterType = false
-reportUntypedFunctionDecorator = false
+[tool.pyrefly]
+project-includes = ["src", "tests", "scripts"]
+project-excludes = [".venv", "build", "dist"]
+python-version = "3.10.0"
+preset = "basic"
+infer-with-first-use = false
+
+[tool.pyrefly.errors]
+implicit-any-parameter = "ignore"
+unknown-attribute-type = "ignore"
+untyped-import = "ignore"
+missing-import = "ignore"
+unknown-argument-type = "ignore"
+implicit-any-lambda = "ignore"
+unknown-variable-type = "ignore"
+untyped-function-decorator = "ignore"

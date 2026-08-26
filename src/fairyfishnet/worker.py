@@ -173,6 +173,7 @@ class Worker(threading.Thread):
             return
         except DEAD_ENGINE_ERRORS + (EngineTimeout,) as err:
             alive = self.is_alive()
+            t = 0.0
             engine_timeout = isinstance(err, EngineTimeout)
             error: Dict[str, Any] = {
                 "reason": ABORT_REASON_ENGINE_TIMEOUT if engine_timeout else ABORT_REASON_ENGINE_CRASH,

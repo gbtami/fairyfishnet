@@ -69,7 +69,7 @@ jobs:
         run: uv run --python 3.14 pytest -m engine
 
   quality:
-    name: Ruff, Pyright, and build
+    name: Ruff, Pyrefly, and build
     runs-on: ubuntu-latest
 
     steps:
@@ -89,7 +89,7 @@ jobs:
         run: uv run --python 3.14 ruff check .
       - name: Ruff format
         run: uv run --python 3.14 ruff format --check .
-      - name: Pyright
-        run: uv run --python 3.14 pyright
+      - name: Pyrefly
+        run: uv run --python 3.14 pyrefly check
       - name: Build distributions
         run: uv build --python 3.14

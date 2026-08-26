@@ -35,7 +35,7 @@ def make_cpuid():
     if is_windows:
         libc = getattr(ctypes, "windll").kernel32
     else:
-        libc = ctypes.CDLL(None)  # pyright: ignore[reportArgumentType]
+        libc = ctypes.CDLL(None)
 
     # Select opcodes
     if is_64bit:
