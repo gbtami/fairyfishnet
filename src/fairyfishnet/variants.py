@@ -20,7 +20,7 @@ from .config import get_endpoint, get_engine_dir, get_key
 from .constants import HTTP_TIMEOUT
 from .dependencies import requests, sf
 from .engine import isready, setoption
-from .errors import ConfigError, JsonResponseError, VariantsIniError
+from .errors import ConfigError, EngineVariantConflict, JsonResponseError, VariantsIniError
 from .http_utils import response_json
 
 VARIANTS_CACHE_MAX_FILES = 512
@@ -32,10 +32,9 @@ VARIANTS_CACHE_FILE_RE = re.compile(r"^variants-([0-9a-f]{64})\.ini$")
 VARIANTS_CACHE_LEASE_RE = re.compile(r"^\.fairyfishnet-variants-[0-9]+-[0-9a-f]+\.lease$")
 VARIANTS_CACHE_THREAD_LOCK = threading.RLock()
 VARIANTS_LEASE_LOCK = threading.RLock()
-PYFFISH_VARIANT_LOCK = threading.RLock()
-PYFFISH_LOADED_VARIANTS_SHA256 = set()
 BUILTIN_VARIANTS = frozenset(str(variant).lower() for variant in sf.variants())
 ENGINE_LOADED_VARIANTS_SHA256_ATTRIBUTE = "_fairyfishnet_loaded_variants_sha256"
+ENGINE_LOADED_VARIANT_SECTIONS_ATTRIBUTE = "_fairyfishnet_loaded_variant_sections"
 ACTIVE_VARIANTS = collections.Counter()
 VARIANTS_LEASE_TOKEN = "%d-%x" % (os.getpid(), int(time.time() * 1000000))
 VariantsIni = collections.namedtuple("VariantsIni", "sha256 filename path")
@@ -363,6 +362,43 @@ def cleanup_variants_ini_cache(conf, now=None, max_files=VARIANTS_CACHE_MAX_FILE
     return deleted
 
 
+def _variants_ini_section_hashes(path):
+    """Return exact section fingerprints keyed by Fairy-Stockfish variant name."""
+
+    sections = {}
+    current_name = None
+    current_lines = []
+
+    def flush():
+        if current_name is None:
+            return
+        if current_name in sections:
+            raise VariantsIniError("Duplicate variant section %s in variants.ini" % current_name)
+        definition = "".join(current_lines).strip()
+        sections[current_name] = hashlib.sha256(definition.encode("utf-8")).hexdigest()
+
+    try:
+        with open(path, encoding="utf-8") as variants_file:
+            for line in variants_file:
+                stripped = line.strip()
+                if stripped.startswith("[") and stripped.endswith("]"):
+                    flush()
+                    body = stripped[1:-1]
+                    current_name = body.partition(":")[0].strip()
+                    if not current_name:
+                        raise VariantsIniError("Empty variant section name in variants.ini")
+                    current_lines = [line]
+                elif current_name is not None:
+                    current_lines.append(line)
+    except (OSError, UnicodeError) as err:
+        raise VariantsIniError("Could not read cached variants.ini: %s" % err) from err
+
+    flush()
+    if not sections:
+        raise VariantsIniError("Cached variants.ini contains no variant sections")
+    return sections
+
+
 def _apply_engine_variants(p, entry):
     """Load an exact variants file into one engine process at most once per hash."""
 
@@ -372,10 +408,27 @@ def _apply_engine_variants(p, entry):
     if entry.sha256 in loaded_sha256:
         return
 
+    incoming_sections = _variants_ini_section_hashes(entry.path)
+    loaded_sections = getattr(p, ENGINE_LOADED_VARIANT_SECTIONS_ATTRIBUTE, {})
+    conflicting_names = sorted(
+        name
+        for name, definition_hash in incoming_sections.items()
+        if name in loaded_sections and loaded_sections[name] != definition_hash
+    )
+    if conflicting_names:
+        raise EngineVariantConflict(
+            "Fairy-Stockfish already loaded different rules for variant section(s): %s" % ", ".join(conflicting_names)
+        )
+
     setoption(p, "VariantPath", entry.filename)
     isready(p)
     try:
         setattr(p, ENGINE_LOADED_VARIANTS_SHA256_ATTRIBUTE, loaded_sha256 | {entry.sha256})
+        setattr(
+            p,
+            ENGINE_LOADED_VARIANT_SECTIONS_ATTRIBUTE,
+            dict(loaded_sections, **incoming_sections),
+        )
     except (AttributeError, TypeError):
         # Tests and third-party process wrappers may not allow custom attributes.
         # A real subprocess.Popen instance does, so production workers still avoid
@@ -404,11 +457,3 @@ def use_engine_variants(p, conf, expected_sha256, variant=None):
     with active_variants_ini(conf, entry):
         _apply_engine_variants(p, entry)
         yield entry
-
-
-def pyffish_get_fen(entry, variant, fen, moves, chess960, sfen, show_promoted):
-    with PYFFISH_VARIANT_LOCK:
-        if entry is not None and entry.sha256 not in PYFFISH_LOADED_VARIANTS_SHA256:
-            sf.set_option("VariantPath", entry.path)
-            PYFFISH_LOADED_VARIANTS_SHA256.add(entry.sha256)
-        return sf.get_fen(variant, fen, moves, chess960, sfen, show_promoted)

@@ -34,3 +34,33 @@ def test_set_variant_options_uses_variant_name(monkeypatch):
     monkeypatch.setattr(engine, "setoption", lambda process, name, value: calls.append((name, value)))
     engine.set_variant_options(object(), "CrazyHouse", True, False)
     assert calls == [("UCI_Chess960", True), ("UCI_Variant", "crazyhouse")]
+
+
+def test_current_fen_reads_debug_output_through_readyok(monkeypatch):
+    process = object()
+    sent = []
+    responses = iter(
+        [
+            ("+---+---+", ""),
+            ("Fen:", "8/8/8/8/8/8/8/K6k w - - 0 1"),
+            ("Key:", "ABC"),
+            ("readyok", ""),
+        ]
+    )
+    monkeypatch.setattr(engine, "send", lambda p, line: sent.append((p, line)))
+    monkeypatch.setattr(engine, "recv_uci", lambda p, timeout=None: next(responses))
+
+    assert engine.current_fen(process) == "8/8/8/8/8/8/8/K6k w - - 0 1"
+    assert sent == [(process, "d"), (process, "isready")]
+
+
+def test_current_fen_rejects_missing_fen(monkeypatch):
+    monkeypatch.setattr(engine, "send", lambda p, line: None)
+    monkeypatch.setattr(engine, "recv_uci", lambda p, timeout=None: ("readyok", ""))
+
+    try:
+        engine.current_fen(object())
+    except IOError as exc:
+        assert "did not report a FEN" in str(exc)
+    else:
+        raise AssertionError("current_fen() accepted a response without Fen:")

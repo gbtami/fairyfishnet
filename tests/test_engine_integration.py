@@ -25,6 +25,19 @@ class WorkerTest(unittest.TestCase):
         payload = "[fishnet-test:chess]\n"
         cls.variants_sha256 = hashlib.sha256(payload.encode("utf-8")).hexdigest()
         write_variants_ini(conf, payload, cls.variants_sha256)
+        cls.radagast_old = """[radagast-reload-test:chess]
+maxFile = 10
+maxRank = 8
+chess960 = true
+customPiece1 = w:BC
+customPiece2 = m:NWAD
+startFen = rnbmqkwbnr/pppppppppp/10/10/10/10/PPPPPPPPPP/RNBMQKWBNR w KQkq - 0 1
+"""
+        cls.radagast_current = cls.radagast_old.replace("m:NWAD", "m:NWFAD")
+        cls.radagast_old_sha256 = hashlib.sha256(cls.radagast_old.encode("utf-8")).hexdigest()
+        cls.radagast_current_sha256 = hashlib.sha256(cls.radagast_current.encode("utf-8")).hexdigest()
+        write_variants_ini(conf, cls.radagast_old, cls.radagast_old_sha256)
+        write_variants_ini(conf, cls.radagast_current, cls.radagast_current_sha256)
         get_stockfish_command(conf, update=True)
 
     @classmethod
@@ -69,6 +82,37 @@ class WorkerTest(unittest.TestCase):
         }
         response = self.worker.bestmove(job)
         self.assertEqual(response["move"]["bestmove"], "P@f2")
+
+    def test_changed_rules_under_same_name_restart_engine(self):
+        common = {
+            "work": {"type": "move", "id": "reload", "level": 0},
+            "variant": "radagast-reload-test",
+            "position": "rnbmqkwbnr/pppppppppp/10/10/10/10/PPPPPPPPPP/RNBMQKWBNR w KQkq - 0 1",
+        }
+        old_job = {
+            **common,
+            "variantsSha256": self.radagast_old_sha256,
+            "moves": "g2g3",
+        }
+        self.worker.bestmove(old_job)
+        old_stockfish = self.worker.stockfish
+        assert old_stockfish is not None
+        old_pid = old_stockfish.pid
+
+        current_job = {
+            **common,
+            "variantsSha256": self.radagast_current_sha256,
+            "moves": "g2g3 d8b6 g1h4 b6a4 d2d4 a4b5",
+        }
+        response = self.worker.bestmove(current_job)
+
+        current_stockfish = self.worker.stockfish
+        assert current_stockfish is not None
+        self.assertNotEqual(current_stockfish.pid, old_pid)
+        self.assertEqual(
+            response["move"]["fen"],
+            "rnb1qkwbnr/pppppppppp/10/1m8/3P3W2/6P3/PPP1PP1PPP/RNBMQK1BNR w JAja - 1 4",
+        )
 
     def test_analysis(self):
         job = {

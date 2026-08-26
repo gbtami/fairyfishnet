@@ -11,6 +11,7 @@ import platform
 import queue
 import threading
 import time
+from contextlib import contextmanager
 from typing import Any, Dict, List
 
 from .config import get_endpoint, get_engine_dir, get_key, get_stockfish_command, start_backoff
@@ -28,6 +29,7 @@ from .constants import (
 )
 from .dependencies import HTTPAdapter, requests
 from .engine import (
+    current_fen,
     go,
     isready,
     kill_process,
@@ -38,10 +40,17 @@ from .engine import (
     setoption,
     uci,
 )
-from .errors import DEAD_ENGINE_ERRORS, EngineTimeout, JsonResponseError, UpdateRequired, VariantsIniError
+from .errors import (
+    DEAD_ENGINE_ERRORS,
+    EngineTimeout,
+    EngineVariantConflict,
+    JsonResponseError,
+    UpdateRequired,
+    VariantsIniError,
+)
 from .http_utils import base_url, response_json
 from .logging_utils import PROGRESS
-from .variants import pyffish_get_fen, use_engine_variants
+from .variants import use_engine_variants
 
 
 class ProgressReporter(threading.Thread):
@@ -362,14 +371,28 @@ class Worker(threading.Thread):
         return "".join(builder)
 
     def bestmove(self, job):
+        with self._job_engine_variants(job) as variants_ini:
+            return self._bestmove(job, variants_ini)
+
+    @contextmanager
+    def _job_engine_variants(self, job):
         variant = job.get("variant", "standard")
-        with use_engine_variants(
-            self.stockfish,
+        args = (
             self.conf,
             job.get("variantsSha256"),
             job.get("variantsScope") or variant,
-        ) as variants_ini:
-            return self._bestmove(job, variants_ini)
+        )
+        try:
+            with use_engine_variants(self.stockfish, *args) as variants_ini:
+                yield variants_ini
+                return
+        except EngineVariantConflict as err:
+            logging.warning("Restarting engine to replace stale custom variant rules: %s", err)
+
+        self.kill_stockfish()
+        self.start_stockfish()
+        with use_engine_variants(self.stockfish, *args) as variants_ini:
+            yield variants_ini
 
     def _bestmove(self, job, variants_ini):
         lvl = job["work"]["level"]
@@ -416,33 +439,14 @@ class Worker(threading.Thread):
         self.nodes += part.get("nodes", 0)
         self.positions += 1
 
-        sfen = False
-        show_promoted = variant in (
-            "makruk",
-            "makpong",
-            "cambodian",
-            "bughouse",
-            "supply",
-            "makbug",
-        )
-        if len(job["moves"]) > 0:
-            try:
-                fen = pyffish_get_fen(variants_ini, variant, fen, moves, chess960, sfen, show_promoted)
-            except Exception:
-                logging.error("sf.get_fen() failed on %s with moves %s", job["position"], job["moves"])
+        fen = current_fen(self.stockfish)
 
         result = self.make_request()
         result["move"] = {"bestmove": part["bestmove"], "fen": fen}
         return result
 
     def analysis(self, job):
-        variant = job.get("variant", "standard")
-        with use_engine_variants(
-            self.stockfish,
-            self.conf,
-            job.get("variantsSha256"),
-            job.get("variantsScope") or variant,
-        ):
+        with self._job_engine_variants(job):
             return self._analysis(job)
 
     def _analysis(self, job):

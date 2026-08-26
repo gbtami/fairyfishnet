@@ -64,6 +64,8 @@ GET /fishnet/variants/{apikey}?sha256={variantsSha256}&variant={variantsScope}
 
 A successful response contains `variantsIni`, the matching `variantsSha256`, and optionally `variantsScope`. The payload contains only the requested custom section and any custom base sections it inherits from; unrelated site and user-defined variants are omitted. The client verifies the declared hash and the UTF-8 content hash before atomically caching the file as `variants-<sha256>.ini`. The client must abort a non-built-in work unit if the hash is missing, the exact payload is unavailable (`409 Conflict`), or any hash differs. It must never substitute a bundled or newer rules file.
 
+Fairy-Stockfish keys loaded definitions by their INI section name and cannot replace one in a running engine process. The client fingerprints every section loaded into each engine. If an exact payload reuses a loaded section name with different rules, the client restarts that engine before loading the requested file. This preserves the content-addressed contract even when an older server has allowed an internal variant name to be reused.
+
 The server is the source of truth for both site variants and user-defined variants. Adding or editing INI-only site rules therefore requires a pychess deployment, not a fairyfishnet package release.
 
 Client runs Stockfish and sends the analysis to server.

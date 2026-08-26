@@ -1,8 +1,9 @@
 import configparser
+from contextlib import contextmanager
 
 import fairyfishnet.worker as worker_module
 from fairyfishnet.constants import ABORT_REASON_ENGINE_CRASH, ABORT_REASON_VARIANTS_UNAVAILABLE
-from fairyfishnet.errors import VariantsIniError
+from fairyfishnet.errors import EngineVariantConflict, VariantsIniError
 from fairyfishnet.worker import Worker
 
 
@@ -82,4 +83,44 @@ def test_worker_aborts_job_when_exact_variants_payload_is_unavailable():
             "kind": "VariantsIniError",
             "message": "missing payload",
         }
+    ]
+
+
+def test_worker_restarts_engine_before_replacing_loaded_variant_rules(monkeypatch):
+    worker = make_worker()
+    monkeypatch.setattr(worker, "stockfish", "old-engine")
+    calls = []
+
+    @contextmanager
+    def fake_use_engine_variants(process, conf, sha256, scope):
+        calls.append((process, sha256, scope))
+        if process == "old-engine":
+            raise EngineVariantConflict("different rules for custom")
+        yield "current-entry"
+
+    def kill_stockfish():
+        calls.append("kill")
+        worker.stockfish = None
+
+    def start_stockfish():
+        calls.append("start")
+        monkeypatch.setattr(worker, "stockfish", "new-engine")
+
+    monkeypatch.setattr(worker_module, "use_engine_variants", fake_use_engine_variants)
+    monkeypatch.setattr(worker, "kill_stockfish", kill_stockfish)
+    monkeypatch.setattr(worker, "start_stockfish", start_stockfish)
+    job = {
+        "variant": "custom",
+        "variantsSha256": "a" * 64,
+        "variantsScope": "custom",
+    }
+
+    with worker._job_engine_variants(job) as entry:
+        assert entry == "current-entry"
+
+    assert calls == [
+        ("old-engine", "a" * 64, "custom"),
+        "kill",
+        "start",
+        ("new-engine", "a" * 64, "custom"),
     ]

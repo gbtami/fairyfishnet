@@ -162,6 +162,23 @@ def isready(p, timeout=ENGINE_READY_TIMEOUT):
             logging.warning("Unexpected engine response to isready: %s %s", command, arg)
 
 
+def current_fen(p, timeout=ENGINE_READY_TIMEOUT):
+    """Return the FEN for the engine's current position."""
+
+    send(p, "d")
+    send(p, "isready")
+    deadline = time.time() + timeout if timeout is not None else None
+    fen = None
+    while True:
+        command, arg = recv_uci(p, timeout=_time_left(deadline))
+        if command == "Fen:":
+            fen = arg
+        elif command == "readyok":
+            if fen is None:
+                raise IOError("Engine did not report a FEN for its current position")
+            return fen
+
+
 def setoption(p, name, value):
     if value is True:
         value = "true"

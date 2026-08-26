@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 import fairyfishnet.variants as variants
-from fairyfishnet.errors import ConfigError, VariantsIniError
+from fairyfishnet.errors import ConfigError, EngineVariantConflict, VariantsIniError
 from tests.helpers import make_conf
 
 
@@ -230,53 +230,42 @@ def test_reload_engine_variants_loads_a_new_hash(tmp_path, monkeypatch):
     ]
 
 
-def test_pyffish_get_fen_loads_each_hash_once(tmp_path, monkeypatch):
+def test_reload_engine_variants_rejects_changed_rules_under_loaded_name(tmp_path, monkeypatch):
     conf = make_conf(tmp_path)
-    payload = "[custom]\n"
-    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-    entry = variants.write_variants_ini(conf, payload, digest)
-    set_option_calls = []
-    get_fen_calls = []
-    monkeypatch.setattr(variants, "PYFFISH_LOADED_VARIANTS_SHA256", set())
-    monkeypatch.setattr(variants.sf, "set_option", lambda name, value: set_option_calls.append((name, value)))
-    monkeypatch.setattr(
-        variants.sf,
-        "get_fen",
-        lambda *args: get_fen_calls.append(args) or "resulting-fen",
-    )
-
-    for _ in range(2):
-        assert variants.pyffish_get_fen(entry, "custom", "fen", ["a1a2"], False, False, False) == "resulting-fen"
-
-    assert set_option_calls == [("VariantPath", entry.path)]
-    assert len(get_fen_calls) == 2
-
-
-def test_pyffish_get_fen_loads_a_new_hash(tmp_path, monkeypatch):
-    conf = make_conf(tmp_path)
-    payloads = ["[first]\n", "[second]\n"]
-    entries = [
-        variants.write_variants_ini(conf, payload, hashlib.sha256(payload.encode("utf-8")).hexdigest())
-        for payload in payloads
-    ]
+    payloads = ["[custom:chess]\ncustomPiece1 = a:N\n", "[custom:chess]\ncustomPiece1 = a:B\n"]
+    digests = [hashlib.sha256(payload.encode("utf-8")).hexdigest() for payload in payloads]
+    for payload, digest in zip(payloads, digests):
+        variants.write_variants_ini(conf, payload, digest)
+    process = SimpleNamespace()
     calls = []
-    monkeypatch.setattr(variants, "PYFFISH_LOADED_VARIANTS_SHA256", set())
-    monkeypatch.setattr(variants.sf, "set_option", lambda name, value: calls.append((name, value)))
-    monkeypatch.setattr(variants.sf, "get_fen", lambda *args: "resulting-fen")
+    monkeypatch.setattr(variants, "setoption", lambda process, name, value: calls.append((name, value)))
+    monkeypatch.setattr(variants, "isready", lambda process: None)
 
-    for entry in [entries[0], entries[1], entries[0]]:
-        variants.pyffish_get_fen(entry, "custom", "fen", ["a1a2"], False, False, False)
+    variants.reload_engine_variants(process, conf, expected_sha256=digests[0])
+    with pytest.raises(EngineVariantConflict, match="custom"):
+        variants.reload_engine_variants(process, conf, expected_sha256=digests[1])
 
-    assert calls == [("VariantPath", entries[0].path), ("VariantPath", entries[1].path)]
+    assert calls == [("VariantPath", variants.variants_ini_filename(digests[0]))]
 
 
-def test_pyffish_get_fen_uses_builtin_without_variant_path(monkeypatch):
-    set_option_calls = []
-    monkeypatch.setattr(variants.sf, "set_option", lambda name, value: set_option_calls.append((name, value)))
-    monkeypatch.setattr(variants.sf, "get_fen", lambda *args: "resulting-fen")
+def test_reload_engine_variants_allows_identical_shared_section(tmp_path, monkeypatch):
+    conf = make_conf(tmp_path)
+    payloads = [
+        "[base:chess]\ncustomPiece1 = a:N\n\n[first:base]\n",
+        "[base:chess]\ncustomPiece1 = a:N\n\n[second:base]\n",
+    ]
+    digests = [hashlib.sha256(payload.encode("utf-8")).hexdigest() for payload in payloads]
+    for payload, digest in zip(payloads, digests):
+        variants.write_variants_ini(conf, payload, digest)
+    process = SimpleNamespace()
+    calls = []
+    monkeypatch.setattr(variants, "setoption", lambda process, name, value: calls.append((name, value)))
+    monkeypatch.setattr(variants, "isready", lambda process: None)
 
-    assert variants.pyffish_get_fen(None, "chess", "fen", ["e2e4"], False, False, False) == "resulting-fen"
-    assert set_option_calls == []
+    for digest in digests:
+        variants.reload_engine_variants(process, conf, expected_sha256=digest)
+
+    assert calls == [("VariantPath", variants.variants_ini_filename(digest)) for digest in digests]
 
 
 def test_active_entry_is_protected_from_cleanup(tmp_path):

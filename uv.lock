@@ -210,7 +210,7 @@ wheels = [
 
 [[package]]
 name = "fairyfishnet"
-version = "1.16.69"
+version = "1.16.70"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },

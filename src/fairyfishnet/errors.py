@@ -20,6 +20,10 @@ class VariantsIniError(Exception):
     pass
 
 
+class EngineVariantConflict(VariantsIniError):
+    """The engine process already has different rules under a requested name."""
+
+
 class JsonResponseError(Exception):
     pass
 
