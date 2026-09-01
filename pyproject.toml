@@ -34,7 +34,7 @@ classifiers = [
 dependencies = [
     "beautifulsoup4==4.15.0",
     "gdown==6.1.0",
-    "pyffish==0.0.89",
+    "pyffish==0.0.90",
     "requests==2.34.2",
 ]
 
