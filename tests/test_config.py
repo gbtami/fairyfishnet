@@ -218,7 +218,7 @@ def test_validate_alice_stockfish_command_applies_dedicated_options(tmp_path, mo
     assert config.validate_alice_stockfish_command("./alice-stockfish", conf) == "./alice-stockfish"
     assert ("alice evaluation", "Legacy") in calls
     assert ("evalfile", "Alice_v1.nnue") in calls
-    assert ("UCI_Variant", "alice") in calls
+    assert ("UCI_Variant", "alice") not in calls
     assert calls[-1] == ("kill", process)
 
 

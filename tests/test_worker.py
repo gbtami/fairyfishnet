@@ -172,3 +172,64 @@ def test_alice_job_uses_dedicated_engine_without_variants_ini(monkeypatch):
         assert variants_ini is None
 
     assert starts == ["alice"]
+
+
+def test_alice_bestmove_does_not_reset_dedicated_variant(monkeypatch):
+    worker = make_worker("./alice-stockfish")
+    worker.stockfish = object()
+    worker.engine_kind = "alice"
+    variant_calls = []
+    monkeypatch.setattr(worker_module, "set_variant_options", lambda *args: variant_calls.append(args))
+    monkeypatch.setattr(worker_module, "setoption", lambda *args: None)
+    monkeypatch.setattr(worker_module, "send", lambda *args: None)
+    monkeypatch.setattr(worker_module, "isready", lambda *args: None)
+    monkeypatch.setattr(
+        worker_module,
+        "go",
+        lambda *args, **kwargs: {"bestmove": "e2e4", "depth": 1, "nodes": 1},
+    )
+    monkeypatch.setattr(worker_module, "current_fen", lambda *args: "alice-fen")
+    monkeypatch.setattr(worker, "make_request", lambda: {})
+
+    job = {
+        "variant": "alice",
+        "position": "alice-start-fen",
+        "moves": "",
+        "nnue": True,
+        "work": {"level": 1, "id": "alice-move"},
+    }
+
+    result = worker._bestmove(job, None)
+
+    assert result["move"]["bestmove"] == "e2e4"
+    assert variant_calls == []
+
+
+def test_alice_analysis_does_not_reset_dedicated_variant(monkeypatch):
+    worker = make_worker("./alice-stockfish")
+    worker.stockfish = object()
+    worker.engine_kind = "alice"
+    variant_calls = []
+    monkeypatch.setattr(worker_module, "set_variant_options", lambda *args: variant_calls.append(args))
+    monkeypatch.setattr(worker_module, "setoption", lambda *args: None)
+    monkeypatch.setattr(worker_module, "send", lambda *args: None)
+    monkeypatch.setattr(worker_module, "isready", lambda *args: None)
+    monkeypatch.setattr(
+        worker_module,
+        "go",
+        lambda *args, **kwargs: {"score": {"cp": 0}, "depth": 1, "nodes": 1, "pv": []},
+    )
+    monkeypatch.setattr(worker, "make_request", lambda: {})
+
+    job = {
+        "variant": "alice",
+        "position": "alice-start-fen",
+        "moves": "",
+        "nodes": 1,
+        "work": {"id": "alice-analysis"},
+    }
+
+    result = worker._analysis(job)
+
+    assert "analysis" in result
+    assert variant_calls == []

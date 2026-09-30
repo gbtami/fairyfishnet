@@ -303,7 +303,9 @@ def validate_alice_stockfish_command(alice_stockfish_command, conf):
         if conf.has_section("AliceStockfish"):
             for name, value in conf.items("AliceStockfish"):
                 setoption(process, name, value)
-        setoption(process, "UCI_Variant", "alice")
+        # Alice-Stockfish is a dedicated single-variant engine. Its only
+        # UCI_Variant choice is already the default, and version 1.0 exits if
+        # `setoption name UCI_Variant value alice` is sent redundantly.
         isready(process)
 
         # A successful UCI handshake is not enough for Alice-Stockfish: the

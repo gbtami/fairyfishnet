@@ -454,7 +454,11 @@ class Worker(threading.Thread):
         logging.debug("Playing %s (%s) with lvl %d", self.job_name(job), variant, lvl)
 
         variant = modded_variant(variant, chess960, fen)
-        set_variant_options(self.stockfish, variant, chess960, nnue)
+        # Alice-Stockfish is already permanently in Alice mode. In particular,
+        # do not send its single-value UCI_Variant option again: version 1.0
+        # treats that as a duplicate variant registration and exits.
+        if self.engine_kind != "alice":
+            set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl])
         if self.engine_kind != "alice":
             setoption(self.stockfish, "UCI_AnalyseMode", False)
@@ -512,7 +516,8 @@ class Worker(threading.Thread):
         start = last_progress_report = time.time()
 
         variant = modded_variant(variant, chess960, fen)
-        set_variant_options(self.stockfish, variant, chess960, nnue)
+        if self.engine_kind != "alice":
+            set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", 20)
         if self.engine_kind != "alice":
             setoption(self.stockfish, "UCI_AnalyseMode", True)
