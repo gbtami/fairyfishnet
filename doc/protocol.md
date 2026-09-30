@@ -12,7 +12,10 @@ POST http://lichess.org/fishnet/acquire
   "fishnet": {
     "version": "1.15.7",
     "python": "2.7.11+",
-    "apikey": "XXX"
+    "apikey": "XXX",
+    "capabilities": {
+      "variants": ["alice"]
+    }
   },
   "engine": {
     "name": "Stockfish 7 64",
@@ -50,6 +53,27 @@ POST http://lichess.org/fishnet/acquire
 }
 ```
 
+
+
+Optional engine capabilities
+----------------------------
+
+Workers may advertise optional variant-specific engine support in every acquire/result request:
+
+```javascript
+"fishnet": {
+  "version": "1.16.70",
+  "python": "3.10.0+",
+  "apikey": "XXX",
+  "capabilities": {
+    "variants": ["alice"]
+  }
+}
+```
+
+The field is additive and backward-compatible. An absent `capabilities` object or an empty `variants` list means the worker has no optional variant capabilities. The server must not assign work for an optional-capability variant to a request that does not advertise that variant. It may defer such queued work while looking for compatible work for the current worker.
+
+For Alice Chess, fairyfishnet advertises `alice` only after its optional Alice-Stockfish executable passes startup, UCI-variant, configured-option, and shallow-search validation. A worker without a usable Alice-Stockfish executable continues to process ordinary Fairy-Stockfish work normally.
 
 Variant rules
 -------------

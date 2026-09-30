@@ -28,6 +28,7 @@ from .config import (
     get_stockfish_command,
     load_conf,
     parse_bool,
+    validate_alice_stockfish_command,
     validate_cores,
     validate_endpoint,
     validate_engine_dir,
@@ -104,6 +105,16 @@ def cmd_run(args):
         print()
         stockfish_command = get_stockfish_command(conf)
 
+    # Alice-Stockfish is optional. A bad/missing secondary engine must never
+    # prevent the worker from serving the normal Fairy-Stockfish variants.
+    alice_stockfish_command = None
+    configured_alice_command = conf_get(conf, "AliceStockfishCommand")
+    if configured_alice_command:
+        try:
+            alice_stockfish_command = validate_alice_stockfish_command(configured_alice_command, conf)
+        except ConfigError as err:
+            logging.warning("Alice-Stockfish disabled: %s", err)
+
     # Check .nnue files
     validate_nnue()
 
@@ -113,6 +124,7 @@ def cmd_run(args):
     print("Python:           %s (with requests %s)" % (platform.python_version(), distribution_version("requests")))
     print("EngineDir:        %s" % get_engine_dir(conf))
     print("StockfishCommand: %s" % stockfish_command)
+    print("AliceStockfish:   %s" % (alice_stockfish_command if alice_stockfish_command else "disabled"))
     print("Key:              %s" % (("*" * len(get_key(conf))) or "(none)"))
 
     cores = validate_cores(conf_get(conf, "Cores"))
@@ -155,7 +167,16 @@ def cmd_run(args):
     progress_reporter.daemon = True
     progress_reporter.start()
 
-    workers = [Worker(conf, bucket, memory // instances, progress_reporter) for bucket in buckets]
+    workers = [
+        Worker(
+            conf,
+            bucket,
+            memory // instances,
+            progress_reporter,
+            alice_stockfish_command=alice_stockfish_command,
+        )
+        for bucket in buckets
+    ]
 
     # Start all threads
     for i, worker in enumerate(workers):
@@ -294,6 +315,11 @@ def cmd_systemd(args):
         if stockfish_command is not None:
             builder.append("--stockfish-command")
             builder.append(shell_quote(stockfish_command))
+    if args.alice_stockfish_command is not None:
+        alice_stockfish_command = validate_alice_stockfish_command(args.alice_stockfish_command, conf)
+        if alice_stockfish_command is not None:
+            builder.append("--alice-stockfish-command")
+            builder.append(shell_quote(alice_stockfish_command))
     if args.cores is not None:
         builder.append("--cores")
         builder.append(shell_quote(str(validate_cores(args.cores))))
@@ -369,6 +395,10 @@ def main(argv):
     g.add_argument("--endpoint", help="pychess-variants http endpoint (default: %s)" % DEFAULT_ENDPOINT)
     g.add_argument("--engine-dir", help="engine working directory")
     g.add_argument("--stockfish-command", help="stockfish command (default: download precompiled Stockfish)")
+    g.add_argument(
+        "--alice-stockfish-command",
+        help="optional Alice-Stockfish command; omit to decline Alice jobs",
+    )
     g.add_argument(
         "--threads-per-process",
         "--threads",

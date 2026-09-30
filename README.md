@@ -86,6 +86,23 @@ fairyfishnet uses the pychess-variants build of [Fairy-Stockfish](https://github
 
 A suitable precompiled engine is downloaded automatically. To use a locally built engine, run `./build-stockfish.sh` and pass its path with `--stockfish-command`.
 
+### Optional Alice-Stockfish
+
+Alice Chess can use the dedicated [Alice-Stockfish](https://github.com/Belzedar94/Alice-Stockfish) engine while all other variants continue to use Fairy-Stockfish. This support is optional: configure `AliceStockfishCommand` in `[Fishnet]` (or pass `--alice-stockfish-command`) only on workers that have a compatible Alice-Stockfish executable.
+
+```ini
+[Fishnet]
+AliceStockfishCommand = /path/to/alice-stockfish
+
+[AliceStockfish]
+# Optional UCI settings specific to Alice-Stockfish.
+# EvalFile = /path/to/Alice_v1.nnue
+```
+
+At startup fairyfishnet checks that the executable starts, advertises the `alice` UCI variant, accepts the configured `[AliceStockfish]` options, and completes a shallow search. If any of those checks fail, Alice support is disabled for that worker while normal Fairy-Stockfish work continues. Workers without Alice support do not advertise the Alice capability, so the server will not assign them Alice jobs.
+
+Each worker process still owns only one engine subprocess at a time. It switches from Fairy-Stockfish to Alice-Stockfish when it receives Alice work and back to Fairy-Stockfish for other variants, avoiding an extra idle engine process per worker.
+
 Engine lifecycle, UCI, dynamic variant, and cache invariants are documented in [ENGINES.md](ENGINES.md).
 
 ## Development

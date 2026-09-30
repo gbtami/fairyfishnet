@@ -95,11 +95,12 @@ class ProgressReporter(threading.Thread):
 
 
 class Worker(threading.Thread):
-    def __init__(self, conf, threads, memory, progress_reporter):
+    def __init__(self, conf, threads, memory, progress_reporter, alice_stockfish_command=None):
         super(Worker, self).__init__()
         self.conf = conf
         self.threads = threads
         self.memory = memory
+        self.alice_stockfish_command = alice_stockfish_command
 
         self.progress_reporter = progress_reporter
 
@@ -115,6 +116,7 @@ class Worker(threading.Thread):
         self.stockfish_lock = threading.RLock()
         self.stockfish = None
         self.stockfish_info = None
+        self.engine_kind = None
 
         self.job = None
         self.backoff = start_backoff(self.conf)
@@ -156,8 +158,10 @@ class Worker(threading.Thread):
 
     def run_inner(self):
         try:
-            # Check if the engine is still alive and start, if necessary
-            self.start_stockfish()
+            # Check if the required engine is still alive and start, if necessary.
+            # Alice jobs use the optional Alice-Stockfish process; every other
+            # variant keeps using the normal Fairy-Stockfish process.
+            self.start_stockfish(self._engine_kind_for_job(self.job))
 
             # Do the next work unit
             path, request = self.work()
@@ -295,51 +299,86 @@ class Worker(threading.Thread):
                 except OSError:
                     logging.exception("Failed to kill engine process.")
                 self.stockfish = None
+            self.engine_kind = None
 
-    def start_stockfish(self):
+    def _engine_kind_for_job(self, job):
+        if job and job.get("variant", "standard").lower() == "alice":
+            return "alice"
+        return "fairy"
+
+    def start_stockfish(self, engine_kind="fairy"):
+        if engine_kind == "alice" and not self.alice_stockfish_command:
+            raise VariantsIniError("This worker has no usable Alice-Stockfish engine")
+
         with self.stockfish_lock:
-            # Check if already running.
+            # Keep exactly one engine subprocess per Worker. Switching variants
+            # therefore does not double idle memory usage on Alice-capable hosts.
             if self.stockfish and self.stockfish.poll() is None:
-                return
+                if self.engine_kind == engine_kind:
+                    return
+                try:
+                    kill_process(self.stockfish)
+                finally:
+                    self.stockfish = None
+                    self.engine_kind = None
 
-            # Start process
-            self.stockfish = open_process(get_stockfish_command(self.conf, False), get_engine_dir(self.conf))
+            command = (
+                self.alice_stockfish_command if engine_kind == "alice" else get_stockfish_command(self.conf, False)
+            )
+            self.stockfish = open_process(command, get_engine_dir(self.conf))
+            self.engine_kind = engine_kind
 
-        self.stockfish_info, _ = uci(self.stockfish)
-        self.stockfish_info.pop("author", None)
-        logging.info(
-            "Started %s, threads: %s (%d), pid: %d",
-            self.stockfish_info.get("name", "Stockfish <?>"),
-            "+" * self.threads,
-            self.threads,
-            self.stockfish.pid,
-        )
+        try:
+            self.stockfish_info, variants = uci(self.stockfish)
+            if engine_kind == "alice" and "alice" not in variants:
+                raise VariantsIniError("Alice-Stockfish does not advertise the alice UCI variant")
+            self.stockfish_info.pop("author", None)
+            logging.info(
+                "Started %s for %s jobs, threads: %s (%d), pid: %d",
+                self.stockfish_info.get("name", "Stockfish <?>"),
+                engine_kind,
+                "+" * self.threads,
+                self.threads,
+                self.stockfish.pid,
+            )
 
-        # Prepare UCI options
-        self.stockfish_info["options"] = {}
-        self.stockfish_info["options"]["threads"] = str(self.threads)
-        self.stockfish_info["options"]["hash"] = str(self.memory)
+            # Prepare UCI options
+            self.stockfish_info["options"] = {}
+            self.stockfish_info["options"]["threads"] = str(self.threads)
+            self.stockfish_info["options"]["hash"] = str(self.memory)
 
-        # Custom options
-        if self.conf.has_section("Stockfish"):
-            for name, value in self.conf.items("Stockfish"):
-                self.stockfish_info["options"][name] = value
+            # Engine-specific custom options. Alice-Stockfish has a separate
+            # option namespace so its EvalFile/evaluation mode cannot leak into
+            # ordinary Fairy-Stockfish jobs.
+            section = "AliceStockfish" if engine_kind == "alice" else "Stockfish"
+            if self.conf.has_section(section):
+                for name, value in self.conf.items(section):
+                    self.stockfish_info["options"][name] = value
 
-        # Add .nnue file list
-        self.stockfish_info["nnue"] = ["%s-%s.nnue" % (v, NNUE_NET[v]) for v in NNUE_NET]
+            # Fairy-Stockfish reports the downloaded variant NNUE files. The
+            # dedicated Alice engine manages its own network configuration.
+            if engine_kind == "fairy":
+                self.stockfish_info["nnue"] = ["%s-%s.nnue" % (v, NNUE_NET[v]) for v in NNUE_NET]
 
-        # Set UCI options
-        for name, value in self.stockfish_info["options"].items():
-            setoption(self.stockfish, name, value)
+            # Set UCI options
+            for name, value in self.stockfish_info["options"].items():
+                setoption(self.stockfish, name, value)
 
-        isready(self.stockfish)
+            isready(self.stockfish)
+        except Exception:
+            self.kill_stockfish()
+            raise
 
     def make_request(self) -> Dict[str, Any]:
+        optional_variants = []
+        if self.alice_stockfish_command:
+            optional_variants.append("alice")
         return {
             "fishnet": {
                 "version": __version__,
                 "python": platform.python_version(),
                 "apikey": get_key(self.conf),
+                "capabilities": {"variants": optional_variants},
             },
             "stockfish": self.stockfish_info,
         }
@@ -378,6 +417,15 @@ class Worker(threading.Thread):
     @contextmanager
     def _job_engine_variants(self, job):
         variant = job.get("variant", "standard")
+        engine_kind = self._engine_kind_for_job(job)
+        self.start_stockfish(engine_kind)
+
+        # Alice-Stockfish is a dedicated single-variant engine. It must not be
+        # given Fairy-Stockfish VariantPath payloads.
+        if engine_kind == "alice":
+            yield None
+            return
+
         args = (
             self.conf,
             job.get("variantsSha256"),
@@ -391,7 +439,7 @@ class Worker(threading.Thread):
             logging.warning("Restarting engine to replace stale custom variant rules: %s", err)
 
         self.kill_stockfish()
-        self.start_stockfish()
+        self.start_stockfish("fairy")
         with use_engine_variants(self.stockfish, *args) as variants_ini:
             yield variants_ini
 
@@ -408,7 +456,8 @@ class Worker(threading.Thread):
         variant = modded_variant(variant, chess960, fen)
         set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", LVL_SKILL[lvl])
-        setoption(self.stockfish, "UCI_AnalyseMode", False)
+        if self.engine_kind != "alice":
+            setoption(self.stockfish, "UCI_AnalyseMode", False)
         send(self.stockfish, "ucinewgame")
         isready(self.stockfish)
 
@@ -465,7 +514,8 @@ class Worker(threading.Thread):
         variant = modded_variant(variant, chess960, fen)
         set_variant_options(self.stockfish, variant, chess960, nnue)
         setoption(self.stockfish, "Skill Level", 20)
-        setoption(self.stockfish, "UCI_AnalyseMode", True)
+        if self.engine_kind != "alice":
+            setoption(self.stockfish, "UCI_AnalyseMode", True)
         send(self.stockfish, "ucinewgame")
         isready(self.stockfish)
 

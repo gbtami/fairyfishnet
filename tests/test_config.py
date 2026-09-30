@@ -176,3 +176,65 @@ def test_validate_stockfish_command_rejects_engine_without_custom_ini_support(tm
 
     with pytest.raises(ConfigError, match="does not support loading"):
         config.validate_stockfish_command("./stockfish", conf)
+
+
+def test_validate_alice_stockfish_command_is_optional():
+    assert config.validate_alice_stockfish_command("", make_conf()) is None
+
+
+def test_validate_alice_stockfish_command_requires_alice_variant(tmp_path, monkeypatch):
+    conf = make_conf(tmp_path)
+    process = object()
+    killed = []
+    monkeypatch.setattr(config, "open_process", lambda command, engine_dir: process)
+    monkeypatch.setattr(config, "uci", lambda current: ({"name": "Stockfish"}, {"chess"}))
+    monkeypatch.setattr(config, "kill_process", lambda current: killed.append(current))
+
+    with pytest.raises(ConfigError, match="does not advertise the alice"):
+        config.validate_alice_stockfish_command("./alice-stockfish", conf)
+
+    assert killed == [process]
+
+
+def test_validate_alice_stockfish_command_applies_dedicated_options(tmp_path, monkeypatch):
+    conf = make_conf(tmp_path)
+    conf.add_section("AliceStockfish")
+    conf.set("AliceStockfish", "Alice Evaluation", "Legacy")
+    conf.set("AliceStockfish", "EvalFile", "Alice_v1.nnue")
+    process = object()
+    calls = []
+    monkeypatch.setattr(config, "open_process", lambda command, engine_dir: process)
+    monkeypatch.setattr(config, "uci", lambda current: ({"name": "Alice-Stockfish"}, {"alice"}))
+    monkeypatch.setattr(config, "setoption", lambda current, name, value: calls.append((name, value)))
+    monkeypatch.setattr(config, "isready", lambda current: calls.append(("isready", current)))
+    monkeypatch.setattr(config, "current_fen", lambda current: "alice-start-fen")
+    monkeypatch.setattr(
+        config,
+        "go",
+        lambda current, position, moves, **limits: {"bestmove": "e2e4"},
+    )
+    monkeypatch.setattr(config, "kill_process", lambda current: calls.append(("kill", current)))
+
+    assert config.validate_alice_stockfish_command("./alice-stockfish", conf) == "./alice-stockfish"
+    assert ("alice evaluation", "Legacy") in calls
+    assert ("evalfile", "Alice_v1.nnue") in calls
+    assert ("UCI_Variant", "alice") in calls
+    assert calls[-1] == ("kill", process)
+
+
+def test_validate_alice_stockfish_command_requires_working_search(tmp_path, monkeypatch):
+    conf = make_conf(tmp_path)
+    process = object()
+    killed = []
+    monkeypatch.setattr(config, "open_process", lambda command, engine_dir: process)
+    monkeypatch.setattr(config, "uci", lambda current: ({"name": "Alice-Stockfish"}, {"alice"}))
+    monkeypatch.setattr(config, "setoption", lambda current, name, value: None)
+    monkeypatch.setattr(config, "isready", lambda current: None)
+    monkeypatch.setattr(config, "current_fen", lambda current: "alice-start-fen")
+    monkeypatch.setattr(config, "go", lambda current, position, moves, **limits: {"bestmove": None})
+    monkeypatch.setattr(config, "kill_process", lambda current: killed.append(current))
+
+    with pytest.raises(ConfigError, match="search probe did not return a best move"):
+        config.validate_alice_stockfish_command("./alice-stockfish", conf)
+
+    assert killed == [process]

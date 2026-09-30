@@ -138,10 +138,11 @@ def uci(p, timeout=ENGINE_UCI_TIMEOUT):
             if len(name_and_value) == 2:
                 engine_info[name_and_value[0]] = name_and_value[1]
         elif command == "option":
-            if arg.startswith("name UCI_Variant type combo default chess"):
-                for variant in arg.split(" ")[6:]:
-                    if variant != "var":
-                        variants.add(variant)
+            tokens = arg.split()
+            prefix = ["name", "UCI_Variant", "type", "combo", "default"]
+            if tokens[:5] == prefix and len(tokens) >= 6:
+                variants.add(tokens[5])
+                variants.update(tokens[index + 1] for index, token in enumerate(tokens[:-1]) if token == "var")
         elif command == "Fairy-Stockfish" and " by " in arg:
             # Ignore identification line
             pass

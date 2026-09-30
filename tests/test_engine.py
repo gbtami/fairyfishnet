@@ -64,3 +64,23 @@ def test_current_fen_rejects_missing_fen(monkeypatch):
         assert "did not report a FEN" in str(exc)
     else:
         raise AssertionError("current_fen() accepted a response without Fen:")
+
+
+def test_uci_detects_variant_combo_with_non_chess_default(monkeypatch):
+    process = object()
+    sent = []
+    responses = iter(
+        [
+            ("id", "name Alice-Stockfish"),
+            ("option", "name UCI_Variant type combo default alice var alice"),
+            ("uciok", ""),
+        ]
+    )
+    monkeypatch.setattr(engine, "send", lambda p, line: sent.append((p, line)))
+    monkeypatch.setattr(engine, "recv_uci", lambda p, timeout=None: next(responses))
+
+    info, variants = engine.uci(process)
+
+    assert info["name"] == "Alice-Stockfish"
+    assert variants == {"alice"}
+    assert sent == [(process, "uci")]

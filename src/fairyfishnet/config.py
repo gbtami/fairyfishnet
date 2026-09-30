@@ -33,7 +33,7 @@ from .constants import (
     required_engine_variants,
 )
 from .dependencies import requests
-from .engine import kill_process, open_process, setoption, uci
+from .engine import current_fen, go, isready, kill_process, open_process, setoption, uci
 from .errors import ConfigError
 from .logging_utils import CensorLogFilter
 
@@ -42,6 +42,7 @@ def load_conf(args):
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
     conf.add_section("Stockfish")
+    conf.add_section("AliceStockfish")
 
     if not args.no_conf:
         if not args.conf and not os.path.isfile(DEFAULT_CONFIG):
@@ -57,6 +58,8 @@ def load_conf(args):
         conf.set("Fishnet", "EngineDir", args.engine_dir)
     if hasattr(args, "stockfish_command") and args.stockfish_command is not None:
         conf.set("Fishnet", "StockfishCommand", args.stockfish_command)
+    if hasattr(args, "alice_stockfish_command") and args.alice_stockfish_command is not None:
+        conf.set("Fishnet", "AliceStockfishCommand", args.alice_stockfish_command)
     if hasattr(args, "key") and args.key is not None:
         conf.set("Fishnet", "Key", args.key)
     if hasattr(args, "cores") and args.cores is not None:
@@ -118,6 +121,7 @@ def configure(args):
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
     conf.add_section("Stockfish")
+    conf.add_section("AliceStockfish")
 
     # Ensure the config file is going to be writable
     config_file = os.path.abspath(args.conf or DEFAULT_CONFIG)
@@ -155,6 +159,19 @@ def configure(args):
         conf.remove_option("Fishnet", "StockfishCommand")
     else:
         conf.set("Fishnet", "StockfishCommand", stockfish_command)
+    print(file=out)
+
+    print("Alice Chess can optionally use a dedicated Alice-Stockfish engine.", file=out)
+    print("Leave this blank to disable Alice support on this worker.", file=out)
+    alice_stockfish_command = config_input(
+        "Alice-Stockfish path or command (optional): ",
+        lambda v: validate_alice_stockfish_command(v, conf),
+        out,
+    )
+    if not alice_stockfish_command:
+        conf.remove_option("Fishnet", "AliceStockfishCommand")
+    else:
+        conf.set("Fishnet", "AliceStockfishCommand", alice_stockfish_command)
     print(file=out)
 
     # Cores
@@ -261,6 +278,51 @@ def validate_stockfish_command(stockfish_command, conf):
         if smoke_path is not None:
             try:
                 os.remove(smoke_path)
+            except OSError:
+                pass
+
+
+def validate_alice_stockfish_command(alice_stockfish_command, conf):
+    """Validate an optional dedicated Alice-Stockfish executable.
+
+    Alice support is an additive capability: an empty command means the worker
+    simply does not advertise or accept Alice jobs.
+    """
+
+    if not alice_stockfish_command or not alice_stockfish_command.strip():
+        return None
+
+    alice_stockfish_command = alice_stockfish_command.strip()
+    process = None
+    try:
+        process = open_process(alice_stockfish_command, get_engine_dir(conf))
+        _, variants = uci(process)
+        if "alice" not in variants:
+            raise ConfigError("Alice-Stockfish does not advertise the alice UCI variant")
+
+        if conf.has_section("AliceStockfish"):
+            for name, value in conf.items("AliceStockfish"):
+                setoption(process, name, value)
+        setoption(process, "UCI_Variant", "alice")
+        isready(process)
+
+        # A successful UCI handshake is not enough for Alice-Stockfish: the
+        # configured evaluator/network can still make the first search fail.
+        # Probe one shallow search so this worker only advertises Alice after
+        # proving it can actually return a move.
+        position = current_fen(process)
+        if go(process, position, [], depth=1, timeout=5.0).get("bestmove") is None:
+            raise ConfigError("Alice-Stockfish search probe did not return a best move")
+
+        return alice_stockfish_command
+    except ConfigError:
+        raise
+    except Exception as err:
+        raise ConfigError("Could not start Alice-Stockfish: %s" % err) from err
+    finally:
+        if process is not None:
+            try:
+                kill_process(process)
             except OSError:
                 pass
 

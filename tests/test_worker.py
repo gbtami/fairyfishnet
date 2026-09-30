@@ -7,12 +7,20 @@ from fairyfishnet.errors import EngineVariantConflict, VariantsIniError
 from fairyfishnet.worker import Worker
 
 
-def make_worker():
+def make_worker(alice_stockfish_command=None):
     conf = configparser.ConfigParser()
     conf.add_section("Fishnet")
+    conf.add_section("Stockfish")
+    conf.add_section("AliceStockfish")
     conf.set("Fishnet", "Key", "testkey")
     conf.set("Fishnet", "Endpoint", "https://www.pychess.org/fishnet/")
-    return Worker(conf, threads=2, memory=64, progress_reporter=None)
+    return Worker(
+        conf,
+        threads=2,
+        memory=64,
+        progress_reporter=None,
+        alice_stockfish_command=alice_stockfish_command,
+    )
 
 
 def test_make_request_contains_worker_and_engine_metadata(monkeypatch):
@@ -53,9 +61,10 @@ def test_work_routes_move(monkeypatch):
 
 def test_worker_recovers_from_dead_engine_error():
     worker = object.__new__(Worker)
-    worker.start_stockfish = lambda: (_ for _ in ()).throw(EOFError())
+    worker.start_stockfish = lambda engine_kind="fairy": (_ for _ in ()).throw(EOFError())
     worker.is_alive = lambda: False
     worker.stockfish = None
+    worker.job = None
     aborted = []
     worker.abort_job = lambda error=None: aborted.append(error)
     worker.run_inner()
@@ -64,7 +73,8 @@ def test_worker_recovers_from_dead_engine_error():
 
 def test_worker_aborts_job_when_exact_variants_payload_is_unavailable():
     worker = make_worker()
-    worker.start_stockfish = lambda: None
+    worker.start_stockfish = lambda engine_kind="fairy": None
+    worker._engine_kind_for_job = lambda job: "fairy"
     worker.work = lambda: (_ for _ in ()).throw(VariantsIniError("missing payload"))
 
     def zero_backoff():
@@ -89,6 +99,7 @@ def test_worker_aborts_job_when_exact_variants_payload_is_unavailable():
 def test_worker_restarts_engine_before_replacing_loaded_variant_rules(monkeypatch):
     worker = make_worker()
     monkeypatch.setattr(worker, "stockfish", "old-engine")
+    monkeypatch.setattr(worker, "engine_kind", "fairy")
     calls = []
 
     @contextmanager
@@ -102,9 +113,12 @@ def test_worker_restarts_engine_before_replacing_loaded_variant_rules(monkeypatc
         calls.append("kill")
         worker.stockfish = None
 
-    def start_stockfish():
-        calls.append("start")
+    def start_stockfish(engine_kind="fairy"):
+        if worker.stockfish == "old-engine" and worker.engine_kind == engine_kind:
+            return
+        calls.append(("start", engine_kind))
         monkeypatch.setattr(worker, "stockfish", "new-engine")
+        monkeypatch.setattr(worker, "engine_kind", engine_kind)
 
     monkeypatch.setattr(worker_module, "use_engine_variants", fake_use_engine_variants)
     monkeypatch.setattr(worker, "kill_stockfish", kill_stockfish)
@@ -121,6 +135,40 @@ def test_worker_restarts_engine_before_replacing_loaded_variant_rules(monkeypatc
     assert calls == [
         ("old-engine", "a" * 64, "custom"),
         "kill",
-        "start",
+        ("start", "fairy"),
         ("new-engine", "a" * 64, "custom"),
     ]
+
+
+def test_make_request_advertises_optional_alice_capability():
+    worker = make_worker("./alice-stockfish")
+    worker.stockfish_info = {"name": "Fairy-Stockfish", "options": {}}
+
+    request = worker.make_request()
+
+    assert request["fishnet"]["capabilities"] == {"variants": ["alice"]}
+
+
+def test_make_request_without_alice_engine_advertises_no_optional_variants():
+    worker = make_worker()
+    worker.stockfish_info = {"name": "Fairy-Stockfish", "options": {}}
+
+    request = worker.make_request()
+
+    assert request["fishnet"]["capabilities"] == {"variants": []}
+
+
+def test_alice_job_uses_dedicated_engine_without_variants_ini(monkeypatch):
+    worker = make_worker("./alice-stockfish")
+    starts = []
+    monkeypatch.setattr(worker, "start_stockfish", lambda kind="fairy": starts.append(kind))
+
+    def unexpected_use_engine_variants(*args, **kwargs):
+        raise AssertionError("Alice jobs must not use Fairy-Stockfish VariantPath")
+
+    monkeypatch.setattr(worker_module, "use_engine_variants", unexpected_use_engine_variants)
+
+    with worker._job_engine_variants({"variant": "alice"}) as variants_ini:
+        assert variants_ini is None
+
+    assert starts == ["alice"]
