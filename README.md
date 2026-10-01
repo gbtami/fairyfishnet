@@ -103,7 +103,7 @@ At startup fairyfishnet checks that the executable starts, advertises the `alice
 
 Each worker process still owns only one engine subprocess at a time. It switches from Fairy-Stockfish to Alice-Stockfish when it receives Alice work and back to Fairy-Stockfish for other variants, avoiding an extra idle engine process per worker.
 
-Engine lifecycle, UCI, dynamic variant, and cache invariants are documented in [ENGINES.md](ENGINES.md).
+Engine routing and optional-capability invariants are documented in [ENGINES.md](ENGINES.md).
 
 ## Development
 
