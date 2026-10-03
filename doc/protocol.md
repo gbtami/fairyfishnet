@@ -72,6 +72,7 @@ Workers may advertise optional variant-specific engine support in every acquire/
 ```
 
 The field is additive and backward-compatible. An absent `capabilities` object or an empty `variants` list means the worker has no optional variant capabilities. The server must not assign work for an optional-capability variant to a request that does not advertise that variant. It may defer such queued work while looking for compatible work for the current worker.
+These capabilities describe server-side fairyfishnet work only; they do not assert support in browser/WASM engines or other client-side execution paths.
 
 For Alice Chess, fairyfishnet advertises `alice` only after its optional Alice-Stockfish executable passes startup, UCI-variant, configured-option, and shallow-search validation. A worker without a usable Alice-Stockfish executable continues to process ordinary Fairy-Stockfish work normally.
 

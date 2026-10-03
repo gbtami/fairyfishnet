@@ -32,8 +32,15 @@ other PyChess execution path supports the same variant.
 
 ## Engine lifecycle
 
-Each `Worker` owns at most one engine subprocess at a time. The engine kind is chosen
-from the acquired job:
+Here `Worker` means the internal `fairyfishnet.worker.Worker` thread, not the whole
+fairyfishnet client that the PyChess server commonly refers to as a fishnet worker.
+A single fairyfishnet client can create multiple internal `Worker` threads according
+to its configured `Cores` and `Threads`, and therefore can run multiple engine
+subprocesses concurrently. The one-subprocess limit applies independently to each
+internal `Worker`.
+
+Each internal `Worker` owns at most one engine subprocess at a time. The engine kind
+is chosen from the acquired job:
 
 - ordinary variants -> Fairy-Stockfish;
 - `alice` -> Alice-Stockfish, when that optional engine is available.
