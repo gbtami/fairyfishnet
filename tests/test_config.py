@@ -1,4 +1,5 @@
 import configparser
+import hashlib
 
 import pytest
 
@@ -121,6 +122,147 @@ def test_start_backoff_incremental_caps(monkeypatch):
     observed = [next(values) for _ in range(int(config.MAX_BACKOFF) + 3)]
     assert observed[:3] == [0.5, 1.0, 1.5]
     assert observed[-1] == config.MAX_BACKOFF / 2
+
+
+def test_update_nnue_downloads_verified_catalogue_assets(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config, "NNUE_NET", {})
+
+    payloads = {
+        "3check": b"variant-network",
+        "nn": b"standard-chess-network",
+    }
+    entries = []
+    for network_id, payload in payloads.items():
+        digest = hashlib.sha256(payload).hexdigest()
+        filename = "%s-%s.nnue" % (network_id, digest[:12])
+        entries.append(
+            {
+                "id": network_id,
+                "file": filename,
+                "bytes": len(payload),
+                "sha256": digest,
+                "url": config.NNUE_CATALOGUE_RELEASE_PREFIX + filename,
+            }
+        )
+    manifest = {"schema": 1, "networks": entries}
+    calls = []
+    progress_bars = []
+
+    class Progress:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+            self.updates = []
+            progress_bars.append(self)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
+
+        def update(self, amount):
+            self.updates.append(amount)
+
+    class Response:
+        def __init__(self, json_data=None, content=None):
+            self.json_data = json_data
+            self.content = content
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self.json_data
+
+        def iter_content(self, chunk_size):
+            assert chunk_size == 1024 * 1024
+            yield self.content
+
+        def close(self):
+            pass
+
+    def get(url, **kwargs):
+        calls.append((url, kwargs))
+        if url == config.NNUE_CATALOGUE_MANIFEST:
+            return Response(json_data=manifest)
+        network_id = "3check" if "3check-" in url else "nn"
+        return Response(content=payloads[network_id])
+
+    monkeypatch.setattr(config.requests, "get", get)
+    monkeypatch.setattr(config, "tqdm", Progress)
+
+    config.update_nnue()
+
+    assert config.NNUE_NET == {
+        network_id: hashlib.sha256(payload).hexdigest()[:12] for network_id, payload in payloads.items()
+    }
+    assert {path.name for path in tmp_path.glob("*.nnue")} == {entry["file"] for entry in entries}
+    assert [path.read_bytes() for path in sorted(tmp_path.glob("*.nnue"))] == list(payloads.values())
+    assert calls[0] == (config.NNUE_CATALOGUE_MANIFEST, {"timeout": config.HTTP_TIMEOUT})
+    assert all(call[1] == {"timeout": config.HTTP_TIMEOUT, "stream": True} for call in calls[1:])
+    assert [progress.kwargs["total"] for progress in progress_bars] == [len(payload) for payload in payloads.values()]
+    assert [progress.updates for progress in progress_bars] == [[len(payload)] for payload in payloads.values()]
+    assert not list(tmp_path.glob(".*.nnue.*"))
+
+
+def test_update_nnue_preserves_existing_network_when_hash_verification_fails(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config, "NNUE_NET", {})
+    expected = b"good"
+    digest = hashlib.sha256(expected).hexdigest()
+    filename = "3check-%s.nnue" % digest[:12]
+    existing = tmp_path / filename
+    existing.write_bytes(b"old")
+    manifest = {
+        "schema": 1,
+        "networks": [
+            {
+                "id": "3check",
+                "file": filename,
+                "bytes": len(expected),
+                "sha256": digest,
+                "url": config.NNUE_CATALOGUE_RELEASE_PREFIX + filename,
+            },
+            {
+                "id": "nn",
+                "file": "nn-%s.nnue" % digest[:12],
+                "bytes": len(expected),
+                "sha256": digest,
+                "url": config.NNUE_CATALOGUE_RELEASE_PREFIX + "nn-%s.nnue" % digest[:12],
+            },
+        ],
+    }
+
+    class Response:
+        def __init__(self, json_data=None, content=None):
+            self.json_data = json_data
+            self.content = content
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self.json_data
+
+        def iter_content(self, chunk_size):
+            yield self.content
+
+        def close(self):
+            pass
+
+    def get(url, **kwargs):
+        if url == config.NNUE_CATALOGUE_MANIFEST:
+            return Response(json_data=manifest)
+        return Response(content=b"evil")
+
+    monkeypatch.setattr(config.requests, "get", get)
+
+    with pytest.raises(ConfigError, match="SHA-256 verification"):
+        config.update_nnue()
+
+    assert existing.read_bytes() == b"old"
+    assert not list(tmp_path.glob(".*.nnue.*"))
 
 
 def test_load_conf_ignores_legacy_variant_path(tmp_path):

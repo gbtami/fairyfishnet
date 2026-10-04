@@ -6,6 +6,7 @@
 """Configuration loading, prompting, and validation."""
 
 import configparser
+import hashlib
 import logging
 import multiprocessing
 import os
@@ -15,8 +16,7 @@ import sys
 import tempfile
 import urllib.parse as urlparse
 
-from bs4 import BeautifulSoup
-from gdown.download import download as gdown_download
+from tqdm import tqdm
 
 from .constants import (
     DEFAULT_CONFIG,
@@ -35,7 +35,13 @@ from .constants import (
 from .dependencies import requests
 from .engine import current_fen, go, isready, kill_process, open_process, setoption, uci
 from .errors import ConfigError
+from .http_utils import response_json
 from .logging_utils import CensorLogFilter
+
+NNUE_CATALOGUE_MANIFEST = "https://raw.githubusercontent.com/gbtami/Fairy-Stockfish-NNUE-Catalogue/main/manifest.json"
+NNUE_CATALOGUE_RELEASE_PREFIX = "https://github.com/gbtami/Fairy-Stockfish-NNUE-Catalogue/releases/download/networks/"
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+NNUE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
 def load_conf(args):
@@ -346,80 +352,110 @@ def parse_bool(inp, default=False):
 
 
 def update_nnue():
-    url = "https://fairy-stockfish.github.io/nnue/"
+    try:
+        manifest_response = requests.get(NNUE_CATALOGUE_MANIFEST, timeout=HTTP_TIMEOUT)
+    except requests.exceptions.RequestException as err:
+        raise ConfigError("Could not download NNUE catalogue manifest: %s" % err) from err
+    try:
+        manifest_response.raise_for_status()
+        manifest = response_json(manifest_response, "NNUE catalogue manifest")
+    except requests.exceptions.RequestException as err:
+        raise ConfigError("Could not download NNUE catalogue manifest: %s" % err) from err
+    finally:
+        manifest_response.close()
+    if not isinstance(manifest, dict) or manifest.get("schema") != 1 or not isinstance(manifest.get("networks"), list):
+        raise ConfigError("NNUE catalogue manifest has an unsupported format")
 
-    soup = BeautifulSoup(requests.get(url).text, "html.parser")
+    networks = {}
+    for entry in manifest["networks"]:
+        if not isinstance(entry, dict):
+            raise ConfigError("NNUE catalogue manifest contains an invalid network entry")
+        network_id = entry.get("id")
+        if not isinstance(network_id, str) or not NNUE_ID_RE.fullmatch(network_id):
+            raise ConfigError("NNUE catalogue manifest contains an invalid network id")
+        if network_id not in nnue_variants and network_id != "nn":
+            continue
 
-    # Example link
-    # <a href="https://drive.google.com/u/0/uc?id=1r5o5jboZRqND8picxuAbA0VXXMJM1HuS&amp;export=download" rel="nofollow">3check-313cc226a173.nnue</a>
-    for link in soup.find_all(href=re.compile("https://drive.google.com/u/0/uc")):
+        filename = entry.get("file")
+        digest = entry.get("sha256")
+        size = entry.get("bytes")
+        url = entry.get("url")
+        expected_name = "%s-%s.nnue" % (network_id, digest[:12]) if isinstance(digest, str) else None
+        if (
+            not isinstance(filename, str)
+            or not isinstance(digest, str)
+            or not SHA256_RE.fullmatch(digest)
+            or filename != expected_name
+            or not isinstance(size, int)
+            or isinstance(size, bool)
+            or size <= 0
+            or url != NNUE_CATALOGUE_RELEASE_PREFIX + filename
+        ):
+            raise ConfigError("NNUE catalogue manifest contains an invalid entry for %s" % network_id)
+        if network_id in networks:
+            raise ConfigError("NNUE catalogue manifest contains duplicate network %s" % network_id)
+        networks[network_id] = entry
+
+    if "nn" not in networks:
+        raise ConfigError("NNUE catalogue does not contain the standard chess network")
+
+    NNUE_NET.clear()
+    for variant in sorted(nnue_variants | {"nn"}):
+        entry = networks.get(variant)
+        if entry is None:
+            continue
+        eval_file = entry["file"]
+        NNUE_NET[variant] = entry["sha256"][:12]
+        if os.path.isfile(eval_file) and os.path.getsize(eval_file) == entry["bytes"]:
+            print("%s OK" % eval_file)
+            continue
+
+        print("%s downloading from catalogue" % eval_file)
         try:
-            parts = link.text.split("-")
-            variant, nnue = parts[0], parts[1]
-        except IndexError:
-            print("Link not supported!")
-            print(link)
-            continue
+            download_response = requests.get(entry["url"], timeout=HTTP_TIMEOUT, stream=True)
+        except requests.exceptions.RequestException as err:
+            raise ConfigError("Could not download NNUE network %s: %s" % (eval_file, err)) from err
+        try:
+            download_response.raise_for_status()
+        except requests.exceptions.RequestException as err:
+            download_response.close()
+            raise ConfigError("Could not download NNUE network %s: %s" % (eval_file, err)) from err
 
-        # remove .nnue suffix
-        if nnue.endswith(".nnue"):
-            nnue = nnue[:-5]
-        else:
-            continue
-
-        if variant in nnue_variants:
-            NNUE_NET[variant] = nnue
-
-            eval_file = "%s-%s.nnue" % (variant, NNUE_NET[variant])
-            if os.path.isfile(eval_file):
-                print("%s OK" % eval_file)
-            else:
-                href = link.get("href")
-                if not isinstance(href, str):
-                    raise ConfigError("Missing NNUE download URL")
-                drive_id = urlparse.parse_qs(urlparse.urlparse(href).query)["id"][0]
-                print("%s downloading drive id %s" % (eval_file, drive_id))
-                # Adding speed=2000*1024 limit to gdown() may help(?)
-                # workers running in the cloud (heroku.com or render.com)
-                gdown_download(id=drive_id, output=eval_file, quiet=False)
-
-                if not os.path.isfile(eval_file):
-                    print("Failed to download %s" % eval_file)
-                    sys.exit(0)
-
-    # Standard chess stockfish nnue
-    link = soup.find(href=re.compile("https://tests.stockfishchess.org/api/nn/"))
-    if link is None:
-        raise ConfigError("Could not find the standard chess NNUE download")
-    parts = link.text.split("-")
-    variant, nnue = parts[0], parts[1]
-    # remove .nnue suffix
-    if nnue.endswith(".nnue"):
-        nnue = nnue[:-5]
-    NNUE_NET["nn"] = nnue
-
-    eval_file = "%s-%s.nnue" % (variant, NNUE_NET[variant])
-    if os.path.isfile(eval_file):
-        print("%s OK" % eval_file)
-    else:
-        # href = link.get("href").strip("\\\"")
-        href = "https://github.com/official-stockfish/networks/raw/master/%s" % eval_file
-        print("%s downloading from %s" % (eval_file, href))
-        download = requests.get(href, headers={"User-Agent": "fairyfishnet"}, stream=True)
-        progress = 0
-        size = 46603 * 1024
-        with open(eval_file, "wb") as fd:
-            for chunk in download.iter_content(chunk_size=1024):
-                fd.write(chunk)
-                progress += len(chunk)
-                if sys.stderr.isatty():
-                    sys.stderr.write(
-                        "\rDownloading %s: %d/%d (%d%%)" % (eval_file, progress, size, progress * 100 / size)
-                    )
-                    sys.stderr.flush()
-        if not os.path.isfile(eval_file):
-            print("Failed to download %s" % eval_file)
-            sys.exit(0)
+        digest = hashlib.sha256()
+        downloaded = 0
+        temp_name = None
+        try:
+            try:
+                with tempfile.NamedTemporaryFile(dir=".", prefix=".%s." % eval_file, delete=False) as fd:
+                    temp_name = fd.name
+                    with tqdm(
+                        total=entry["bytes"],
+                        unit="B",
+                        unit_scale=True,
+                        unit_divisor=1024,
+                        desc=eval_file,
+                        disable=not sys.stderr.isatty(),
+                    ) as progress:
+                        for chunk in download_response.iter_content(chunk_size=1024 * 1024):
+                            if not chunk:
+                                continue
+                            downloaded += len(chunk)
+                            digest.update(chunk)
+                            fd.write(chunk)
+                            progress.update(len(chunk))
+            except requests.exceptions.RequestException as err:
+                raise ConfigError("Could not download NNUE network %s: %s" % (eval_file, err)) from err
+            if downloaded != entry["bytes"] or digest.hexdigest() != entry["sha256"]:
+                raise ConfigError("Downloaded NNUE network failed size or SHA-256 verification: %s" % eval_file)
+            os.replace(temp_name, eval_file)
+            temp_name = None
+        finally:
+            download_response.close()
+            if temp_name is not None:
+                try:
+                    os.unlink(temp_name)
+                except OSError:
+                    pass
 
 
 def validate_nnue():
