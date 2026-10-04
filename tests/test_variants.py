@@ -50,6 +50,11 @@ def test_sync_requires_job_hash(tmp_path):
         variants.sync_variants_ini(conf, None)
 
 
+def test_georgian_is_recognized_as_builtin_by_initial_pyffish_catalog():
+    assert "georgian" in variants.BUILTIN_VARIANTS
+    assert variants.is_builtin_variant("georgian")
+
+
 def test_builtin_variant_names_use_initial_pyffish_catalog(monkeypatch):
     monkeypatch.setattr(variants, "BUILTIN_VARIANTS", frozenset(("chess", "crazyhouse")))
     assert variants.is_builtin_variant("chess")
