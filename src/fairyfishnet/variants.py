@@ -76,7 +76,7 @@ def _atomic_write_text(path, text):
         random.getrandbits(32),
     )
     try:
-        with open(temporary, "w") as output:
+        with open(temporary, "w", encoding="utf-8", newline="") as output:
             output.write(text)
             output.flush()
             os.fsync(output.fileno())

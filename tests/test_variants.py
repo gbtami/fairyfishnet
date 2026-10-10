@@ -1,6 +1,8 @@
+import builtins
 import hashlib
 import os
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -110,10 +112,19 @@ def test_sync_uses_cached_entry_without_network(tmp_path, monkeypatch):
     assert variants.sync_variants_ini(conf, digest) == expected
 
 
-def test_sync_downloads_and_caches_exact_payload(tmp_path, monkeypatch):
+@pytest.mark.parametrize("comment", ["plain comment", "تشكيل البدء", "café"])
+def test_sync_downloads_and_caches_exact_payload_with_windows_text_defaults(tmp_path, monkeypatch, comment):
     conf = make_conf(tmp_path, Key="key", Endpoint="https://example.org/fishnet/")
-    payload = "[downloaded]\n"
+    payload = "[downloaded:chess]\n# %s\n" % comment
     digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    def windows_open(path, mode="r", **kwargs):
+        kwargs.setdefault("encoding", "cp1252")
+        if "w" in mode:
+            kwargs.setdefault("newline", "\r\n")
+        return builtins.open(path, mode, **kwargs)
+
+    monkeypatch.setattr(variants, "open", windows_open, raising=False)
 
     class Response:
         status_code = 200
@@ -129,7 +140,11 @@ def test_sync_downloads_and_caches_exact_payload(tmp_path, monkeypatch):
     monkeypatch.setattr(variants.requests, "get", lambda *args, **kwargs: Response())
     entry = variants.sync_variants_ini(conf, digest, variant="custom")
     assert entry.sha256 == digest
-    assert open(entry.path).read() == payload
+    stored = Path(entry.path).read_bytes()
+    assert stored == payload.encode("utf-8")
+    assert hashlib.sha256(stored).hexdigest() == digest
+    monkeypatch.setattr(variants.requests, "get", lambda *args, **kwargs: pytest.fail("network should not be used"))
+    assert variants.sync_variants_ini(conf, digest, variant="custom") == entry
 
 
 def test_sync_rejects_server_hash_mismatch(tmp_path, monkeypatch):

@@ -197,7 +197,7 @@ wheels = [
 
 [[package]]
 name = "fairyfishnet"
-version = "1.16.73"
+version = "1.16.74"
 source = { editable = "." }
 dependencies = [
     { name = "pyffish" },
